@@ -87,7 +87,16 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
     except Exception as e:
         console.print(f"[dim]Auto-detect models failed: {e}[/dim]")
 
-    # 3. Connectivity initialization
+    # 3. Check Cloud Ollama
+    if not cfg.get("ollama_cloud_host"):
+        if not auto and Confirm.ask("⚠️ No [bold cyan]Cloud Ollama[/bold cyan] host configured. Set one up for high-availability fallback?"):
+            host = Prompt.ask("Enter Cloud Ollama URL", default="https://your-remote-ollama.com")
+            if host:
+                cfg["ollama_cloud_host"] = host
+                save_config(cfg)
+                console.print(f"[green]✅ Cloud Ollama host saved: {host}[/green]")
+
+    # 4. Connectivity initialization
     report = {"auto": bool(auto), "results": [], "maintenance_started": False}
     provs = providers or DEFAULT_PROVIDERS
     
