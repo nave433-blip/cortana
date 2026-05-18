@@ -431,12 +431,9 @@ def connect_menu():
                 console.print(f"[green]✅ {info['display']} host saved successfully![/green]")
             return
 
-        import webbrowser
+        from core.utils import open_url
         console.print(f"\n[bold]1. Opening login page for {info['display']}:[/bold] {info['url']}")
-        try:
-            webbrowser.open(info['url'])
-        except Exception:
-            pass
+        open_url(info['url'])
             
         if Confirm.ask(f"Do you want to save your {info['display']} key now?"):
             key_val = Prompt.ask(f"Paste your {info['display']} key", password=True)

@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import subprocess
 from typing import Optional, Dict, Any
 from typing_extensions import Annotated
 
@@ -67,7 +68,7 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/p2p-scan", "/p2p-edit", "/p2p-read", "/p2p-server"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/p2p-scan", "/p2p-edit", "/p2p-read", "/p2p-server", "/optimize"
 ]
 
 # ... (omitted)
@@ -852,11 +853,11 @@ def connect_provider(provider: str, host: Optional[str] = None, key: Optional[st
         else: console.print("[yellow]No host provided; aborting.[/yellow]")
         return
     if not key:
-        import webbrowser
+        from core.utils import open_url
         urls = {"gemini": "https://aistudio.google.com/app/apikey", "openai": "https://platform.openai.com/api-keys", "anthropic": "https://console.anthropic.com/settings/keys", "grok": "https://console.x.ai/", "mistral": "https://console.mistral.ai/api-keys/", "nemotron": "https://build.nvidia.com/nvidia/nemotron-4-340b-instruct", "qwen": "https://dashscope.console.aliyun.com/apiKey", "perplexity": "https://www.perplexity.ai/settings/api", "granite": "https://cloud.ibm.com/watsonx", "gemma": "https://aistudio.google.com/app/apikey", "replit": "https://replit.com/teams/join"}
         if provider in urls:
             console.print(f"[bold cyan]Opening login page for {provider}...[/bold cyan]")
-            webbrowser.open(urls[provider])
+            open_url(urls[provider])
         key = Prompt.ask(f"Enter API key for {provider}", default="", password=True)
     if key:
         set_api_key(provider, key)
@@ -878,5 +879,33 @@ def webask(query: str, provider: Optional[str] = None):
     console.print(Panel(res["answer"], title=f"Answer ({res.get('provider')}/{res.get('model')})", border_style="cyan"))
     if res["sources"]:
         console.print(Panel("\n".join(res["sources"]), title="Sources", border_style="magenta"))
+
+@app.command()
+def optimize():
+    """Optimize JARVIS and system environment for peak performance."""
+    from core.deps import ensure_all
+    import shutil
+    
+    console.print("[bold cyan]🚀 Starting Optimization Suite...[/bold cyan]")
+    
+    # 1. Clear __pycache__
+    console.print("[dim]Cleaning Python bytecode cache...[/dim]")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    for root, dirs, files in os.walk(base_dir):
+        if "__pycache__" in dirs:
+            shutil.rmtree(os.path.join(root, "__pycache__"))
+    
+    # 2. Refresh Dependency Cache
+    console.print("[dim]Refreshing dependency status...[/dim]")
+    ensure_all(force=True)
+    
+    # 3. System Cleanup Suggestions (Info only)
+    if sys.platform == "darwin":
+        if shutil.which("brew"):
+            console.print("[dim]Note: Run 'brew upgrade' to keep system tools updated.[/dim]")
+    elif shutil.which("apt"):
+        console.print("[dim]Note: Run 'sudo apt update && sudo apt upgrade' to keep system tools updated.[/dim]")
+
+    console.print("[bold green]✅ Optimization complete![/bold green]")
 
 if __name__ == "__main__": app()

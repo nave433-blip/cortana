@@ -32,13 +32,23 @@ dependencies = [
     "dropbox",
     "google-api-python-client",
     "google-auth-oauthlib",
-    "markdown"
+    "markdown",
+    "keyring",
+    "Pillow",
+    "paramiko",
+    "psutil",
+    "duckduckgo-search",
+    "litellm",
+    "typing-extensions",
+    "botocore",
+    "boto3"
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "black"
+    "black",
+    "jsonschema"
 ]
 
 [project.urls]

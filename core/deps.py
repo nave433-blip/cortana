@@ -33,7 +33,11 @@ PYTHON_DEPS: Dict[str, str] = {
     "paramiko": "paramiko",
     "psutil": "psutil",
     "duckduckgo-search": "duckduckgo_search",
-    "markdown": "markdown"
+    "markdown": "markdown",
+    "keyring": "keyring",
+    "litellm": "litellm",
+    "botocore": "botocore",
+    "boto3": "boto3"
 }
 
 # System deps mapping (platform tool -> package name hint)
@@ -237,18 +241,26 @@ def check_system_deps(prompt_for_install: bool = False) -> Tuple[bool, Dict]:
 
     for key, val in SYSTEM_PACKAGES.items():
         found = False
+        pkgname = None
+        
         if sys.platform == "darwin":
+            pkgname = val["mac"]["pkg"]
             for p in val["mac"].get("check_paths", []):
                 if os.path.exists(p):
                     found = True
                     break
-            pkgname = val["mac"]["pkg"]
-        elif shutil.which("apt"):
+        elif pm == "apt":
             pkgname = val["debian"]["pkg"]
-        elif shutil.which("dnf"):
+            # Check if package is installed via dpkg
+            cp = subprocess.run(["dpkg", "-s", pkgname], capture_output=True, text=True)
+            if cp.returncode == 0:
+                found = True
+        elif pm in ("dnf", "yum"):
             pkgname = val["fedora"]["pkg"]
-        else:
-            pkgname = None
+            # Check if package is installed via rpm
+            cp = subprocess.run(["rpm", "-q", pkgname], capture_output=True, text=True)
+            if cp.returncode == 0:
+                found = True
 
         details[key] = {"found": found, "package": pkgname}
         if not found:
@@ -331,10 +343,19 @@ def rollback_from_cache(backup_tar: str, base_dir: Optional[str] = None) -> bool
         return False
 
 
-def ensure_all(prompt_for_system_install: bool = False, dry_run: bool = False) -> bool:
+def ensure_all(prompt_for_system_install: bool = False, dry_run: bool = False, force: bool = False) -> bool:
     """
     Run all dependency checks and attempt to self-heal.
+    Uses a cache to avoid slow checks on every startup.
     """
+    cache_file = os.path.expanduser("~/.jarvis/.deps_checked")
+    
+    # Skip check if cached and not forced (cache valid for 24h)
+    if not force and not dry_run and os.path.exists(cache_file):
+        mtime = os.path.getmtime(cache_file)
+        if (time.time() - mtime) < 86400: # 24 hours
+            return True
+
     console.print("[bold cyan]Running dependency checks...[/bold cyan]")
     p_ok, missing = check_python_deps()
     s_ok, s_details = check_system_deps(prompt_for_system_install)
@@ -362,6 +383,15 @@ def ensure_all(prompt_for_system_install: bool = False, dry_run: bool = False) -
     if not s_ok:
         console.print("[yellow]One or more system dependencies may be missing. See details above.[/yellow]")
         overall_ok = False
+
+    # Update cache if all ok
+    if overall_ok and not dry_run:
+        try:
+            os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+            with open(cache_file, "w") as f:
+                f.write(str(time.time()))
+        except Exception:
+            pass
 
     return overall_ok
 

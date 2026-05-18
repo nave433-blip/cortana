@@ -59,10 +59,11 @@ def _git(cmd: List[str], cwd: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git"] + cmd, cwd=cwd, capture_output=True, text=True)
 
 
-def apply_update(run_tests: bool = True, target_branch: str = "main") -> bool:
+def apply_update(run_tests: bool = True, target_branch: Optional[str] = None) -> bool:
     """
     Safer update procedure:
     - Ensure git present and working tree state handled (stash if needed)
+    - Detect current branch if target_branch is None
     - Create a backup tag referencing current HEAD
     - Fetch and merge (fast-forward) from origin/target_branch
     - Reinstall dependencies (pip -e .)
@@ -74,6 +75,12 @@ def apply_update(run_tests: bool = True, target_branch: str = "main") -> bool:
     if not shutil.which("git"):
         console.print("[red]git is not available on PATH. Cannot auto-update.[/red]")
         return False
+
+    # Detect branch
+    if target_branch is None:
+        cp_branch = _git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=base_dir)
+        target_branch = cp_branch.stdout.strip() or "main"
+        console.print(f"[dim]Detected active branch: {target_branch}[/dim]")
 
     # Ensure a clean working tree or stash optionally
     cp_status = _git(["status", "--porcelain"], cwd=base_dir)

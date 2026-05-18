@@ -7,6 +7,7 @@ from google.oauth2.credentials import Credentials
 from rich.console import Console
 from rich.panel import Panel
 import keyring
+from core.utils import open_url
 
 console = Console()
 
@@ -82,7 +83,15 @@ class GoogleAuth:
 
         try:
             flow = InstalledAppFlow.from_client_secrets_file(client_secrets_path, SCOPES)
-            creds = flow.run_local_server(port=0)
+            
+            # Monkeypatch webbrowser.open to use our robust open_url that prefers Chrome
+            original_open = webbrowser.open
+            webbrowser.open = open_url
+            try:
+                creds = flow.run_local_server(port=0)
+            finally:
+                webbrowser.open = original_open
+                
             return creds
         except Exception as e:
             console.print(f"[bold red]❌ Google Login Failed:[/bold red] {e}")
@@ -130,10 +139,7 @@ class GoogleAuth:
         for name, info in target_services.items():
             console.print(f"\n[bold magenta]Step: Registering for {info['display']}...[/bold magenta]")
             console.print(f"Opening: {info['url']}")
-            try:
-                webbrowser.open(info['url'])
-            except:
-                pass
+            open_url(info['url'])
             
             console.print(f"[dim]Instruction: Sign up with {email}, generate an API key, and paste it below.[/dim]")
             key = console.input(f"Paste {info['display']} API Key (or press Enter to skip): ").strip()

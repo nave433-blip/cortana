@@ -5,6 +5,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from core.config import load_config, save_config, get_env_with_config
 from core.services import get_api_key, set_api_key, validate_provider_connection, repair_ollama
+from core.utils import open_url
 
 console = Console()
 
@@ -104,10 +105,7 @@ class AuthManager:
 
         if url:
             console.print(f"Opening developer dashboard: [link={url}]{url}[/link]")
-            try:
-                webbrowser.open(url)
-            except:
-                pass
+            open_url(url)
         
         key = Prompt.ask(f"Enter API Key / Token for {display_name}", password=True)
         if key:
