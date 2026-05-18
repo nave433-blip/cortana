@@ -144,6 +144,39 @@ def unset_api_key(provider: str):
         _save_keys(keys)
     return {"ok": True, "provider": provider.lower()}
 
+def list_available_keys() -> List[str]:
+    """Return a list of providers that have an API key configured."""
+    available = []
+    
+    # Check keyring
+    for p in KNOWN_PROVIDERS:
+        try:
+            if keyring.get_password(KEYRING_SERVICE_NAME, p.lower()):
+                available.append(p)
+        except Exception:
+            pass
+            
+    # Check config
+    cfg_keys = _load_keys()
+    for p, val in cfg_keys.items():
+        if val and p not in available:
+            available.append(p)
+            
+    # Check environment (common ones)
+    env_keys = {
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "gemini": "GEMINI_API_KEY",
+        "mistral": "MISTRAL_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "groq": "GROQ_API_KEY"
+    }
+    for p, var in env_keys.items():
+        if os.getenv(var) and p not in available:
+            available.append(p)
+            
+    return sorted(list(set(available)))
+
 def _load_default_models() -> Dict[str, str]:
     cfg = load_config()
     return cfg.get(DEFAULT_MODELS_KEY, {})

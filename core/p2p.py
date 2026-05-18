@@ -78,13 +78,36 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"status": "online", "name": "JARVIS-PEER"}).encode())
             return
 
+        if action == "list_tokens":
+            from core.services import list_available_keys
+            tokens = list_available_keys()
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(tokens).encode())
+            return
+
         if not check_permission(peer_ip, action):
             self.send_response(403)
             self.end_headers()
             self.wfile.write(b"Permission denied")
             return
 
-        if action == "edit_file":
+        if action == "get_token":
+            from core.services import get_api_key
+            provider = data.get("provider")
+            key = get_api_key(provider)
+            if key:
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(key.encode())
+            else:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"Token not found")
+
+        elif action == "edit_file":
             path = data.get("path")
             content = data.get("content")
             try:
@@ -167,6 +190,53 @@ def send_remote_command(peer_ip, action, params, port=11435):
             return {"ok": False, "error": f"Remote error {r.status_code}: {r.text}"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+def p2p_token_menu():
+    """Interactive menu for discovering and requesting tokens from peers."""
+    from rich.table import Table
+    
+    console.print("[bold cyan]Subnet Token Discovery[/bold cyan]")
+    peers = scan_for_jarvis_peers()
+    
+    if not peers:
+        console.print("[yellow]No JARVIS peers found on local network.[/yellow]")
+        return
+
+    table = Table(title="Available Peer Tokens", show_header=True, header_style="bold magenta")
+    table.add_column("ID", style="dim"); table.add_column("Peer IP", style="cyan"); table.add_column("Available Tokens", style="white")
+    
+    peer_token_map = {}
+    for i, ip in enumerate(peers):
+        res = send_remote_command(ip, "list_tokens", {})
+        if res["ok"]:
+            tokens = json.loads(res["data"])
+            token_str = ", ".join(tokens) if tokens else "[dim]None[/dim]"
+            table.add_row(str(i+1), ip, token_str)
+            peer_token_map[str(i+1)] = {"ip": ip, "tokens": tokens}
+        else:
+            table.add_row(str(i+1), ip, f"[red]Error: {res['error']}[/red]")
+            
+    console.print(table)
+    
+    choice = Prompt.ask("\nEnter ID to request token (or 'b' to go back)", default="b")
+    if choice in peer_token_map:
+        peer = peer_token_map[choice]
+        if not peer["tokens"]:
+            console.print("[yellow]This peer has no tokens to share.[/yellow]")
+            return
+            
+        token_choice = Prompt.ask(f"Select token to request from {peer['ip']}", choices=peer["tokens"])
+        console.print(f"[bold yellow]Requesting {token_choice} token from {peer['ip']}...[/bold yellow]")
+        console.print("[dim]Note: The remote user must manually approve this request.[/dim]")
+        
+        res = send_remote_command(peer["ip"], "get_token", {"provider": token_choice})
+        if res["ok"]:
+            key = res["data"]
+            from core.services import set_api_key
+            set_api_key(token_choice, key)
+            console.print(f"[bold green]✅ {token_choice.upper()} token successfully received and saved locally![/bold green]")
+        else:
+            console.print(f"[red]❌ Failed to get token: {res['error']}[/red]")
 
 def start_server_background():
     t = threading.Thread(target=run_p2p_server, daemon=True)

@@ -68,7 +68,7 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/p2p-scan", "/p2p-edit", "/p2p-read", "/p2p-server", "/optimize"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/p2p-scan", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize"
 ]
 
 # ... (omitted)
@@ -284,6 +284,7 @@ def interactive():
                         p_path = args.split()[1] if args and len(args.split()) > 1 else Prompt.ask("File Path")
                         p2p_read(p_ip, p_path)
                     elif cmd == "/p2p-server": p2p_server()
+                    elif cmd == "/p2p-tokens": p2p_tokens()
                     elif cmd == "/prompts": menus.prompts_menu()
                     elif cmd == "/cloud": menus.cloud_menu()
                     elif cmd == "/connect": menus.connect_menu()
@@ -418,6 +419,18 @@ def p2p_read(peer_ip: str, path: str):
         console.print(Panel(res["data"], title=f"File: {path} (from {peer_ip})"))
     else:
         console.print(f"[red]❌ {res['error']}[/red]")
+
+@app.command()
+def p2p_server():
+    """Start the P2P server to allow remote requests."""
+    from core.p2p import run_p2p_server
+    run_p2p_server()
+
+@app.command()
+def p2p_tokens():
+    """Interactive menu for discovering and requesting tokens from peers."""
+    from core.p2p import p2p_token_menu
+    p2p_token_menu()
 
 @app.command()
 def restart():
