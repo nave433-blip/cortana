@@ -379,16 +379,22 @@ def repair_ollama(host: Optional[str] = None) -> Dict:
                 return {"fixed": True, "host": h}
         except: continue
 
-    # MacOS specific
+    # OS specific app launching
     if sys.platform == "darwin":
         os.system("open -a Ollama")
         time.sleep(5)
-        for h in candidates:
-            try:
-                if requests.get(h.rstrip("/") + "/api/tags", timeout=2).status_code == 200:
-                    cfg["ollama_host"] = h
-                    save_config(cfg)
-                    return {"fixed": True, "host": h}
-            except: continue
+    elif sys.platform == "linux":
+        # Try launching ollama via systemd or desktop entry
+        os.system("systemctl --user start ollama &")
+        os.system("ollama serve &")
+        time.sleep(5)
+    
+    for h in candidates:
+        try:
+            if requests.get(h.rstrip("/") + "/api/tags", timeout=2).status_code == 200:
+                cfg["ollama_host"] = h
+                save_config(cfg)
+                return {"fixed": True, "host": h}
+        except: continue
             
     return {"fixed": False}

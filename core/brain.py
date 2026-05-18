@@ -60,6 +60,7 @@ PERSONALITIES = {
     "mentor": "Patient mentor. Explain the 'why' and best practices.",
     "nave_ai": "NAVE-AI Integrator. Focus on multi-model refinement and technical redundancy."
 }
+import sys
 
 # -------------------------
 # Hardware & Network Utilities
@@ -68,21 +69,36 @@ def enable_gpu_offload():
     """Check for NVIDIA/Apple Silicon acceleration and enable offloading if possible."""
     try:
         if sys.platform == "darwin":
+            # Check for Apple Silicon (Metal)
             import subprocess
             res = subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True, text=True)
             if "Apple" in res.stdout:
                 console.print("[dim][green]✅ Apple Silicon detected - enabling Metal acceleration[/green][/dim]")
                 os.environ["OLLAMA_FLASH_ATTENTION"] = "1"
                 return True
-        else:
+        elif sys.platform == "linux":
+            # Check for NVIDIA
             import subprocess
-            result = subprocess.run(["nvidia-smi"], capture_output=True, text=True, timeout=3)
-            if "NVIDIA" in result.stdout:
-                console.print("[dim][green]✅ NVIDIA GPU detected - enabling layer offloading[/green][/dim]")
-                os.environ["OLLAMA_NUM_GPU_LAYERS"] = "999"
-                os.environ["OLLAMA_FLASH_ATTENTION"] = "1"
-                return True
-    except: pass
+            try:
+                result = subprocess.run(["nvidia-smi"], capture_output=True, text=True, timeout=3)
+                if "NVIDIA" in result.stdout:
+                    console.print("[dim][green]✅ NVIDIA GPU detected - enabling layer offloading[/green][/dim]")
+                    os.environ["OLLAMA_NUM_GPU_LAYERS"] = "999"
+                    os.environ["OLLAMA_FLASH_ATTENTION"] = "1"
+                    return True
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                pass
+
+            # Check for AMD (ROCm)
+            try:
+                result = subprocess.run(["rocminfo"], capture_output=True, text=True, timeout=3)
+                if "AMDGPU" in result.stdout:
+                    console.print("[dim][green]✅ AMD GPU detected - enabling ROCm acceleration[/green][/dim]")
+                    return True
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                pass
+    except Exception:
+        pass
     return False
 
 # -------------------------

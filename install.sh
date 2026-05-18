@@ -1,34 +1,39 @@
 #!/bin/bash
 
 # JARVIS: Global Installer
-# Target: macOS
+# Target: macOS & Linux
 
 set -e
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
 NC='\033[0m'
 
-echo -e "${BLUE}🚀 Starting JARVIS Global Installation...${NC}"
+OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]')
+
+echo -e "${BLUE}🚀 Starting JARVIS Global Installation for ${OS_TYPE}...${NC}"
 
 # 1. Dependency Check
-echo -e "${BLUE}🔍 Skipping dependency check (manually verified)...${NC}"
-
-# if ! command -v brew &> /dev/null; then
-#     echo -e "${RED}❌ Homebrew is not installed. Please install it from https://brew.sh/${NC}"
-#     exit 1
-# fi
-
-# if ! command -v portaudio &> /dev/null && ! brew list portaudio &> /dev/null; then
-#     echo -e "${BLUE}📦 Installing portaudio (required for voice)...${NC}"
-#     brew install portaudio
-# fi
-
-# if ! command -v ollama &> /dev/null; then
-#     echo -e "${YELLOW}⚠️ Ollama not found. JARVIS recommends Ollama for local LLM support.${NC}"
-#     echo -e "Install it from https://ollama.com/"
-# fi
+if [[ "$OS_TYPE" == "linux" ]]; then
+    echo -e "${BLUE}🔍 Checking Linux dependencies...${NC}"
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update -y
+        sudo apt-get install -y python3-venv python3-pip portaudio19-dev libffi-dev libssl-dev
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y python3-devel portaudio-devel libffi-devel openssl-devel
+    fi
+elif [[ "$OS_TYPE" == "darwin" ]]; then
+    if ! command -v brew &> /dev/null; then
+        echo -e "${YELLOW}⚠️ Homebrew not found. Some voice/audio features may require manual setup.${NC}"
+    else
+        if ! brew list portaudio &> /dev/null; then
+            echo -e "${BLUE}📦 Installing portaudio...${NC}"
+            brew install portaudio
+        fi
+    fi
+fi
 
 # 2. Directory Setup
 INSTALL_DIR="$HOME/.jarvis-app"
@@ -49,7 +54,9 @@ cd "$INSTALL_DIR"
 
 # 4. Virtual Environment & Install
 echo -e "${BLUE}🐍 Creating virtual environment...${NC}"
-python3.12 -m venv venv
+# Use python3.12 if available, fallback to python3
+PYTHON_BIN=$(command -v python3.12 || command -v python3)
+$PYTHON_BIN -m venv venv
 source venv/bin/activate
 
 echo -e "${BLUE}📦 Installing JARVIS and dependencies...${NC}"
@@ -63,8 +70,9 @@ BIN_PATH="/usr/local/bin/jarvis"
 # Create a small wrapper script for the global command
 cat <<EOF > jarvis-wrapper
 #!/bin/bash
-source $INSTALL_DIR/venv/bin/activate
-exec $INSTALL_DIR/venv/bin/jarvis "\$@"
+export JARVIS_ROOT="$INSTALL_DIR"
+source \$JARVIS_ROOT/venv/bin/activate
+exec python \$JARVIS_ROOT/cli.py "\$@"
 EOF
 
 chmod +x jarvis-wrapper
@@ -82,9 +90,3 @@ fi
 # 6. Final Setup
 echo -e "${GREEN}✨ JARVIS is now installed globally!${NC}"
 echo -e "Try typing '${BLUE}jarvis${NC}' in your terminal."
-
-# Run setup wizard if config doesn't exist
-if [ ! -f "$HOME/.jarvis/config.json" ]; then
-    echo -e "${BLUE}🤖 Starting setup wizard...${NC}"
-    jarvis setup
-fi
