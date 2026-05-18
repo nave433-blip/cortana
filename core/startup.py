@@ -96,11 +96,20 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
                 save_config(cfg)
                 console.print(f"[green]✅ Cloud Ollama host saved: {host}[/green]")
 
-    # 4. Connectivity initialization
+    # 3. Connectivity initialization
     report = {"auto": bool(auto), "results": [], "maintenance_started": False}
     provs = providers or DEFAULT_PROVIDERS
-    
+
+    # Start P2P Server in background
+    try:
+        from core.p2p import start_server_background
+        start_server_background()
+        console.print("[dim][green]✓ P2P Server Online[/green][/dim]")
+    except Exception as e:
+        console.print(f"[dim][red]! P2P Server failed: {e}[/red][/dim]")
+
     console.print(Panel(f"JARVIS System Initialization: Verifying connectivity to {len(provs)} providers...", title="Startup", border_style="cyan"))
+
     
     for p in provs:
         res = check_provider(p, auto=auto)

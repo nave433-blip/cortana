@@ -67,7 +67,7 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/p2p-scan", "/p2p-edit", "/p2p-read", "/p2p-server"
 ]
 
 # ... (omitted)
@@ -272,6 +272,17 @@ def interactive():
                     elif cmd == "/models": menus.models_menu()
                     elif cmd == "/multibrain": multibrain(args or Prompt.ask("Task for multi-brain reasoning"))
                     elif cmd == "/scan-ollama": scan_ollama()
+                    elif cmd == "/p2p-scan": p2p_scan()
+                    elif cmd == "/p2p-edit":
+                        p_ip = args.split()[0] if args else Prompt.ask("Peer IP")
+                        p_path = args.split()[1] if args and len(args.split()) > 1 else Prompt.ask("File Path")
+                        p_content = " ".join(args.split()[2:]) if args and len(args.split()) > 2 else Prompt.ask("Content")
+                        p2p_edit(p_ip, p_path, p_content)
+                    elif cmd == "/p2p-read":
+                        p_ip = args.split()[0] if args else Prompt.ask("Peer IP")
+                        p_path = args.split()[1] if args and len(args.split()) > 1 else Prompt.ask("File Path")
+                        p2p_read(p_ip, p_path)
+                    elif cmd == "/p2p-server": p2p_server()
                     elif cmd == "/prompts": menus.prompts_menu()
                     elif cmd == "/cloud": menus.cloud_menu()
                     elif cmd == "/connect": menus.connect_menu()
@@ -373,6 +384,39 @@ def main(ctx: typer.Context):
 
 @app.command()
 def setup(): setup_wizard()
+
+@app.command()
+def p2p_scan():
+    """Scan local network for other JARVIS instances."""
+    from core.p2p import scan_for_jarvis_peers
+    console.print("[cyan]Searching for JARVIS peers on local network...[/cyan]")
+    peers = scan_for_jarvis_peers()
+    if not peers:
+        console.print("[yellow]No other JARVIS instances found.[/yellow]")
+    else:
+        console.print(f"[green]Found JARVIS peers at: {', '.join(peers)}[/green]")
+
+@app.command()
+def p2p_edit(peer_ip: str, path: str, content: str):
+    """Request to edit a file on a remote JARVIS instance."""
+    from core.p2p import send_remote_command
+    console.print(f"[cyan]Requesting to edit '{path}' on {peer_ip}...[/cyan]")
+    res = send_remote_command(peer_ip, "edit_file", {"path": path, "content": content})
+    if res["ok"]:
+        console.print(f"[green]✅ {res['data']}[/green]")
+    else:
+        console.print(f"[red]❌ {res['error']}[/red]")
+
+@app.command()
+def p2p_read(peer_ip: str, path: str):
+    """Request to read a file from a remote JARVIS instance."""
+    from core.p2p import send_remote_command
+    console.print(f"[cyan]Requesting to read '{path}' from {peer_ip}...[/cyan]")
+    res = send_remote_command(peer_ip, "read_file", {"path": path})
+    if res["ok"]:
+        console.print(Panel(res["data"], title=f"File: {path} (from {peer_ip})"))
+    else:
+        console.print(f"[red]❌ {res['error']}[/red]")
 
 @app.command()
 def restart():
