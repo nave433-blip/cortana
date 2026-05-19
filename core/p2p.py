@@ -80,12 +80,29 @@ def check_permission(peer_ip, action):
 class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         peer_ip = self.client_address[0]
-        content_length = int(self.headers['Content-Length'])
+        content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
         data = json.loads(post_data)
 
         action = data.get("action")
-        sender_version = data.get("version", "0.1.0") # Default to old version if missing
+        sender_version = data.get("version", "0.1.0")
+
+        # Basic WAN restriction: Only Local or Auth-Token allowed
+        is_local = peer_ip.startswith(("192.168.", "10.", "172.16.", "127.0.0.1"))
+        auth_token = self.headers.get('X-JARVIS-Auth')
+
+        if not is_local:
+            if action not in ["think", "status"]:
+                self.send_response(403)
+                self.end_headers()
+                self.wfile.write(b"Forbidden: WAN access restricted.")
+                return
+            # For WAN, check for a simple token (placeholder)
+            if auth_token != "jarvis-global-secret":
+                self.send_response(401)
+                self.end_headers()
+                self.wfile.write(b"Unauthorized: Invalid Token.")
+                return
 
         # Version compatibility check
         if not is_p2p_compatible(sender_version, action):
@@ -93,9 +110,10 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(f"Incompatible Version: Peer is running {sender_version}, but {action} requires a newer build.".encode())
             return
-        
+
         if action == "status":
-            from core.update import CURRENT_VERSION
+    # ... (rest of the do_POST logic)
+
             from core.config import load_config
             from core.resource_manager import resource_manager
             cfg = load_config()
@@ -220,13 +238,14 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 
 def scan_for_jarvis_peers(port=11435):
-    """Scan the local subnet for other JARVIS instances."""
+    """Scan the local subnet AND global registry for other JARVIS instances."""
     from tools.network import get_local_ip
     local_ip = get_local_ip()
     prefix = ".".join(local_ip.split(".")[:-1]) + "."
     
     found_peers = []
     
+    # 1. Local Network Scan
     def check_peer(ip):
         try:
             r = requests.post(f"http://{ip}:{port}", json={"action": "status"}, timeout=0.5)
@@ -241,6 +260,15 @@ def scan_for_jarvis_peers(port=11435):
         for res in results:
             if res:
                 found_peers.append(res)
+                
+    # 2. Global Registry Scan
+    from core.global_p2p import get_global_peers
+    global_peers = get_global_peers()
+    for peer in global_peers:
+        # Peer data likely contains "endpoint" (url:port)
+        endpoint = peer.get("endpoint")
+        if endpoint and endpoint not in found_peers:
+            found_peers.append(endpoint)
     
     return found_peers
 

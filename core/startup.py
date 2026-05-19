@@ -139,6 +139,12 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
         try:
             from core.p2p import start_server_background
             start_server_background()
+            
+            # Register for global P2P if enabled
+            if cfg.get("global_p2p_enabled"):
+                from core.global_p2p import register_node
+                register_node()
+                
             console.print("[dim][green]✓ P2P Server Online[/green][/dim]")
         except Exception as e:
             console.print(f"[dim][red]! P2P Server failed: {e}[/red][/dim]")

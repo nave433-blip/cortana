@@ -1,9 +1,18 @@
 import subprocess
 import sys
+import uuid
+import hashlib
+import platform
 from rich.console import Console
 from rich.table import Table
 
 console = Console()
+
+def get_node_id():
+    """Generates a permanent, unique node identifier."""
+    # Combine hardware attributes
+    hw_data = f"{platform.node()}-{uuid.getnode()}-{platform.platform()}"
+    return hashlib.sha256(hw_data.encode()).hexdigest()[:16]
 
 def list_usb_devices():
     """List all USB devices currently connected to the computer."""
