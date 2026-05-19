@@ -288,13 +288,26 @@ def scan_for_jarvis_peers(port=11435):
     return found_peers
 
 def send_remote_command(peer_ip, action, params, port=11435):
-    """Send a command to a remote JARVIS instance."""
+    """Send a command to a remote JARVIS instance using packetized transmission."""
     from core.update import CURRENT_VERSION
+    from core.packet_manager import create_packets
+
     url = f"http://{peer_ip}:{port}"
-    data = {"action": action, "version": CURRENT_VERSION, **params}
+
+    # Packetize the action payload
+    payload_str = json.dumps(params)
+    packets = create_packets(payload_str)
+
+    data = {
+        "action": action,
+        "version": CURRENT_VERSION,
+        "packets": packets
+    }
+
     try:
         r = requests.post(url, json=data, timeout=30)
-        if r.status_code == 200:
+        # ... (rest of the handling)
+
             return {"ok": True, "data": r.text}
         elif r.status_code == 403:
             return {"ok": False, "error": "Permission denied by remote JARVIS."}

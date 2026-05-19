@@ -17,7 +17,13 @@ def _interactive_connect(provider: str) -> Dict[str, Any]:
         "groq": "Get a free API key at https://groq.com",
         "together": "Get a free API key at https://together.ai",
         "deepseek": "Get an API key at https://platform.deepseek.com",
-        "qwen": "Get an API key at https://dashscope.console.aliyun.com"
+        "qwen": "Get an API key at https://dashscope.console.aliyun.com",
+        "anthropic": "Get an API key at https://console.anthropic.com",
+        "mistral": "Get an API key at https://console.mistral.ai",
+        "kimi": "Get an API key at https://platform.moonshot.cn",
+        "perplexity": "Get an API key at https://www.perplexity.ai/settings/api",
+        "granite": "Get an API key at https://www.ibm.com/granite",
+        "nemotron": "Get an API key at https://build.nvidia.com"
     }
     try:
         if provider == "ollama":
