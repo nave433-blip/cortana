@@ -395,5 +395,27 @@ def think(context: str, task: str, model: Optional[str] = None, prompt_name: Opt
 def get_provider(model_override=None, task_hint=None):
     return OllamaProvider(model=model_override)
 
-def _get_provider_name_from_obj(provider_obj) -> str:
-    return "ollama"
+def distribute_task(task: str) -> str:
+    from core.torrent_balancer import chunk_task, aggregate_results
+    from core.p2p import scan_for_jarvis_peers, send_remote_command
+    
+    peers = scan_for_jarvis_peers()
+    if not peers:
+        # Fallback to local
+        return think(context="Local Fallback", task=task)
+        
+    chunks = chunk_task(task, num_chunks=len(peers) + 1)
+    results = []
+    
+    # Send chunks to peers
+    for i, peer in enumerate(peers):
+        if i >= len(chunks) - 1: break
+        res = send_remote_command(peer, "execute_chunk", {"task": chunks[i]})
+        if res.get("ok"):
+            data = json.loads(res.get("data", "{}"))
+            results.append(data.get("text", ""))
+            
+    # Process remaining chunk locally
+    results.append(think(context="Local Chunk", task=chunks[-1]))
+    
+    return aggregate_results(results)

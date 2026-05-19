@@ -199,6 +199,21 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Handoff rejected by user.")
 
+        elif action == "execute_chunk":
+            from core.brain import think_structured
+            chunk_task = data.get("task")
+            # Execute on this node
+            res = think_structured("P2P Swarm Chunk", chunk_task)
+            if res.get("ok"):
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"text": res.get("text")}).encode())
+            else:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(b"Chunk processing failed.")
+        
         elif action == "think":
             from core.resource_manager import resource_manager
             health = resource_manager.check_hive_health()
