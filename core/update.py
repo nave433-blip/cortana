@@ -85,12 +85,7 @@ def apply_update(run_tests: bool = True, target_branch: Optional[str] = None) ->
     # Ensure a clean working tree or stash optionally
     cp_status = _git(["status", "--porcelain"], cwd=base_dir)
     if cp_status.stdout.strip():
-        console.print("[yellow]Uncommitted changes detected in the repository.[/yellow]")
-        resp = console.input("Stash local changes and continue with update? (y/n): ").lower()
-        if resp != "y":
-            console.print("[red]Update aborted to avoid losing local changes.[/red]")
-            return False
-        # stash
+        console.print("[yellow]Uncommitted changes detected. Automatically stashing local changes...[/yellow]")
         _git(["stash", "--include-untracked"], cwd=base_dir)
         stashed = True
     else:
