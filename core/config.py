@@ -20,7 +20,7 @@ DEFAULT_CONFIG = {
     "provider": "ollama",
     "ollama_host": "http://localhost:11434",
     "ollama_hosts": ["http://localhost:11434"],
-    "ollama_cloud_host": "",
+    "ollama_cloud_host": "https://ollama.com/api",
     "ollama_token": "", # Added for account connectivity
     "lm_studio_host": "http://localhost:1234",
     "llama_cpp_host": "http://localhost:8080",
@@ -144,7 +144,13 @@ def quick_setup():
         console.print("[yellow]⚠️ No local Ollama found. Defaulting to Gemini Cloud (requires key).[/yellow]")
         config["provider"] = "gemini"
     
-    # 2. Set defaults for everything else
+    # 2. Cloud Configuration
+    if os.getenv("OLLAMA_TOKEN"):
+        config["ollama_token"] = os.getenv("OLLAMA_TOKEN")
+        config["ollama_cloud_host"] = "https://ollama.com/api"
+        console.print("[green]✅ Ollama Cloud auto-configured via OLLAMA_TOKEN environment variable.[/green]")
+
+    # 3. Set defaults for everything else
     config["self_repair"] = True
     config["model_mode"] = "auto-mixed"
     

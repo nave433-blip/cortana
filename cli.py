@@ -722,9 +722,16 @@ def models_command(name: Optional[str] = None):
         if name in ai_tools:
             launch(tool=name)
             return
+        
+        # Support for -cloud suffix logic
         config["jarvis_model"] = name
         save_config(config)
-        console.print(f"[green]✅ Model switched to: {name}[/green]")
+        
+        if name.endswith("-cloud"):
+            console.print(f"[green]✅ Model switched to Cloud: {name}[/green]")
+            console.print("[dim]Requests will be routed to https://ollama.com/api with your bearer token.[/dim]")
+        else:
+            console.print(f"[green]✅ Model switched to: {name}[/green]")
         return
 
     # Generate Status Table
