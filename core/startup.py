@@ -104,8 +104,8 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
             
         if not auto and Confirm.ask(prompt_text):
             from core.utils import open_url
-            console.print("[dim]Opening Ollama login page...[/dim]")
-            open_url("https://ollama.com/login")
+            console.print("[dim]Opening Ollama website. Please log in and find your API token in your account settings/dashboard.[/dim]")
+            open_url("https://ollama.com")
             token = Prompt.ask("Enter your Ollama account token", password=True)
             if token:
                 cfg["ollama_token"] = token

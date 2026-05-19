@@ -423,9 +423,9 @@ def ollama_login():
     from core.config import load_config, save_config
     
     console.print("[bold cyan]Ollama Cloud Login[/bold cyan]")
-    console.print("Opening Ollama login page in your browser...")
-    open_url("https://ollama.com/login")
-    
+    console.print("Opening Ollama website. Please log in and find your API token in your account settings/dashboard.")
+    open_url("https://ollama.com")
+
     token = Prompt.ask("Enter your Ollama account token", password=True)
     if token:
         cfg = load_config()
