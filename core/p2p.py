@@ -6,8 +6,23 @@ import threading
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 from pathlib import Path
+from core.update import CURRENT_VERSION
 
 console = Console()
+
+# P2P Protocol versioning and feature compatibility map
+P2P_VERSION = CURRENT_VERSION
+P2P_FEATURES = {
+    "0.1.7": ["status", "edit_file", "read_file"],
+    "0.2.6": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think"]
+}
+
+def is_p2p_compatible(remote_version: str, action: str = "status") -> bool:
+    """Check if the remote JARVIS version supports the requested action."""
+    # Simple semantic versioning or feature-based check
+    supported_features = P2P_FEATURES.get(remote_version, P2P_FEATURES["0.1.7"])
+    if action == "status": return True # Status is always allowed for discovery
+    return action in supported_features
 
 PERMISSION_FILE = Path(os.path.expanduser("~/.jarvis/permissions.json"))
 
@@ -70,6 +85,14 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
         data = json.loads(post_data)
 
         action = data.get("action")
+        sender_version = data.get("version", "0.1.0") # Default to old version if missing
+
+        # Version compatibility check
+        if not is_p2p_compatible(sender_version, action):
+            self.send_response(426) # Upgrade Required
+            self.end_headers()
+            self.wfile.write(f"Incompatible Version: Peer is running {sender_version}, but {action} requires a newer build.".encode())
+            return
         
         if action == "status":
             from core.update import CURRENT_VERSION
@@ -192,14 +215,17 @@ def scan_for_jarvis_peers(port=11435):
 
 def send_remote_command(peer_ip, action, params, port=11435):
     """Send a command to a remote JARVIS instance."""
+    from core.update import CURRENT_VERSION
     url = f"http://{peer_ip}:{port}"
-    data = {"action": action, **params}
+    data = {"action": action, "version": CURRENT_VERSION, **params}
     try:
         r = requests.post(url, json=data, timeout=30)
         if r.status_code == 200:
             return {"ok": True, "data": r.text}
         elif r.status_code == 403:
             return {"ok": False, "error": "Permission denied by remote JARVIS."}
+        elif r.status_code == 426:
+            return {"ok": False, "error": f"Version Mismatch: {r.text}"}
         else:
             return {"ok": False, "error": f"Remote error {r.status_code}: {r.text}"}
     except Exception as e:
@@ -214,6 +240,7 @@ def p2p_status_report():
     table.add_column("Peer IP", style="cyan")
     table.add_column("Name", style="white")
     table.add_column("Version", style="dim")
+    table.add_column("Compatibility", justify="center")
     table.add_column("Active Model", style="magenta")
     table.add_column("Latency", justify="right")
     
@@ -245,10 +272,18 @@ def p2p_status_report():
                     models_str = ", ".join(data.get("local_models", []))
                     if not models_str: models_str = "None"
                     
+                    remote_ver = data.get("version", "0.1.0")
+                    # Check compatibility for a basic action like 'read_file' to gauge sync ability
+                    sync_ok = is_p2p_compatible(remote_ver, "read_file")
+                    compat_str = "[green]✓ FULL SYNC[/green]" if sync_ok else "[yellow]⚠ LEGACY[/yellow]"
+                    if remote_ver == CURRENT_VERSION:
+                        compat_str = "[bold green]✓ MATCH[/bold green]"
+
                     table.add_row(
                         ip, 
                         data.get("name", "Unknown"), 
-                        data.get("version", "???"), 
+                        remote_ver, 
+                        compat_str,
                         f"{data.get('model', '???')} (Models: {models_str})", 
                         lat
                     )
