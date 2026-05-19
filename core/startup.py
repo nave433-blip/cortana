@@ -87,9 +87,22 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
     except Exception as e:
         console.print(f"[dim]Auto-detect models failed: {e}[/dim]")
 
+    # 2.5 Hardware check
+    try:
+        from tools.hardware import check_system_specs
+        specs = check_system_specs()
+        if specs.get("is_low_end"):
+            console.print(Panel(f"Detected RAM: {specs.get('ram_gb', 'Unknown')}GB | GPU: {'Yes' if specs.get('has_gpu') else 'No'}", title="Low-End Hardware Detected", border_style="yellow"))
+    except Exception:
+        specs = {}
+
     # 3. Check Cloud Ollama
     if not cfg.get("ollama_token"):
-        if not auto and Confirm.ask("⚠️ [bold cyan]Ollama Cloud[/bold cyan] is not configured. Sign in to your account to enable cloud models?"):
+        prompt_text = "⚠️ [bold cyan]Ollama Cloud[/bold cyan] is not configured. Sign in to your account to enable cloud models?"
+        if specs.get("is_low_end"):
+            prompt_text = "⚠️ [yellow]Low-end hardware detected.[/yellow] Sign in to [bold cyan]Ollama Cloud[/bold cyan] for better performance?"
+            
+        if not auto and Confirm.ask(prompt_text):
             from core.utils import open_url
             console.print("[dim]Opening Ollama login page...[/dim]")
             open_url("https://ollama.com/login")
@@ -108,6 +121,9 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
     if not cfg.get("p2p_enabled"):
         if not auto and Confirm.ask("⚠️ [bold cyan]P2P Features[/bold cyan] (Local Network Peer-to-Peer) are not configured. Enable them now?"):
             cfg["p2p_enabled"] = True
+            cfg["p2p_share_keys"] = Confirm.ask("Do you want to enable sharing API keys across P2P?")
+            cfg["p2p_share_fs"] = Confirm.ask("Do you want to enable file system edits via P2P?")
+            cfg["p2p_share_tokens"] = Confirm.ask("Do you want to enable sharing login tokens across P2P?")
             save_config(cfg)
             console.print("[green]✅ P2P Features enabled.[/green]")
         else:

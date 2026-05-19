@@ -14,7 +14,7 @@ console = Console()
 P2P_VERSION = CURRENT_VERSION
 P2P_FEATURES = {
     "0.1.7": ["status", "edit_file", "read_file"],
-    "0.2.6": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think"]
+    "0.2.6": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think", "handoff"]
 }
 
 def is_p2p_compatible(remote_version: str, action: str = "status") -> bool:
@@ -149,6 +149,37 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
                 self.wfile.write(b"Token not found")
+
+        elif action == "handoff":
+            console.print(f"\n[bold magenta]🚀 INCOMING HANDOFF REQUEST FROM {peer_ip}[/bold magenta]")
+            payload = data.get("payload", {})
+            keys = payload.get("keys", {})
+            fs_edits = payload.get("fs_edits", [])
+            
+            console.print(f"They want to share: [cyan]{len(keys)} API Keys/Tokens[/cyan], [green]{len(fs_edits)} File Edits[/green]")
+            if Confirm.ask("Do you want to review and accept this handoff?"):
+                # Process Keys
+                if keys:
+                    from core.services import set_api_key
+                    for provider, key in keys.items():
+                        if Confirm.ask(f"Accept key for [bold cyan]{provider}[/bold cyan]?"):
+                            set_api_key(provider, key)
+                            console.print(f"[green]✅ Saved key for {provider}[/green]")
+                
+                # Process FS Edits (mock implementation for phase 2)
+                if fs_edits:
+                    for edit in fs_edits:
+                        console.print(f"Incoming edit for: [bold]{edit.get('path')}[/bold]")
+                        # File saving logic goes here if approved.
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "message": "Handoff accepted"}).encode())
+            else:
+                self.send_response(403)
+                self.end_headers()
+                self.wfile.write(b"Handoff rejected by user.")
 
         elif action == "think":
             from core.resource_manager import resource_manager
