@@ -68,7 +68,7 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize", "/ollama", "/refine"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize", "/ollama", "/refine", "/stress-test"
 ]
 
 # ... (omitted)
@@ -279,6 +279,10 @@ def interactive():
                         test = " ".join(args.split()[1:]) if len(args.split()) > 1 else Prompt.ask("Test command")
                         from core.refinement import refine_loop
                         refine_loop(target, test)
+                    elif cmd == "/stress-test":
+                        from core.validator import Validator
+                        v = Validator()
+                        v.run_tests()
                     elif cmd == "/ollama-login": ollama_login()
                     elif cmd == "/p2p-scan": p2p_scan()
                     elif cmd == "/p2p-status": p2p_status()
