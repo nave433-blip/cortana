@@ -72,10 +72,20 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
         action = data.get("action")
         
         if action == "status":
+            from core.update import CURRENT_VERSION
+            from core.config import load_config
+            cfg = load_config()
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"status": "online", "name": "JARVIS-PEER"}).encode())
+            status_data = {
+                "status": "online",
+                "name": cfg.get("jarvis_name", "JARVIS-PEER"),
+                "version": CURRENT_VERSION,
+                "model": cfg.get("jarvis_model", "unknown"),
+                "p2p_enabled": cfg.get("p2p_enabled", True)
+            }
+            self.wfile.write(json.dumps(status_data).encode())
             return
 
         if action == "list_tokens":
@@ -190,6 +200,54 @@ def send_remote_command(peer_ip, action, params, port=11435):
             return {"ok": False, "error": f"Remote error {r.status_code}: {r.text}"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+def p2p_status_report():
+    """Scan and display a detailed report of all JARVIS peers on the network."""
+    from rich.table import Table
+    from rich.live import Live
+    
+    table = Table(title="JARVIS P2P Swarm Status", border_style="cyan")
+    table.add_column("Peer IP", style="cyan")
+    table.add_column("Name", style="white")
+    table.add_column("Version", style="dim")
+    table.add_column("Active Model", style="magenta")
+    table.add_column("Latency", justify="right")
+    
+    console.print("[bold cyan]📡 Pinging JARVIS instances on local subnet...[/bold cyan]")
+    
+    with Live(table, refresh_per_second=4):
+        from tools.network import get_local_ip
+        local_ip = get_local_ip()
+        prefix = ".".join(local_ip.split(".")[:-1]) + "."
+        port = 11435
+        
+        def ping_peer(ip):
+            start = time.time()
+            try:
+                r = requests.post(f"http://{ip}:{port}", json={"action": "status"}, timeout=0.8)
+                latency = f"{(time.time() - start)*1000:.1f}ms"
+                if r.status_code == 200:
+                    return ip, r.json(), latency
+            except:
+                pass
+            return None
+
+        with ThreadPoolExecutor(max_workers=50) as executor:
+            futures = [executor.submit(ping_peer, prefix + str(i)) for i in range(1, 255)]
+            for future in futures:
+                res = future.result()
+                if res:
+                    ip, data, lat = res
+                    table.add_row(
+                        ip, 
+                        data.get("name", "Unknown"), 
+                        data.get("version", "???"), 
+                        data.get("model", "???"), 
+                        lat
+                    )
+
+    if table.row_count == 0:
+        console.print("[yellow]No other JARVIS instances detected.[/yellow]")
 
 def p2p_token_menu():
     """Interactive menu for discovering and requesting tokens from peers."""

@@ -68,7 +68,7 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/p2p-scan", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize"
 ]
 
 # ... (omitted)
@@ -274,7 +274,9 @@ def interactive():
                     elif cmd == "/multibrain": multibrain(args or Prompt.ask("Task for multi-brain reasoning"))
                     elif cmd == "/scan-ollama": scan_ollama()
                     elif cmd == "/p2p-scan": p2p_scan()
-                    elif cmd == "/p2p-edit":
+                    elif cmd == "/p2p-status": p2p_status()
+                    elif cmd == "/p2p-read":
+
                         p_ip = args.split()[0] if args else Prompt.ask("Peer IP")
                         p_path = args.split()[1] if args and len(args.split()) > 1 else Prompt.ask("File Path")
                         p_content = " ".join(args.split()[2:]) if args and len(args.split()) > 2 else Prompt.ask("Content")
@@ -397,6 +399,12 @@ def p2p_scan():
         console.print("[yellow]No other JARVIS instances found.[/yellow]")
     else:
         console.print(f"[green]Found JARVIS peers at: {', '.join(peers)}[/green]")
+
+@app.command()
+def p2p_status():
+    """Scan and display a detailed report of all JARVIS peers on the network."""
+    from core.p2p import p2p_status_report
+    p2p_status_report()
 
 @app.command()
 def p2p_edit(peer_ip: str, path: str, content: str):
