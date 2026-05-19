@@ -110,14 +110,13 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
     except Exception as e:
         console.print(f"[dim]Auto-detect models failed: {e}[/dim]")
 
-    # 2.5 Hardware check
+    # 4. Proactive Agent Ecosystem Setup
     try:
-        from tools.hardware import check_system_specs
-        specs = check_system_specs()
-        if specs.get("is_low_end"):
-            console.print(Panel(f"Detected RAM: {specs.get('ram_gb', 'Unknown')}GB | GPU: {'Yes' if specs.get('has_gpu') else 'No'}", title="Low-End Hardware Detected", border_style="yellow"))
-    except Exception:
-        specs = {}
+        console.print("[dim]Checking AI Agent ecosystem...[/dim]")
+        from core.agent_manager import check_and_install_agents
+        check_and_install_agents()
+    except Exception as e:
+        console.print(f"[dim]Auto-detect agents failed: {e}[/dim]")
 
     # 3. Check Cloud Ollama
     if not cfg.get("ollama_token"):
