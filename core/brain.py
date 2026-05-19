@@ -372,14 +372,24 @@ def think(context: str, task: str, model: Optional[str] = None, prompt_name: Opt
     text = res.get("text")
     
     # Check if primary think failed (basic check)
-    if not text or text.startswith("⚠️"):
-        console.print("[dim]Primary provider failed. Falling back to CLI/Hive Mind...[/dim]")
+    if not text or text.startswith("⚠️") or text.startswith("❌"):
+        console.print("[dim]Primary provider failed. Falling back through CLI/Cloud/Hive Mind...[/dim]")
         
-        # Fallback 1: Local Ollama CLI
-        from core.multi_cli import query_ollama_cli
-        text = query_ollama_cli(task)
+        # Fallback 1: Ollama Cloud
+        from core.multi_cli import query_ollama_cloud
+        text = query_ollama_cloud(task)
         
-        # Fallback 2: Hive Mind
+        # Fallback 2: Gemini CLI
+        if not text or text.startswith("⚠️"):
+            from core.multi_cli import query_gemini_cli
+            text = query_gemini_cli(task)
+
+        # Fallback 3: Local Ollama CLI
+        if not text:
+            from core.multi_cli import query_ollama_cli
+            text = query_ollama_cli(task)
+        
+        # Fallback 4: Hive Mind
         if not text:
             from core.multi_cli import query_hive_mind
             text = query_hive_mind(task)

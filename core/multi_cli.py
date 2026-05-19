@@ -4,15 +4,25 @@ from rich.console import Console
 
 console = Console()
 
-def query_ollama_cli(prompt: str) -> str:
-    """Executes a prompt via local Ollama CLI."""
+def query_ollama_cloud(prompt: str) -> str:
+    """Queries Ollama Cloud via ModelManager logic."""
+    from core.brain import ModelManager
+    mgr = ModelManager()
+    mgr.current_model = "ollama/llama3-cloud" # Force cloud trigger
+    return mgr.chat(prompt)
+
+def query_gemini_cli(prompt: str) -> str:
+    """Executes a prompt via Gemini CLI (assuming 'gemini' executable exists)."""
     try:
-        cmd = ["ollama", "run", "llama3", prompt]
+        cmd = ["gemini", "generate", prompt]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         return result.stdout if result.returncode == 0 else ""
     except Exception as e:
-        console.print(f"[dim]Ollama CLI failed: {e}[/dim]")
+        console.print(f"[dim]Gemini CLI failed: {e}[/dim]")
         return ""
+
+def query_ollama_cli(prompt: str) -> str:
+    # ... (existing)
 
 def query_hive_mind(task: str) -> str:
     """Queries remote P2P nodes for task resolution."""
