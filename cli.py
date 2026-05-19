@@ -68,7 +68,7 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize", "/ollama"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize", "/ollama", "/refine"
 ]
 
 # ... (omitted)
@@ -274,6 +274,11 @@ def interactive():
                     elif cmd == "/multibrain": multibrain(args or Prompt.ask("Task for multi-brain reasoning"))
                     elif cmd == "/scan-ollama": scan_ollama()
                     elif cmd == "/ollama": ollama_cli(args)
+                    elif cmd == "/refine":
+                        target = args.split()[0] if args else Prompt.ask("File to refine")
+                        test = " ".join(args.split()[1:]) if len(args.split()) > 1 else Prompt.ask("Test command")
+                        from core.refinement import refine_loop
+                        refine_loop(target, test)
                     elif cmd == "/ollama-login": ollama_login()
                     elif cmd == "/p2p-scan": p2p_scan()
                     elif cmd == "/p2p-status": p2p_status()
@@ -402,10 +407,11 @@ def ollama_cli(args: str):
     env = os.environ.copy()
     env["OLLAMA_HOST"] = host
     
-    cmd = ["ollama"] + args.split()
+    import shlex
+    cmd = ["ollama"] + shlex.split(args)
     console.print(f"[dim]Running: {' '.join(cmd)} (Host: {host})[/dim]")
     try:
-        subprocess.run(cmd, env=env)
+        subprocess.run(cmd, env=env, shell=False)
     except FileNotFoundError:
         console.print("[red]❌ 'ollama' executable not found in PATH.[/red]")
     except Exception as e:
@@ -909,7 +915,7 @@ def sync():
 def repair_ollama_cmd(host: Optional[str] = None):
     """Attempt to repair or reconfigure Ollama automatically."""
     console.print("[bold cyan]Repairing Ollama...[/bold cyan]")
-    report = repair_ollama(host=host, open_app_if_mac=True, prompt_for_host=True)
+    report = repair_ollama(host=host)
     t = Table(title="Ollama Repair Report")
     t.add_column("Key"); t.add_column("Value")
     t.add_row("Fixed", str(report.get("fixed")))
