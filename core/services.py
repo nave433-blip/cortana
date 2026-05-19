@@ -379,9 +379,37 @@ def call_model(provider: str, messages_or_text: Any, model: Optional[str] = None
     except Exception as e:
         return {"ok": False, "error": str(e), "error_type": "call_failed"}
 
-# --------------------
-# Ollama helper logic
-# --------------------
+def install_ollama_model(model_name: str, host: str = "http://localhost:11434"):
+    """Downloads an Ollama model if not present."""
+    console.print(f"[dim]Checking for model: {model_name}...[/dim]")
+    try:
+        response = requests.post(f"{host.rstrip('/')}/api/pull", json={"name": model_name}, timeout=300, stream=True)
+        if response.status_code == 200:
+            console.print(f"[green]✅ Model '{model_name}' downloaded/updated successfully.[/green]")
+            return True
+        else:
+            console.print(f"[red]❌ Failed to download model '{model_name}': {response.status_code}[/red]")
+            return False
+    except Exception as e:
+        console.print(f"[red]❌ Error downloading model: {e}[/red]")
+        return False
+
+def check_cloud_dependencies():
+    """Checks for essential cloud LLM dependencies."""
+    required = ["openai", "anthropic", "google.generativeai"]
+    missing = []
+    for pkg in required:
+        try:
+            import importlib
+            importlib.import_module(pkg.split('.')[0])
+        except ImportError:
+            missing.append(pkg)
+    
+    if missing:
+        console.print(f"[yellow]⚠️ Missing cloud dependencies: {', '.join(missing)}. Some cloud models may not work.[/yellow]")
+        return False
+    return True
+
 def ensure_ollama() -> Dict:
     cfg = load_config()
     host = cfg.get("ollama_host", "http://localhost:11434")

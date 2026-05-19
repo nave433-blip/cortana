@@ -82,8 +82,18 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
             models = res.get("models", [])
             cfg["detected_local_models"] = models
             save_config(cfg)
+            
+            # Ensure required models exist
+            for model in ["tinyllama", "alpaca"]:
+                if model not in "".join(models).lower():
+                    console.print(f"[yellow]⚠️ Required model '{model}' missing.[/yellow]")
+                    svc.install_ollama_model(model)
+                    
             if 'gemma4:latest' in models or 'gemma' in ''.join(models).lower(): console.print("[dim][green]✓ Gemma4 Detected.[/green][/dim]")
             if 'qwen2.5:latest' in models or 'qwen' in ''.join(models).lower(): console.print("[dim][green]✓ Qwen Detected.[/green][/dim]")
+            
+        # Check cloud dependencies
+        svc.check_cloud_dependencies()
     except Exception as e:
         console.print(f"[dim]Auto-detect models failed: {e}[/dim]")
 
@@ -144,6 +154,9 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
             if cfg.get("global_p2p_enabled"):
                 from core.global_p2p import register_node
                 register_node()
+                
+            from tools.p2p_monitor import start_monitor
+            start_monitor()
                 
             console.print("[dim][green]✓ P2P Server Online[/green][/dim]")
         except Exception as e:
