@@ -78,26 +78,35 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
             save_config(cfg)
             console.print(f"[green]✅ Distributed compute ready. Discovered: {', '.join(found_hosts)}[/green]")
         
-    # 2. Proactively detect local models
+    # 1. Background Ollama Management
+    console.print("[dim]Checking Ollama background status...[/dim]")
+    # Try launching ollama via systemd or desktop entry (OS specific)
+    if sys.platform == "darwin":
+        os.system("open -a Ollama &")
+    elif sys.platform == "linux":
+        os.system("systemctl --user start ollama &")
+        os.system("ollama serve &")
+    time.sleep(2) # Give it a moment to initialize
+
+    # 2. Proactively detect and manage local models
     try:
         console.print("[dim]Detecting available Ollama models...[/dim]")
         res = svc.list_models_for_provider("ollama")
         if res.get("ok"):
             models = res.get("models", [])
-            cfg["detected_local_models"] = models
-            save_config(cfg)
-            
             # Ensure required models exist
-            for model in ["tinyllama", "alpaca"]:
+            required_models = ["tinyllama", "alpaca"]
+            for model in required_models:
                 if model not in "".join(models).lower():
                     console.print(f"[yellow]⚠️ Required model '{model}' missing.[/yellow]")
                     svc.install_ollama_model(model)
-                    
-            if 'gemma4:latest' in models or 'gemma' in ''.join(models).lower(): console.print("[dim][green]✓ Gemma4 Detected.[/green][/dim]")
-            if 'qwen2.5:latest' in models or 'qwen' in ''.join(models).lower(): console.print("[dim][green]✓ Qwen Detected.[/green][/dim]")
-            
-        # Check cloud dependencies
-        svc.check_cloud_dependencies()
+        
+        # 3. Proactive Cloud Authentication Check
+        if not cfg.get("ollama_token"):
+            console.print("[yellow]⚠️ Ollama Cloud not configured. Initiating login...[/yellow]")
+            from cli import ollama_login
+            ollama_login()
+        
     except Exception as e:
         console.print(f"[dim]Auto-detect models failed: {e}[/dim]")
 
