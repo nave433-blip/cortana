@@ -388,6 +388,34 @@ def main(ctx: typer.Context):
             setup_wizard()
         interactive()
 
+def ollama_cli(args: str):
+    """Pass-through CLI for Ollama."""
+    import subprocess
+    import os
+    if not args:
+        console.print("[yellow]Usage: /ollama [args][/yellow]")
+        return
+    
+    from core.config import load_config
+    cfg = load_config()
+    host = cfg.get("ollama_host", "http://localhost:11434")
+    env = os.environ.copy()
+    env["OLLAMA_HOST"] = host
+    
+    cmd = ["ollama"] + args.split()
+    console.print(f"[dim]Running: {' '.join(cmd)} (Host: {host})[/dim]")
+    try:
+        subprocess.run(cmd, env=env)
+    except FileNotFoundError:
+        console.print("[red]❌ 'ollama' executable not found in PATH.[/red]")
+    except Exception as e:
+        console.print(f"[red]❌ Error executing ollama: {e}[/red]")
+
+@app.command()
+def ollama(args: str = typer.Argument(None, help="Arguments to pass to the ollama CLI")):
+    """Pass-through CLI for Ollama."""
+    ollama_cli(args)
+
 @app.command()
 def ollama_login():
     """Sign in to Ollama Cloud to enable cloud models."""
@@ -492,11 +520,24 @@ def fix(issue: str, model: Annotated[Optional[str], typer.Option("--model", "-m"
 
 @app.command()
 def plan(task: str, model: Annotated[Optional[str], typer.Option("--model", "-m")] = None):
+    from core.planning import save_plan, display_plan
     from core.agent import generate_plan
+    
     display_chat_message("Strategy Phase", task)
     res = generate_plan(task, model=model)
     txt = process_think_res(res)
-    if txt: console.print(Panel(Markdown(txt), title="Strategic Plan", border_style="green"))
+    
+    if txt:
+        plan_path = save_plan("active_plan", txt)
+        display_plan("active_plan")
+        
+        if Confirm.ask("[bold yellow]Accept this plan and transition to Execution Mode?[/bold yellow]"):
+            console.print("[green]✅ Plan approved. Execution initiated.[/green]")
+            # Proceed to execution (forge loop or similar)
+        else:
+            console.print("[yellow]Plan rejected. Staying in Plan Mode.[/yellow]")
+            # Logic to keep the CLI in a "Plan" sub-prompt loop would go here
+
 
 @app.command()
 def forge(task: str, model: Annotated[Optional[str], typer.Option("--model", "-m")] = None):
