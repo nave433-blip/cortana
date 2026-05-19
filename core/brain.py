@@ -267,21 +267,48 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
     try:
         from core.p2p import scan_for_jarvis_peers, send_remote_command
         import json
-        console.print("[dim]Scanning Hive Mind for available Swarm peers...[/dim]")
-        peers = scan_for_jarvis_peers()
         
-        def ask_peer(peer_ip):
-            res = send_remote_command(peer_ip, "think", {"task": task})
-            if res.get("ok"):
-                try:
-                    data = json.loads(res["data"])
-                    return data.get("text")
-                except: pass
-            return None
+        # Torrent-style Distributed Load Balancing
+        # We track peer rotation to spread queries evenly
+        if not hasattr(multibrain_think, "_peer_index"):
+            multibrain_think._peer_index = 0
+            
+        console.print("[dim]Scanning Hive Mind for available Swarm peers...[/dim]")
+        all_peers = scan_for_jarvis_peers()
+        
+        if all_peers:
+            # Sort peers for consistency, then rotate based on our index
+            all_peers.sort()
+            # Spread the load: Pick a subset or reorder based on index
+            rotation = multibrain_think._peer_index % len(all_peers)
+            balanced_peers = all_peers[rotation:] + all_peers[:rotation]
+            multibrain_think._peer_index += 1
+            
+            # For "torrent-style" spreading, we only query a subset or prioritize 
+            # to ensure no one node is bogged down if the network is large.
+            # Here we query top 3 available peers in the balanced list.
+            swarm_subset = balanced_peers[:3]
+            
+            def ask_peer(peer_ip):
+                # Status check first to see if they are under their 35% cap
+                stat_res = send_remote_command(peer_ip, "status", {})
+                if stat_res.get("ok"):
+                    try:
+                        s_data = json.loads(stat_res["data"])
+                        if not s_data.get("hive_load", {}).get("safe", True):
+                            return None # Peer is busy (over 35% cap)
+                    except: pass
 
-        if peers:
-            with ThreadPoolExecutor(max_workers=len(peers)) as executor:
-                futures = {executor.submit(ask_peer, p): p for p in peers}
+                res = send_remote_command(peer_ip, "think", {"task": task})
+                if res.get("ok"):
+                    try:
+                        data = json.loads(res["data"])
+                        return data.get("text")
+                    except: pass
+                return None
+
+            with ThreadPoolExecutor(max_workers=len(swarm_subset)) as executor:
+                futures = {executor.submit(ask_peer, p): p for p in swarm_subset}
                 for future in as_completed(futures):
                     p = futures[future]
                     res = future.result()

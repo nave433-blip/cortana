@@ -74,7 +74,10 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
         if action == "status":
             from core.update import CURRENT_VERSION
             from core.config import load_config
+            from core.resource_manager import resource_manager
             cfg = load_config()
+            health = resource_manager.check_hive_health()
+            
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
@@ -84,7 +87,13 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
                 "version": CURRENT_VERSION,
                 "model": cfg.get("jarvis_model", "unknown"),
                 "local_models": cfg.get("detected_local_models", []),
-                "p2p_enabled": cfg.get("p2p_enabled", True)
+                "p2p_enabled": cfg.get("p2p_enabled", True),
+                "hive_load": {
+                    "cpu": health["cpu"],
+                    "ram": health["ram"],
+                    "gpu": health["gpu"],
+                    "safe": health["safe"]
+                }
             }
             self.wfile.write(json.dumps(status_data).encode())
             return
@@ -118,42 +127,15 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Token not found")
 
-        elif action == "edit_file":
-            path = data.get("path")
-            content = data.get("content")
-            try:
-                full_path = Path(os.path.expanduser(path))
-                full_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(full_path, "w") as f:
-                    f.write(content)
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"File updated successfully")
-            except Exception as e:
-                self.send_response(500)
-                self.end_headers()
-                self.wfile.write(str(e).encode())
-
-        elif action == "read_file":
-            path = data.get("path")
-            try:
-                full_path = Path(os.path.expanduser(path))
-                if not full_path.exists():
-                    self.send_response(404)
-                    self.end_headers()
-                    return
-                with open(full_path, "r") as f:
-                    content = f.read()
-                self.send_response(200)
-                self.send_header('Content-type', 'text/plain')
-                self.end_headers()
-                self.wfile.write(content.encode())
-            except Exception as e:
-                self.send_response(500)
-                self.end_headers()
-                self.wfile.write(str(e).encode())
-
         elif action == "think":
+            from core.resource_manager import resource_manager
+            health = resource_manager.check_hive_health()
+            if not health["safe"]:
+                self.send_response(503) # Service Unavailable
+                self.end_headers()
+                self.wfile.write(b"Hive Mind Busy: Resource cap (35%) reached on this node.")
+                return
+
             task = data.get("task")
             model = data.get("model")
             try:
