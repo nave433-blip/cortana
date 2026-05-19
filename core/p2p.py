@@ -83,6 +83,7 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
                 "name": cfg.get("jarvis_name", "JARVIS-PEER"),
                 "version": CURRENT_VERSION,
                 "model": cfg.get("jarvis_model", "unknown"),
+                "local_models": cfg.get("detected_local_models", []),
                 "p2p_enabled": cfg.get("p2p_enabled", True)
             }
             self.wfile.write(json.dumps(status_data).encode())
@@ -147,6 +148,27 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(content.encode())
+            except Exception as e:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(str(e).encode())
+
+        elif action == "think":
+            task = data.get("task")
+            model = data.get("model")
+            try:
+                from core.brain import think_structured
+                # Process the remote task using our local hardware/brain
+                res = think_structured("P2P Hive Mind Remote Task", task, model=model)
+                if res.get("ok"):
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"text": res.get("text"), "provider": res.get("provider")}).encode())
+                else:
+                    self.send_response(500)
+                    self.end_headers()
+                    self.wfile.write(str(res.get("error")).encode())
             except Exception as e:
                 self.send_response(500)
                 self.end_headers()
@@ -238,11 +260,14 @@ def p2p_status_report():
                 res = future.result()
                 if res:
                     ip, data, lat = res
+                    models_str = ", ".join(data.get("local_models", []))
+                    if not models_str: models_str = "None"
+                    
                     table.add_row(
                         ip, 
                         data.get("name", "Unknown"), 
                         data.get("version", "???"), 
-                        data.get("model", "???"), 
+                        f"{data.get('model', '???')} (Models: {models_str})", 
                         lat
                     )
 

@@ -263,6 +263,35 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
             console.print(f"  [green]✓[/green] Local {m} responded.")
         except: continue
 
+    # Tier 1.5: P2P Swarm (Hive Mind)
+    try:
+        from core.p2p import scan_for_jarvis_peers, send_remote_command
+        import json
+        console.print("[dim]Scanning Hive Mind for available Swarm peers...[/dim]")
+        peers = scan_for_jarvis_peers()
+        
+        def ask_peer(peer_ip):
+            res = send_remote_command(peer_ip, "think", {"task": task})
+            if res.get("ok"):
+                try:
+                    data = json.loads(res["data"])
+                    return data.get("text")
+                except: pass
+            return None
+
+        if peers:
+            with ThreadPoolExecutor(max_workers=len(peers)) as executor:
+                futures = {executor.submit(ask_peer, p): p for p in peers}
+                for future in as_completed(futures):
+                    p = futures[future]
+                    res = future.result()
+                    if res:
+                        m_str = f"swarm-peer/{p}"
+                        responses[m_str] = res
+                        console.print(f"  [green]✓[/green] Swarm Peer {p} responded.")
+    except Exception as e:
+        console.print(f"  [yellow]![/yellow] Swarm P2P error: {e}")
+
     # Tier 2: Cloud
     def ask_cloud(m_str):
         provider = m_str.split('/')[0]
