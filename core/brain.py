@@ -127,10 +127,15 @@ class ModelManager:
             return f"✅ Switched to {nickname} ({self.current_model})"
         return f"❌ Model '{nickname}' not found."
 
+    def _ensure_provider(self, model_name: str) -> str:
+        if "/" not in model_name:
+            return f"ollama/{model_name}"
+        return model_name
+
     def chat(self, prompt, context=""):
         from core.services import set_key_for_litellm
         cfg = load_config()
-        model_name = self.current_model
+        model_name = self._ensure_provider(self.current_model)
         
         # Handle Ollama Cloud routing
         if model_name.endswith("-cloud"):
@@ -138,18 +143,10 @@ class ModelManager:
             token = cfg.get("ollama_token") or os.getenv("OLLAMA_TOKEN")
             
             if token:
-                # LiteLLM needs custom headers for bearer token if not using standard provider env vars
                 os.environ["OLLAMA_API_BASE"] = cloud_host
-                # Note: We use a custom header dict for LiteLLM if possible, 
-                # or rely on it picking up OLLAMA_API_KEY/TOKEN
                 os.environ["OLLAMA_API_KEY"] = token
-                # Strip -cloud for the actual API call if needed, 
-                # but user said "append -cloud to model names" implies the backend might expect it 
-                # or we should strip it if it's just a JARVIS trigger.
-                # Assuming it's a JARVIS trigger to use Cloud:
                 actual_model = model_name.replace("-cloud", "")
-                if "/" not in actual_model:
-                    actual_model = f"ollama/{actual_model}"
+                actual_model = self._ensure_provider(actual_model)
                 
                 try:
                     res = litellm.completion(
@@ -163,9 +160,6 @@ class ModelManager:
                     return f"⚠️ Ollama Cloud Error: {e}"
             else:
                 return "❌ Ollama Cloud model requested but no 'ollama_token' found in config or environment."
-
-        if "/" not in model_name:
-            model_name = f"ollama/{model_name}"
             
         provider = model_name.split('/')[0]
         set_key_for_litellm(provider)
