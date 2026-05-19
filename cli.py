@@ -68,7 +68,7 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize"
 ]
 
 # ... (omitted)
@@ -273,6 +273,7 @@ def interactive():
                     elif cmd == "/models": menus.models_menu()
                     elif cmd == "/multibrain": multibrain(args or Prompt.ask("Task for multi-brain reasoning"))
                     elif cmd == "/scan-ollama": scan_ollama()
+                    elif cmd == "/ollama-login": ollama_login()
                     elif cmd == "/p2p-scan": p2p_scan()
                     elif cmd == "/p2p-status": p2p_status()
                     elif cmd == "/p2p-read":
@@ -385,6 +386,25 @@ def main(ctx: typer.Context):
             console.print("[yellow]No configuration found. Starting setup...[/yellow]")
             setup_wizard()
         interactive()
+
+@app.command()
+def ollama_login():
+    """Sign in to Ollama Cloud to enable cloud models."""
+    from core.utils import open_url
+    from core.config import load_config, save_config
+    
+    console.print("[bold cyan]Ollama Cloud Login[/bold cyan]")
+    console.print("Opening Ollama login page in your browser...")
+    open_url("https://ollama.com/login")
+    
+    token = Prompt.ask("Enter your Ollama account token", password=True)
+    if token:
+        cfg = load_config()
+        cfg["ollama_token"] = token
+        cfg["ollama_cloud_host"] = "https://ollama.com/api"
+        save_config(cfg)
+        console.print("[bold green]✅ Ollama Cloud configured successfully![/bold green]")
+        console.print("You can now use cloud models by adding '-cloud' to the model name.")
 
 @app.command()
 def setup(): setup_wizard()

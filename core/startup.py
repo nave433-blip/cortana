@@ -88,13 +88,21 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
         console.print(f"[dim]Auto-detect models failed: {e}[/dim]")
 
     # 3. Check Cloud Ollama
-    if not cfg.get("ollama_cloud_host"):
-        if not auto and Confirm.ask("⚠️ No [bold cyan]Cloud Ollama[/bold cyan] host configured. Set one up for high-availability fallback?"):
-            host = Prompt.ask("Enter Cloud Ollama URL", default="https://your-remote-ollama.com")
-            if host:
-                cfg["ollama_cloud_host"] = host
+    if not cfg.get("ollama_token"):
+        if not auto and Confirm.ask("⚠️ [bold cyan]Ollama Cloud[/bold cyan] is not configured. Sign in to your account to enable cloud models?"):
+            from core.utils import open_url
+            console.print("[dim]Opening Ollama login page...[/dim]")
+            open_url("https://ollama.com/login")
+            token = Prompt.ask("Enter your Ollama account token", password=True)
+            if token:
+                cfg["ollama_token"] = token
+                cfg["ollama_cloud_host"] = "https://ollama.com/api"
                 save_config(cfg)
-                console.print(f"[green]✅ Cloud Ollama host saved: {host}[/green]")
+                console.print("[green]✅ Ollama Cloud configured successfully.[/green]")
+    elif not cfg.get("ollama_cloud_host"):
+        cfg["ollama_cloud_host"] = "https://ollama.com/api"
+        save_config(cfg)
+        console.print("[dim]Auto-set Ollama Cloud API URL.[/dim]")
 
     # 4. Check P2P Connectivity
     if not cfg.get("p2p_enabled"):
