@@ -60,7 +60,6 @@ PERSONALITIES = {
     "mentor": "Patient mentor. Explain the 'why' and best practices.",
     "nave_ai": "NAVE-AI Integrator. Focus on multi-model refinement and technical redundancy."
 }
-import sys
 
 # -------------------------
 # Hardware & Network Utilities
@@ -107,7 +106,11 @@ def enable_gpu_offload():
 class ModelManager:
     def __init__(self):
         cfg = load_config()
-        self.current_model = cfg.get("jarvis_model", "groq/llama-3.3-70b-versatile")
+        self.current_model = cfg.get("jarvis_model", "llama3")
+        # Ensure 'ollama/' prefix if no provider is specified
+        if "/" not in self.current_model:
+            self.current_model = f"ollama/{self.current_model}"
+            
         self.available_models = {
             "local": "ollama/llama3",
             "gpt4": "openai/gpt-4o",
@@ -126,11 +129,15 @@ class ModelManager:
 
     def chat(self, prompt, context=""):
         from core.services import set_key_for_litellm
-        provider = self.current_model.split('/')[0] if '/' in self.current_model else self.current_model
+        model_name = self.current_model
+        if "/" not in model_name:
+            model_name = f"ollama/{model_name}"
+            
+        provider = model_name.split('/')[0]
         set_key_for_litellm(provider)
         try:
             res = litellm.completion(
-                model=self.current_model, 
+                model=model_name, 
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}]
             )
             return res.choices[0].message.content
