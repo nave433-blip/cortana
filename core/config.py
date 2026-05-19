@@ -183,8 +183,11 @@ def auto_config_maintenance_once():
 
     if cfg.get("provider") == "ollama" or not cfg.get("ollama_host"):
         try:
-            from core.services import detect_ollama_candidates, validate_ollama
-            candidates = detect_ollama_candidates()
+            from core.services import validate_ollama
+            candidates = ["http://localhost:11434", "http://127.0.0.1:11434"]
+            if cfg.get("ollama_host") not in candidates:
+                candidates.insert(0, cfg.get("ollama_host"))
+            candidates = [c for c in candidates if c]
             for h in candidates:
                 if not h: continue
                 v = validate_ollama(h, timeout=1.5)
