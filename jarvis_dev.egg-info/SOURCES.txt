@@ -58,6 +58,10 @@ core/__pycache__/startup.cpython-312.pyc
 core/__pycache__/ui.cpython-312.pyc
 core/__pycache__/update.cpython-312.pyc
 core/__pycache__/update.cpython-38.pyc
+<<<<<<< Updated upstream
+=======
+core/__pycache__/utils.cpython-312.pyc
+>>>>>>> Stashed changes
 jarvis_dev.egg-info/PKG-INFO
 jarvis_dev.egg-info/SOURCES.txt
 jarvis_dev.egg-info/dependency_links.txt

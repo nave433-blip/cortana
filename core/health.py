@@ -9,7 +9,9 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 console = Console()
 
 REPOS = {
-    "wikiproxy": {"path": "~/wikiproxy", "check": "python3.12 -m wikiproxy --help", "repair": "python3.12 -m pip install -e ."},
+    "jarvis-dev": {"path": "~/.jarvis-app", "check": f"{sys.executable} -m cli --help", "repair": f"{sys.executable} -m pip install -e ."},
+    "navescript": {"path": "~/navescript", "check": "cargo --version", "repair": "cargo build --release"},
+    "wikiproxy": {"path": "~/wikiproxy", "check": f"{sys.executable} -m wikiproxy --help", "repair": f"{sys.executable} -m pip install -e ."},
 }
 
 def check_system_health():
@@ -33,9 +35,9 @@ def check_system_health():
                 continue
             
             try:
-                # Run check command with 30s timeout to prevent startup hangs
+                # Run check command with 60s timeout to prevent startup hangs
                 cmd = info["check"]
-                res = subprocess.run(cmd, shell=True, cwd=path, capture_output=True, text=True, timeout=30.0)
+                res = subprocess.run(cmd, shell=True, cwd=path, capture_output=True, text=True, timeout=60.0)
                 
                 if res.returncode == 0:
                     results.append({"name": name, "status": "ONLINE", "error": None})

@@ -17,7 +17,13 @@ def launch_tool(tool_name):
         "codex": "ollama launch codex",
         "copilot": "ollama launch copilot",
         "droid": "ollama launch droid",
-        "pi": "ollama launch pi"
+        "pi": "ollama launch pi",
+        "aider": "aider",
+        "interpreter": "interpreter",
+        "gpt-engineer": "gpt-engineer",
+        "mentat": "mentat",
+        "micro": "micro",
+        "neovim": "nvim"
     }
 
     if tool_name not in valid_tools:

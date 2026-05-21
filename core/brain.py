@@ -6,6 +6,7 @@ Improvements:
 - Multi-tier refinement loop (Local -> Network -> Cloud)
 - Hardware acceleration (GPU/Apple Silicon) detection
 - Secure key injection for LiteLLM
+- P2P Swarm (Hive Mind) integration
 """
 
 import requests
@@ -176,6 +177,22 @@ class LLMProvider:
     def __init__(self, model): self.model = model
     def ask(self, prompt, context="", options=None): raise NotImplementedError
 
+class LiteLLMProvider(LLMProvider):
+    def __init__(self, model):
+        super().__init__(model)
+        self.provider = model.split('/')[0] if '/' in model else "openai"
+
+    def ask(self, prompt, context="", options=None):
+        from core.services import call_model
+        res = call_model(self.provider, messages_or_text=f"{context}\n\nTask: {prompt}", model=self.model)
+        if res.get("ok"):
+            return res.get("text")
+        return f"Error: {res.get('error')}"
+
+class GeminiProvider(LiteLLMProvider):
+    def __init__(self, model="gemini/gemini-2.0-flash"):
+        super().__init__(model)
+
 class OllamaProvider(LLMProvider):
     def __init__(self, model=None):
         super().__init__(model or get_env_with_config("jarvis_model") or "llama3")
@@ -214,10 +231,15 @@ class OllamaProvider(LLMProvider):
 def get_task_category(task: str) -> str:
     prompt = f"Categorize this task: [coding, creative, research, general]. Task: {task}. Return ONLY the category name."
     try:
-        from core.services import set_key_for_litellm
-        set_key_for_litellm("groq")
-        return litellm.completion(model="groq/llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}], timeout=5).choices[0].message.content.strip().lower()
-    except: return "general"
+        provider = get_provider()
+        res = provider.ask(prompt)
+        cat = res.strip().lower()
+        if cat in ["coding", "creative", "research", "general"]:
+            return cat
+        return "general"
+    except Exception as e:
+        logger.error(f"Routing error: {e}")
+        return "general"
 
 def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[str, Any]:
     from core.services import set_key_for_litellm
@@ -278,9 +300,6 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
             balanced_peers = all_peers[rotation:] + all_peers[:rotation]
             multibrain_think._peer_index += 1
             
-            # For "torrent-style" spreading, we only query a subset or prioritize 
-            # to ensure no one node is bogged down if the network is large.
-            # Here we query top 3 available peers in the balanced list.
             swarm_subset = balanced_peers[:3]
             
             def ask_peer(peer_ip):
@@ -290,7 +309,7 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
                     try:
                         s_data = json.loads(stat_res["data"])
                         if not s_data.get("hive_load", {}).get("safe", True):
-                            return None # Peer is busy (over 35% cap)
+                            return None # Peer is busy
                     except: pass
 
                 res = send_remote_command(peer_ip, "think", {"task": task})
@@ -315,8 +334,8 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
 
     # Tier 2: Cloud
     def ask_cloud(m_str):
-        provider = m_str.split('/')[0]
-        set_key_for_litellm(provider)
+        provider_name = m_str.split('/')[0]
+        set_key_for_litellm(provider_name)
         try:
             return litellm.completion(model=m_str, messages=[{"role": "user", "content": f"Context: {search_context}\n\nTask: {task}"}], timeout=20).choices[0].message.content
         except: return None
@@ -332,7 +351,7 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
 
     if not responses:
         try:
-            return {"ok": True, "text": OllamaProvider().ask(task), "provider": "emergency-local"}
+            return {"ok": True, "text": get_provider().ask(task), "provider": "emergency-local"}
         except:
             return {"ok": False, "error": "All AI tiers failed to respond."}
 
@@ -376,28 +395,48 @@ def think(context: str, task: str, model: Optional[str] = None, prompt_name: Opt
         console.print("[dim]Primary provider failed. Falling back through CLI/Cloud/Hive Mind...[/dim]")
         
         # Fallback 1: Ollama Cloud
-        from core.multi_cli import query_ollama_cloud
-        text = query_ollama_cloud(task)
+        try:
+            from core.multi_cli import query_ollama_cloud
+            text = query_ollama_cloud(task)
+        except: pass
         
         # Fallback 2: Gemini CLI
         if not text or text.startswith("⚠️"):
-            from core.multi_cli import query_gemini_cli
-            text = query_gemini_cli(task)
+            try:
+                from core.multi_cli import query_gemini_cli
+                text = query_gemini_cli(task)
+            except: pass
 
         # Fallback 3: Local Ollama CLI
         if not text:
-            from core.multi_cli import query_ollama_cli
-            text = query_ollama_cli(task)
+            try:
+                from core.multi_cli import query_ollama_cli
+                text = query_ollama_cli(task)
+            except: pass
         
         # Fallback 4: Hive Mind
         if not text:
-            from core.multi_cli import query_hive_mind
-            text = query_hive_mind(task)
+            try:
+                from core.multi_cli import query_hive_mind
+                text = query_hive_mind(task)
+            except: pass
             
     return text
 
 def get_provider(model_override=None, task_hint=None):
-    return OllamaProvider(model=model_override)
+    cfg = load_config()
+    provider_name = cfg.get("provider", "ollama")
+    model = model_override or cfg.get("jarvis_model")
+    
+    if provider_name == "ollama":
+        return OllamaProvider(model=model)
+    elif provider_name == "gemini":
+        return GeminiProvider(model=model or "gemini/gemini-2.0-flash")
+    else:
+        # Generic LiteLLM fallback
+        if not model:
+            model = f"{provider_name}/default" # Services will handle defaults
+        return LiteLLMProvider(model=model)
 
 def distribute_task(task: str) -> str:
     from core.torrent_balancer import chunk_task, aggregate_results
@@ -423,3 +462,9 @@ def distribute_task(task: str) -> str:
     results.append(think(context="Local Chunk", task=chunks[-1]))
     
     return aggregate_results(results)
+
+def _get_provider_name_from_obj(provider_obj) -> str:
+    if isinstance(provider_obj, OllamaProvider): return "ollama"
+    if isinstance(provider_obj, GeminiProvider): return "gemini"
+    if isinstance(provider_obj, LiteLLMProvider): return provider_obj.provider
+    return "unknown"

@@ -26,7 +26,7 @@ def list_files(pattern="**/*"):
 def web_search(query):
     """Perform a web search using DuckDuckGo."""
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
         with DDGS() as ddgs:
             results = [r for r in ddgs.text(query, max_results=5)]
             if not results:

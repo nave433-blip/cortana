@@ -52,8 +52,16 @@ from prompt_toolkit.formatted_text import HTML
 import warnings
 warnings.simplefilter("ignore", SyntaxWarning)
 
-app = typer.Typer(help="🚀 JARVIS: The Ultimate Local AI Coding Assistant")
+app = typer.Typer(help="🚀 JARVIS: The Ultimate Local AI Coding Assistant", add_completion=False)
 console = Console()
+
+@app.callback()
+def main(debug: bool = typer.Option(False, "--debug", help="Enable debug logging")):
+    if debug:
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+        os.environ["LITELLM_LOG"] = "DEBUG"
+        console.print("[dim]Debug mode enabled.[/dim]")
 
 # Initialize Advanced Handler
 handler = CommandHandler()
