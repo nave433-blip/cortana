@@ -132,8 +132,8 @@ def apply_update(run_tests: bool = True, target_branch: Optional[str] = None) ->
     if run_tests and shutil.which("pytest"):
         console.print("[yellow]Running test suite (pytest)...[/yellow]")
         try:
-            # run pytest in base_dir
-            completed = subprocess.run(["pytest", "-q"], cwd=base_dir)
+            # run pytest in base_dir, disabling xonsh plugin which causes permission issues
+            completed = subprocess.run(["pytest", "-q", "-p", "no:xonsh"], cwd=base_dir)
             if completed.returncode != 0:
                 console.print("[red]Tests failed after update. Rolling back to previous version...[/red]")
                 _git(["reset", "--hard", backup_tag], cwd=base_dir)
