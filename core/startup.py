@@ -52,17 +52,17 @@ def check_provider(provider: str, auto: bool = False) -> Dict[str, Any]:
         status["ok"] = v.get("ok", False)
         status["validated"] = v.get("ok", False)
         status["message"] = v.get("error") or v.get("note") or "Connected" if v.get("ok") else "Missing configuration"
-        
-    if not status["ok"] and not auto:
-            # Prompt for all defined providers
-            if Confirm.ask(f"⚠️ Provider [bold cyan]'{provider.upper()}'[/bold cyan] is not ready. Configure it now?"):
-                conn = _interactive_connect(provider)
-                if conn.get("connected"):
-                    status["ok"] = True
-                    status["message"] = conn.get("message")
     except Exception as e:
         status["ok"] = False
         status["message"] = str(e)
+        
+    if not status["ok"] and not auto:
+        # Prompt for all defined providers
+        if Confirm.ask(f"⚠️ Provider [bold cyan]'{provider.upper()}'[/bold cyan] is not ready. Configure it now?"):
+            conn = _interactive_connect(provider)
+            if conn.get("connected"):
+                status["ok"] = True
+                status["message"] = conn.get("message")
     return status
 
 def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] = None, start_maintenance: bool = True) -> Dict[str, Any]:
