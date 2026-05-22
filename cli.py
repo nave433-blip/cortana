@@ -744,7 +744,10 @@ def models_command(name: Optional[str] = None):
         "auto-gen": "Microsoft collaborative agent framework",
         "hermes": "High-performance local agent",
         "openclaw": "Open-source Claude alternative",
-        "droid": "Android automation agent",
+        "droid": "Factory's coding agent",
+        "pi": "Minimal AI agent toolkit",
+        "pool": "Poolside's coding agent",
+        "codex": "OpenAI's open-source coding agent",
     }
     if name:
         if name in ai_tools:

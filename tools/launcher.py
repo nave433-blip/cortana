@@ -14,10 +14,11 @@ def launch_tool(tool_name):
         "openclaw": "ollama launch openclaw",
         "hermes": "ollama launch hermes",
         "opencode": "ollama launch opencode",
-        "codex": "ollama launch codex",
-        "copilot": "ollama launch copilot",
-        "droid": "ollama launch droid",
-        "pi": "ollama launch pi"
+        "codex": "codex",
+        "copilot": "copilot",
+        "droid": "droid",
+        "pi": "pi",
+        "pool": "pool"
     }
 
     if tool_name not in valid_tools:
