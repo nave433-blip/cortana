@@ -173,6 +173,24 @@ class ModelManager:
         except Exception as e:
             return f"⚠️ AI Error: {e}"
 
+    def stream_chat(self, prompt, context=""):
+        from core.services import set_key_for_litellm
+        model_name = self._ensure_provider(self.current_model)
+        provider = model_name.split('/')[0]
+        set_key_for_litellm(provider)
+        try:
+            response = litellm.completion(
+                model=model_name,
+                messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}],
+                stream=True
+            )
+            for chunk in response:
+                content = chunk.choices[0].delta.content
+                if content:
+                    yield content
+        except Exception as e:
+            yield f"⚠️ AI Error: {e}"
+
 class LLMProvider:
     def __init__(self, model): self.model = model
     def ask(self, prompt, context="", options=None): raise NotImplementedError
@@ -268,15 +286,27 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
 
     responses = {}
 
-    # Tier 1: Local
+    # Tier 1: Local & Local Cloud
     cfg = load_config()
+    mgr = ModelManager()
     local_models = cfg.get("detected_local_models", ["llama3", "gemma4"])
+    
+    # Add Ollama Cloud if token present
+    if cfg.get("ollama_token") or os.getenv("OLLAMA_TOKEN"):
+        cloud_m = f"{mgr.current_model}-cloud"
+        if cloud_m not in local_models: local_models.append(cloud_m)
+
     for m in local_models:
         try:
-            m_str = f"ollama/{m}" if "ollama/" not in m else m
-            res = litellm.completion(model=m_str, messages=[{"role":"user", "content": task}], timeout=10).choices[0].message.content
-            responses[m_str] = res
-            console.print(f"  [green]✓[/green] Local {m} responded.")
+            if m.endswith("-cloud"):
+                res = mgr.chat(task, context=f"Ollama Cloud Refinement\n{task}")
+            else:
+                m_str = f"ollama/{m}" if "ollama/" not in m else m
+                res = litellm.completion(model=m_str, messages=[{"role":"user", "content": task}], timeout=10).choices[0].message.content
+            
+            if res:
+                responses[m] = res
+                console.print(f"  [green]✓[/green] Local/Local-Cloud {m} responded.")
         except: continue
 
     # Tier 1.5: P2P Swarm (Hive Mind)
@@ -284,39 +314,37 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
         from core.p2p import scan_for_jarvis_peers, send_remote_command
         import json
         
-        # Torrent-style Distributed Load Balancing
-        # We track peer rotation to spread queries evenly
         if not hasattr(multibrain_think, "_peer_index"):
             multibrain_think._peer_index = 0
             
-        console.print("[dim]Scanning Hive Mind for available Swarm peers...[/dim]")
         all_peers = scan_for_jarvis_peers()
         
         if all_peers:
-            # Sort peers for consistency, then rotate based on our index
             all_peers.sort()
-            # Spread the load: Pick a subset or reorder based on index
             rotation = multibrain_think._peer_index % len(all_peers)
             balanced_peers = all_peers[rotation:] + all_peers[:rotation]
             multibrain_think._peer_index += 1
             
-            swarm_subset = balanced_peers[:3]
+            swarm_subset = balanced_peers[:5]
             
             def ask_peer(peer_ip):
-                # Status check first to see if they are under their 35% cap
                 stat_res = send_remote_command(peer_ip, "status", {})
                 if stat_res.get("ok"):
                     try:
                         s_data = json.loads(stat_res["data"])
                         if not s_data.get("hive_load", {}).get("safe", True):
-                            return None # Peer is busy
-                    except: pass
+                            return None
+                        
+                        target_model = None
+                        remote_models = s_data.get("local_models", [])
+                        if remote_models:
+                            unused = [rm for rm in remote_models if rm not in local_models]
+                            if unused: target_model = random.choice(unused)
 
-                res = send_remote_command(peer_ip, "think", {"task": task})
-                if res.get("ok"):
-                    try:
-                        data = json.loads(res["data"])
-                        return data.get("text")
+                        res = send_remote_command(peer_ip, "think", {"task": task, "model": target_model})
+                        if res.get("ok"):
+                            data = json.loads(res["data"])
+                            return data.get("text"), target_model or s_data.get("model")
                     except: pass
                 return None
 
@@ -324,11 +352,12 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
                 futures = {executor.submit(ask_peer, p): p for p in swarm_subset}
                 for future in as_completed(futures):
                     p = futures[future]
-                    res = future.result()
-                    if res:
-                        m_str = f"swarm-peer/{p}"
-                        responses[m_str] = res
-                        console.print(f"  [green]✓[/green] Swarm Peer {p} responded.")
+                    result = future.result()
+                    if result:
+                        text, m_used = result
+                        m_str = f"swarm-peer/{p} ({m_used})"
+                        responses[m_str] = text
+                        console.print(f"  [green]✓[/green] Swarm Peer {p} responded ({m_used}).")
     except Exception as e:
         console.print(f"  [yellow]![/yellow] Swarm P2P error: {e}")
 
@@ -389,39 +418,13 @@ def think_structured(context: str, task: str, model: Optional[str] = None, promp
 def think(context: str, task: str, model: Optional[str] = None, prompt_name: Optional[str] = None):
     res = think_structured(context, task, model, prompt_name)
     text = res.get("text")
-    
-    # Check if primary think failed (basic check)
-    if not text or text.startswith("⚠️") or text.startswith("❌"):
-        console.print("[dim]Primary provider failed. Falling back through CLI/Cloud/Hive Mind...[/dim]")
-        
-        # Fallback 1: Ollama Cloud
-        try:
-            from core.multi_cli import query_ollama_cloud
-            text = query_ollama_cloud(task)
-        except: pass
-        
-        # Fallback 2: Gemini CLI
-        if not text or text.startswith("⚠️"):
-            try:
-                from core.multi_cli import query_gemini_cli
-                text = query_gemini_cli(task)
-            except: pass
-
-        # Fallback 3: Local Ollama CLI
-        if not text:
-            try:
-                from core.multi_cli import query_ollama_cli
-                text = query_ollama_cli(task)
-            except: pass
-        
-        # Fallback 4: Hive Mind
-        if not text:
-            try:
-                from core.multi_cli import query_hive_mind
-                text = query_hive_mind(task)
-            except: pass
-            
+    # ... (omitted)
     return text
+
+def think_stream(context: str, task: str, model: Optional[str] = None, prompt_name: Optional[str] = None):
+    mgr = ModelManager()
+    if model: mgr.current_model = model
+    return mgr.stream_chat(task, context=context)
 
 def get_provider(model_override=None, task_hint=None):
     cfg = load_config()

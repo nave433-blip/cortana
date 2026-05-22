@@ -76,7 +76,7 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize", "/ollama", "/refine", "/stress-test"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/ollama", "/refine", "/stress-test"
 ]
 
 # ... (omitted)
@@ -474,15 +474,24 @@ def p2p_status():
     p2p_status_report()
 
 @app.command()
-def p2p_edit(peer_ip: str, path: str, content: str):
+def p2p_edit(peer_ip: str, path: str, old_string: str, new_string: str):
     """Request to edit a file on a remote JARVIS instance."""
     from core.p2p import send_remote_command
     console.print(f"[cyan]Requesting to edit '{path}' on {peer_ip}...[/cyan]")
-    res = send_remote_command(peer_ip, "edit_file", {"path": path, "content": content})
+    res = send_remote_command(peer_ip, "edit_file", {"path": path, "old_string": old_string, "new_string": new_string})
     if res["ok"]:
         console.print(f"[green]✅ {res['data']}[/green]")
     else:
         console.print(f"[red]❌ {res['error']}[/red]")
+
+@app.command()
+def p2p_set_token(token: str):
+    """Set the P2P shared secret token for swarm trust."""
+    from core.config import load_config, save_config
+    cfg = load_config()
+    cfg["p2p_token"] = token
+    save_config(cfg)
+    console.print(f"[green]✅ P2P Token set successfully.[/green]")
 
 @app.command()
 def p2p_read(peer_ip: str, path: str):
