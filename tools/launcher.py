@@ -1,35 +1,58 @@
 import subprocess
+import shutil
+import os
 from rich.console import Console
+from rich.prompt import Confirm
 
 console = Console()
+
+TOOL_REGISTRY = {
+    "claude-desktop": {"cmd": "ollama launch claude-desktop", "install": None},
+    "claude": {"cmd": "claude", "install": "npm install -g @anthropic-ai/claude-code@latest"},
+    "openclaw": {"cmd": "openclaw", "install": "npm install -g openclaw@latest"},
+    "hermes": {"cmd": "hermes", "install": "curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash"},
+    "opencode": {"cmd": "opencode", "install": "npm install -g opencode-ai"},
+    "codex": {"cmd": "codex", "install": "npm install -g @openai/codex"},
+    "copilot": {"cmd": "copilot", "install": "npm install -g @github/copilot"},
+    "droid": {"cmd": "droid", "install": "npm install -g droid"},
+    "pi": {"cmd": "pi", "install": "npm install -g @earendil-works/pi-coding-agent"},
+    "pool": {"cmd": "pool", "install": "curl -fsSL https://downloads.poolside.ai/pool/install.sh | sh"},
+    "aider": {"cmd": "aider", "install": "pip install aider-chat"},
+    "interpreter": {"cmd": "interpreter", "install": "pip install open-interpreter"},
+    "gpt-engineer": {"cmd": "gpt-engineer", "install": "pip install gpt-engineer"},
+    "mentat": {"cmd": "mentat", "install": "pip install mentat"},
+}
+
+def is_tool_installed(cmd):
+    if " " in cmd: # Handle multi-part commands like 'ollama launch'
+        base = cmd.split()[0]
+        return shutil.which(base) is not None
+    return shutil.which(cmd) is not None
 
 def launch_tool(tool_name):
     """
     Launch specialized AI tools via direct CLI or Ollama Cloud.
+    If not installed, offers to install automatically.
     """
-    valid_tools = {
-        "claude-desktop": "ollama launch claude-desktop",
-        "claude": "ollama launch claude",
-        "openclaw": "ollama launch openclaw",
-        "hermes": "ollama launch hermes",
-        "opencode": "ollama launch opencode",
-        "codex": "codex",
-        "copilot": "copilot",
-        "droid": "droid",
-        "pi": "pi",
-        "pool": "pool",
-        "aider": "aider",
-        "interpreter": "interpreter",
-        "gpt-engineer": "gpt-engineer",
-        "mentat": "mentat",
-        "micro": "micro",
-        "neovim": "nvim"
-    }
-
-    if tool_name not in valid_tools:
+    if tool_name not in TOOL_REGISTRY:
         return f"Error: '{tool_name}' is not a recognized launcher command."
 
-    cmd = valid_tools[tool_name]
+    info = TOOL_REGISTRY[tool_name]
+    cmd = info["cmd"]
+    install_cmd = info["install"]
+
+    if not is_tool_installed(cmd):
+        console.print(f"[bold yellow]⚠️ {tool_name.title()} is not installed.[/bold yellow]")
+        if install_cmd and Confirm.ask(f"Would you like to install {tool_name} now?"):
+            console.print(f"[bold cyan]Executing:[/bold cyan] {install_cmd}")
+            os.system(install_cmd)
+            # Re-check after install
+            if not is_tool_installed(cmd):
+                return f"Failed to install {tool_name} automatically. Please try manual install."
+            console.print(f"[bold green]✅ {tool_name} installed successfully![/bold green]")
+        else:
+            return f"Aborted: {tool_name} is required for this action."
+
     console.print(f"[bold cyan]🚀 Launching {tool_name.title()}...[/bold cyan]")
     
     try:

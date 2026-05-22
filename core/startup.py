@@ -66,6 +66,13 @@ def check_provider(provider: str, auto: bool = False) -> Dict[str, Any]:
     return status
 
 def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] = None, start_maintenance: bool = True) -> Dict[str, Any]:
+    # 0. Hardware Check & Tiering
+    try:
+        from core.hardware_check import run_hardware_check_on_startup
+        run_hardware_check_on_startup()
+    except Exception as e:
+        console.print(f"[dim red]Hardware audit failed: {e}[/dim red]")
+
     # 1. Auto-scan network for Ollama
     console.print("[dim]Scanning network for Ollama instances...[/dim]")
     found_hosts = scan_network_for_ollama()

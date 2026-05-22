@@ -72,7 +72,7 @@ COMMANDS = [
     "/chat", "/fix", "/forge", "/decode", "/lookup", "/hardware", "/voice", "/watch", "/config", "/init", "/analyze", "/analyze-file",
     "/locate", "/undo", "/dashboard", "/memory", "/personality", "/models", "/focus", "/copilot",
     "/cloud", "/network", "/ssh", "/server", "/troubleshoot", "/free", "/model", "/brain", "/doctor", "/box",
-    "/examine-py", "/patch-py",
+    "/examine-py", "/patch-py", "/ollama",
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
@@ -80,6 +80,14 @@ COMMANDS = [
 ]
 
 # ... (omitted)
+
+@app.command()
+def ollama_cmd(args: Annotated[Optional[str], typer.Argument(help="Ollama CLI arguments")] = None):
+    """Direct interface to the local Ollama CLI."""
+    import os
+    cmd = f"ollama {args}" if args else "ollama"
+    console.print(f"[dim]Executing: {cmd}[/dim]")
+    os.system(cmd)
 
 @app.command()
 def scan_ollama():
@@ -350,6 +358,8 @@ def interactive():
                     elif cmd == "/sync": update_all_repos()
                     elif cmd == "/box":
                         box_menu(args)
+                    elif cmd == "/ollama":
+                        ollama_cmd(args)
                     elif cmd == "/examine-py":
                         examine_py(args or Prompt.ask("Path to Python file"))
                     elif cmd == "/patch-py":
@@ -769,6 +779,7 @@ def model(name: Optional[str] = None):
 def models_command(name: Optional[str] = None):
     config = load_config()
     provider = config.get("provider", "ollama")
+    tier = config.get("machine_tier", "medium")
     
     # Advanced Model & Tool Mapping
     model_map = {
@@ -803,6 +814,10 @@ def models_command(name: Optional[str] = None):
     
     ai_tools = {
         "claude-desktop": "Anthropic's official desktop client",
+        "claude": "Anthropic's Claude Code (with subagents)",
+        "hermes": "Nous Research Hermes Agent",
+        "openclaw": "OpenClaw Personal AI",
+        "opencode": "Anomaly OpenCode Agent",
         "replit-agent": "Replit's autonomous app builder",
         "copilot": "GitHub Copilot CLI",
         "aider": "High-speed CLI pair programming agent",
@@ -811,8 +826,6 @@ def models_command(name: Optional[str] = None):
         "space-agent": "Autonomous browser & computer automation",
         "crew-ai": "Multi-agent role-playing framework",
         "auto-gen": "Microsoft collaborative agent framework",
-        "hermes": "High-performance local agent",
-        "openclaw": "Open-source Claude alternative",
         "droid": "Factory's coding agent",
         "pi": "Minimal AI agent toolkit",
         "pool": "Poolside's coding agent",
@@ -879,7 +892,13 @@ def models_command(name: Optional[str] = None):
     
     if top_choice == "1":
         options = model_map.get(provider.lower(), ["llama3"])
-        console.print(f"\n[bold white]Models for {provider.upper()}:[/bold white]")
+        
+        # Hardware Tiering Filter
+        if tier == "low" and provider == "ollama":
+            console.print("[yellow]⚠️ Low-end hardware detected. Heavy local models hidden.[/yellow]")
+            options = [m for m in options if "70b" not in m and "dbrx" not in m]
+
+        console.print(f"\n[bold white]Models for {provider.upper()} ({tier.upper()} TIER):[/bold white]")
         for i, m in enumerate(options):
             console.print(f"[{i+1}] {m}")
         
