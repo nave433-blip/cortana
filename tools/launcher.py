@@ -5,8 +5,7 @@ console = Console()
 
 def launch_tool(tool_name):
     """
-    Launch specialized AI tools via Ollama Cloud.
-    Supported: claude-desktop, claude, openclaw, hermes, opencode, codex, copilot, droid, pi
+    Launch specialized AI tools via direct CLI or Ollama Cloud.
     """
     valid_tools = {
         "claude-desktop": "ollama launch claude-desktop",
@@ -18,7 +17,13 @@ def launch_tool(tool_name):
         "copilot": "copilot",
         "droid": "droid",
         "pi": "pi",
-        "pool": "pool"
+        "pool": "pool",
+        "aider": "aider",
+        "interpreter": "interpreter",
+        "gpt-engineer": "gpt-engineer",
+        "mentat": "mentat",
+        "micro": "micro",
+        "neovim": "nvim"
     }
 
     if tool_name not in valid_tools:
@@ -27,8 +32,6 @@ def launch_tool(tool_name):
     cmd = valid_tools[tool_name]
     console.print(f"[bold cyan]🚀 Launching {tool_name.title()}...[/bold cyan]")
     
-    # We run in a new terminal window or background if possible, 
-    # but for simplicity, we'll run it and return the intent.
     try:
         # Using Popen to not block the main JARVIS thread
         subprocess.Popen(cmd, shell=True)

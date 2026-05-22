@@ -85,12 +85,7 @@ def apply_update(run_tests: bool = True, target_branch: Optional[str] = None) ->
     # Ensure a clean working tree or stash optionally
     cp_status = _git(["status", "--porcelain"], cwd=base_dir)
     if cp_status.stdout.strip():
-        console.print("[yellow]Uncommitted changes detected in the repository.[/yellow]")
-        resp = console.input("Stash local changes and continue with update? (y/n): ").lower()
-        if resp != "y":
-            console.print("[red]Update aborted to avoid losing local changes.[/red]")
-            return False
-        # stash
+        console.print("[yellow]Uncommitted changes detected. Automatically stashing local changes...[/yellow]")
         _git(["stash", "--include-untracked"], cwd=base_dir)
         stashed = True
     else:
@@ -137,8 +132,8 @@ def apply_update(run_tests: bool = True, target_branch: Optional[str] = None) ->
     if run_tests and shutil.which("pytest"):
         console.print("[yellow]Running test suite (pytest)...[/yellow]")
         try:
-            # run pytest in base_dir
-            completed = subprocess.run(["pytest", "-q"], cwd=base_dir)
+            # run pytest in base_dir, disabling xonsh plugin which causes permission issues
+            completed = subprocess.run(["pytest", "-q", "-p", "no:xonsh"], cwd=base_dir)
             if completed.returncode != 0:
                 console.print("[red]Tests failed after update. Rolling back to previous version...[/red]")
                 _git(["reset", "--hard", backup_tag], cwd=base_dir)

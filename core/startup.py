@@ -17,7 +17,13 @@ def _interactive_connect(provider: str) -> Dict[str, Any]:
         "groq": "Get a free API key at https://groq.com",
         "together": "Get a free API key at https://together.ai",
         "deepseek": "Get an API key at https://platform.deepseek.com",
-        "qwen": "Get an API key at https://dashscope.console.aliyun.com"
+        "qwen": "Get an API key at https://dashscope.console.aliyun.com",
+        "anthropic": "Get an API key at https://console.anthropic.com",
+        "mistral": "Get an API key at https://console.mistral.ai",
+        "kimi": "Get an API key at https://platform.moonshot.cn",
+        "perplexity": "Get an API key at https://www.perplexity.ai/settings/api",
+        "granite": "Get an API key at https://www.ibm.com/granite",
+        "nemotron": "Get an API key at https://build.nvidia.com"
     }
     try:
         if provider == "ollama":
@@ -46,19 +52,17 @@ def check_provider(provider: str, auto: bool = False) -> Dict[str, Any]:
         status["ok"] = v.get("ok", False)
         status["validated"] = v.get("ok", False)
         status["message"] = v.get("error") or v.get("note") or "Connected" if v.get("ok") else "Missing configuration"
-        
-        if not status["ok"] and not auto:
-            # Only prompt for core providers
-            CORE_PROVIDERS = ["ollama", "openai", "gemini", "groq"]
-            if provider in CORE_PROVIDERS:
-                if Confirm.ask(f"⚠️ Provider [bold cyan]'{provider.upper()}'[/bold cyan] is not ready. Configure it now?"):
-                    conn = _interactive_connect(provider)
-                    if conn.get("connected"):
-                        status["ok"] = True
-                        status["message"] = conn.get("message")
     except Exception as e:
         status["ok"] = False
         status["message"] = str(e)
+        
+    if not status["ok"] and not auto:
+        # Prompt for all defined providers
+        if Confirm.ask(f"⚠️ Provider [bold cyan]'{provider.upper()}'[/bold cyan] is not ready. Configure it now?"):
+            conn = _interactive_connect(provider)
+            if conn.get("connected"):
+                status["ok"] = True
+                status["message"] = conn.get("message")
     return status
 
 def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] = None, start_maintenance: bool = True) -> Dict[str, Any]:
@@ -74,25 +78,56 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
             save_config(cfg)
             console.print(f"[green]✅ Distributed compute ready. Discovered: {', '.join(found_hosts)}[/green]")
         
-    # 2. Proactively detect local models
+    # 1. Background Ollama Management
+    console.print("[dim]Checking Ollama background status...[/dim]")
+    # Try launching ollama via systemd or desktop entry (OS specific)
+    if sys.platform == "darwin":
+        os.system("open -a Ollama &")
+    elif sys.platform == "linux":
+        os.system("systemctl --user start ollama &")
+        os.system("ollama serve &")
+    time.sleep(2) # Give it a moment to initialize
+
+    # 2. Proactively detect and manage local models
     try:
         console.print("[dim]Detecting available Ollama models...[/dim]")
         res = svc.list_models_for_provider("ollama")
         if res.get("ok"):
             models = res.get("models", [])
-            cfg["detected_local_models"] = models
-            save_config(cfg)
-            if 'gemma4:latest' in models or 'gemma' in ''.join(models).lower(): console.print("[dim][green]✓ Gemma4 Detected.[/green][/dim]")
-            if 'qwen2.5:latest' in models or 'qwen' in ''.join(models).lower(): console.print("[dim][green]✓ Qwen Detected.[/green][/dim]")
+            # Ensure required models exist
+            required_models = ["tinyllama", "alpaca"]
+            for model in required_models:
+                if model not in "".join(models).lower():
+                    console.print(f"[yellow]⚠️ Required model '{model}' missing.[/yellow]")
+                    svc.install_ollama_model(model)
+        
+        # 3. Proactive Cloud Authentication Check
+        if not cfg.get("ollama_token"):
+            console.print("[yellow]⚠️ Ollama Cloud not configured. Initiating login...[/yellow]")
+            from cli import ollama_login
+            ollama_login()
+        
     except Exception as e:
         console.print(f"[dim]Auto-detect models failed: {e}[/dim]")
 
+    # 4. Proactive Agent Ecosystem Setup
+    try:
+        console.print("[dim]Checking AI Agent ecosystem...[/dim]")
+        from core.agent_manager import check_and_install_agents
+        check_and_install_agents()
+    except Exception as e:
+        console.print(f"[dim]Auto-detect agents failed: {e}[/dim]")
+
     # 3. Check Cloud Ollama
     if not cfg.get("ollama_token"):
-        if not auto and Confirm.ask("⚠️ [bold cyan]Ollama Cloud[/bold cyan] is not configured. Sign in to your account to enable cloud models?"):
+        prompt_text = "⚠️ [bold cyan]Ollama Cloud[/bold cyan] is not configured. Sign in to your account to enable cloud models?"
+        if specs.get("is_low_end"):
+            prompt_text = "⚠️ [yellow]Low-end hardware detected.[/yellow] Sign in to [bold cyan]Ollama Cloud[/bold cyan] for better performance?"
+            
+        if not auto and Confirm.ask(prompt_text):
             from core.utils import open_url
-            console.print("[dim]Opening Ollama login page...[/dim]")
-            open_url("https://ollama.com/login")
+            console.print("[dim]Opening Ollama website. Please log in and find your API token in your account settings/dashboard.[/dim]")
+            open_url("https://ollama.com")
             token = Prompt.ask("Enter your Ollama account token", password=True)
             if token:
                 cfg["ollama_token"] = token
@@ -108,6 +143,9 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
     if not cfg.get("p2p_enabled"):
         if not auto and Confirm.ask("⚠️ [bold cyan]P2P Features[/bold cyan] (Local Network Peer-to-Peer) are not configured. Enable them now?"):
             cfg["p2p_enabled"] = True
+            cfg["p2p_share_keys"] = Confirm.ask("Do you want to enable sharing API keys across P2P?")
+            cfg["p2p_share_fs"] = Confirm.ask("Do you want to enable file system edits via P2P?")
+            cfg["p2p_share_tokens"] = Confirm.ask("Do you want to enable sharing login tokens across P2P?")
             save_config(cfg)
             console.print("[green]✅ P2P Features enabled.[/green]")
         else:
@@ -123,6 +161,15 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
         try:
             from core.p2p import start_server_background
             start_server_background()
+            
+            # Register for global P2P if enabled
+            if cfg.get("global_p2p_enabled"):
+                from core.global_p2p import register_node
+                register_node()
+                
+            from tools.p2p_monitor import start_monitor
+            start_monitor()
+                
             console.print("[dim][green]✓ P2P Server Online[/green][/dim]")
         except Exception as e:
             console.print(f"[dim][red]! P2P Server failed: {e}[/red][/dim]")

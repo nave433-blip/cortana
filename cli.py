@@ -52,8 +52,16 @@ from prompt_toolkit.formatted_text import HTML
 import warnings
 warnings.simplefilter("ignore", SyntaxWarning)
 
-app = typer.Typer(help="🚀 JARVIS: The Ultimate Local AI Coding Assistant")
+app = typer.Typer(help="🚀 JARVIS: The Ultimate Local AI Coding Assistant", add_completion=False)
 console = Console()
+
+@app.callback()
+def main(debug: bool = typer.Option(False, "--debug", help="Enable debug logging")):
+    if debug:
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+        os.environ["LITELLM_LOG"] = "DEBUG"
+        console.print("[dim]Debug mode enabled.[/dim]")
 
 # Initialize Advanced Handler
 handler = CommandHandler()
@@ -68,7 +76,7 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/optimize", "/ollama", "/refine", "/stress-test"
 ]
 
 # ... (omitted)
@@ -273,6 +281,16 @@ def interactive():
                     elif cmd == "/models": menus.models_menu()
                     elif cmd == "/multibrain": multibrain(args or Prompt.ask("Task for multi-brain reasoning"))
                     elif cmd == "/scan-ollama": scan_ollama()
+                    elif cmd == "/ollama": ollama_cli(args)
+                    elif cmd == "/refine":
+                        target = args.split()[0] if args else Prompt.ask("File to refine")
+                        test = " ".join(args.split()[1:]) if len(args.split()) > 1 else Prompt.ask("Test command")
+                        from core.refinement import refine_loop
+                        refine_loop(target, test)
+                    elif cmd == "/stress-test":
+                        from core.validator import Validator
+                        v = Validator()
+                        v.run_tests()
                     elif cmd == "/ollama-login": ollama_login()
                     elif cmd == "/p2p-scan": p2p_scan()
                     elif cmd == "/p2p-status": p2p_status()
@@ -387,6 +405,35 @@ def main(ctx: typer.Context):
             setup_wizard()
         interactive()
 
+def ollama_cli(args: str):
+    """Pass-through CLI for Ollama."""
+    import subprocess
+    import os
+    if not args:
+        console.print("[yellow]Usage: /ollama [args][/yellow]")
+        return
+    
+    from core.config import load_config
+    cfg = load_config()
+    host = cfg.get("ollama_host", "http://localhost:11434")
+    env = os.environ.copy()
+    env["OLLAMA_HOST"] = host
+    
+    import shlex
+    cmd = ["ollama"] + shlex.split(args)
+    console.print(f"[dim]Running: {' '.join(cmd)} (Host: {host})[/dim]")
+    try:
+        subprocess.run(cmd, env=env, shell=False)
+    except FileNotFoundError:
+        console.print("[red]❌ 'ollama' executable not found in PATH.[/red]")
+    except Exception as e:
+        console.print(f"[red]❌ Error executing ollama: {e}[/red]")
+
+@app.command()
+def ollama(args: str = typer.Argument(None, help="Arguments to pass to the ollama CLI")):
+    """Pass-through CLI for Ollama."""
+    ollama_cli(args)
+
 @app.command()
 def ollama_login():
     """Sign in to Ollama Cloud to enable cloud models."""
@@ -394,9 +441,9 @@ def ollama_login():
     from core.config import load_config, save_config
     
     console.print("[bold cyan]Ollama Cloud Login[/bold cyan]")
-    console.print("Opening Ollama login page in your browser...")
-    open_url("https://ollama.com/login")
-    
+    console.print("Opening Ollama website. Please log in and find your API token in your account settings/dashboard.")
+    open_url("https://ollama.com")
+
     token = Prompt.ask("Enter your Ollama account token", password=True)
     if token:
         cfg = load_config()
@@ -491,11 +538,24 @@ def fix(issue: str, model: Annotated[Optional[str], typer.Option("--model", "-m"
 
 @app.command()
 def plan(task: str, model: Annotated[Optional[str], typer.Option("--model", "-m")] = None):
+    from core.planning import save_plan, display_plan
     from core.agent import generate_plan
+    
     display_chat_message("Strategy Phase", task)
     res = generate_plan(task, model=model)
     txt = process_think_res(res)
-    if txt: console.print(Panel(Markdown(txt), title="Strategic Plan", border_style="green"))
+    
+    if txt:
+        plan_path = save_plan("active_plan", txt)
+        display_plan("active_plan")
+        
+        if Confirm.ask("[bold yellow]Accept this plan and transition to Execution Mode?[/bold yellow]"):
+            console.print("[green]✅ Plan approved. Execution initiated.[/green]")
+            # Proceed to execution (forge loop or similar)
+        else:
+            console.print("[yellow]Plan rejected. Staying in Plan Mode.[/yellow]")
+            # Logic to keep the CLI in a "Plan" sub-prompt loop would go here
+
 
 @app.command()
 def forge(task: str, model: Annotated[Optional[str], typer.Option("--model", "-m")] = None):
@@ -870,7 +930,7 @@ def sync():
 def repair_ollama_cmd(host: Optional[str] = None):
     """Attempt to repair or reconfigure Ollama automatically."""
     console.print("[bold cyan]Repairing Ollama...[/bold cyan]")
-    report = repair_ollama(host=host, open_app_if_mac=True, prompt_for_host=True)
+    report = repair_ollama(host=host)
     t = Table(title="Ollama Repair Report")
     t.add_column("Key"); t.add_column("Value")
     t.add_row("Fixed", str(report.get("fixed")))
