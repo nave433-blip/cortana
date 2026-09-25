@@ -23,7 +23,6 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 import litellm
 from core.config import load_config, save_config, get_env_with_config
-from core.prompts import load_prompts
 
 console = Console()
 logger = logging.getLogger("jarvis_brain")

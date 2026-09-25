@@ -604,7 +604,7 @@ def forge(task: str, model: Annotated[Optional[str], typer.Option("--model", "-m
 
 @app.command()
 def decode(content: str):
-    res = think_structured("", f"Decode and explain with maximum depth: {content}", prompt_name="nave_sovereign")
+    res = think_structured("", f"Decode and explain with maximum depth: {content}")
     txt = process_think_res(res)
     if txt: console.print(Markdown(txt))
 
