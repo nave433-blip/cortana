@@ -121,6 +121,11 @@ def main(ctx: typer.Context,
             _show_welcome_once()
             console.print("[yellow]No configuration found. Let's get you set up.[/yellow]")
             setup_wizard()
+        try:
+            from core.scheduler import maybe_start_scheduler
+            maybe_start_scheduler()  # background thread; jobs persist in ~/.jarvis/
+        except Exception:
+            pass
         interactive()
 
 # Initialize Advanced Handler
@@ -140,6 +145,7 @@ COMMANDS = [
     "/hive", "/swarm", "/mcp", "/research",
     "/help", "/t", "/thin",
     "/rewind", "/branch", "/branches", "/diff", "/skill", "/brief", "/handoff",
+    "/schedule",
 ]
 
 # ... (omitted)
@@ -405,6 +411,9 @@ def interactive():
                     elif cmd == "/handoff":
                         from core.handoff import handle_handoff_command
                         handle_handoff_command(args)
+                    elif cmd == "/schedule":
+                        from core.scheduler import handle_schedule
+                        handle_schedule(args)
                     elif cmd == "/thin":
                         from tools.ollama_thin import main as thin_main
                         thin_main()
@@ -785,8 +794,12 @@ def undo(path: str):
     console.print(f"[green]{undo_last_edit(path)}[/green]")
 
 @app.command()
-def dashboard():
-    from core.dashboard import Dashboard; Dashboard().run()
+def dashboard(port: int = typer.Option(0, "--port", help="Port to serve (0 = random free port)"),
+              lan: bool = typer.Option(False, "--lan", help="Bind all interfaces (LAN). Prints a warning."),
+              open_browser: bool = typer.Option(False, "--open", help="Open the dashboard in a browser")):
+    """Local web dashboard: live status, chat, read-only commands, logs."""
+    from core.dashboard import run_dashboard
+    run_dashboard(port=port, bind_lan=lan, open_browser=open_browser)
 
 @app.command()
 def focus(path: str):

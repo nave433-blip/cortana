@@ -701,8 +701,9 @@ class OllamaManager:
             except OllamaError as e:
                 results.append({"model": model, "host": host, "ok": False, "error": str(e)})
                 console.print(f"[red]✗ {model}: {e}[/red]")
-        console.print("[dim]Tip: schedule this with cron, e.g. "
-                      "`0 4 * * * jarvis ollama auto-pull`, for nightly updates.[/dim]")
+        console.print("[dim]Tip: schedule this inside Jarvis with "
+                      "`/schedule add --name \"nightly pull\" --action \"/ollama auto-pull\" "
+                      "--cron \"0 4 * * *\"`.[/dim]")
         return results
 
 
