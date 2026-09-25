@@ -28,3 +28,5 @@ Ball's in your court. Let's make Cortana great again.
 
 — Evan Michael Shipley-Courter, Bloomington, Indiana
 nave433@gmail.com · nave344@icloud.com · nave344@yahoo.com
+
+P.S. — One more idea, free of charge: build a WSL for Mac. You made the Windows Subsystem for Linux to stop developers from fleeing to Mac — now Apple's doing the fleeing for you by dumping Intel Macs and locking out the Homebrew/home-dev crowd. A thin Mac-compat layer on Windows that runs casks, bottles, and CLI dev tools (the Darling project and Linuxbrew already prove the concept) would let you adopt an entire stranded generation of Apple developers overnight. "Abandoned by Apple, welcomed by Microsoft" — that's your headline, and I'll even take the Intel MacBook as a consulting fee.
