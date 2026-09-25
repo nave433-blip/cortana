@@ -343,8 +343,17 @@ def list_models_for_provider(provider: str, extra: Optional[Dict[str, Any]] = No
 # --------------------
 # Call entrypoints
 # --------------------
-def call_model(provider: str, messages_or_text: Any, model: Optional[str] = None, temperature: float = 0.2, timeout: float = 30.0) -> Dict:
+def _complete_via_litellm(model_str: str, messages: List, temperature: float, timeout: float):
+    """Thin wrapper around litellm.completion (separate for testability)."""
     import litellm
+    return litellm.completion(
+        model=model_str,
+        messages=messages,
+        temperature=temperature,
+        timeout=timeout
+    )
+
+def call_model(provider: str, messages_or_text: Any, model: Optional[str] = None, temperature: float = 0.2, timeout: float = 30.0) -> Dict:
     provider = provider.lower()
     set_key_for_litellm(provider)
     
@@ -370,12 +379,7 @@ def call_model(provider: str, messages_or_text: Any, model: Optional[str] = None
             }
             model_str = defaults.get(provider, f"ollama/llama3")
 
-        response = litellm.completion(
-            model=model_str,
-            messages=messages,
-            temperature=temperature,
-            timeout=timeout
-        )
+        response = _complete_via_litellm(model_str, messages, temperature, timeout)
         return {"ok": True, "text": response.choices[0].message.content, "provider": provider, "model": model_str}
     except Exception as e:
         return {"ok": False, "error": str(e), "error_type": "call_failed"}
@@ -426,37 +430,56 @@ def ensure_ollama() -> Dict:
     
     return {"ok": False, "error": "Ollama is not responding. Please ensure it is installed and running.", "error_type": "missing"}
 
-def repair_ollama(host: Optional[str] = None) -> Dict:
+def repair_ollama(host: Optional[str] = None, open_app_if_mac: bool = True,
+                prompt_for_host: bool = True) -> Dict:
+    """Probe candidate Ollama hosts and persist the first working one.
+
+    Returns {"fixed": bool, "host": str|None, "attempts": [{"host","ok","error_type"}]}.
+    """
     cfg = load_config()
     candidates = [host] if host else []
     candidates += [cfg.get("ollama_host"), "http://localhost:11434", "http://127.0.0.1:11434"]
-    candidates = list(filter(None, list(set(candidates))))
+    # Dedupe while preserving order: explicit host argument is always tried first
+    candidates = list(dict.fromkeys(filter(None, candidates)))
+    attempts = []
 
-    for h in candidates:
-        try:
-            r = requests.get(h.rstrip("/") + "/api/tags", timeout=2)
-            if r.status_code == 200:
+    def _try_all():
+        for h in candidates:
+            res = validate_ollama(h)
+            attempts.append({"host": h, "ok": res.get("ok", False),
+                             "error_type": res.get("error_type")})
+            if res.get("ok"):
                 cfg["ollama_host"] = h
                 save_config(cfg)
-                return {"fixed": True, "host": h}
-        except: continue
+                return {"fixed": True, "host": h, "attempts": attempts}
+        return None
+
+    hit = _try_all()
+    if hit:
+        return hit
+
+    # Auth failure on a host: persist it so the user can intervene
+    auth_attempts = [a for a in attempts if a.get("error_type") == "auth"]
+    if auth_attempts:
+        cfg["ollama_host"] = auth_attempts[0]["host"]
+        save_config(cfg)
+        return {"fixed": False, "host": auth_attempts[0]["host"],
+                "attempts": attempts,
+                "error": "Ollama host requires authentication; host saved for manual setup."}
 
     # OS specific app launching
-    if sys.platform == "darwin":
-        os.system("open -a Ollama &")
-        time.sleep(5)
-    elif sys.platform == "linux":
-        # Try launching ollama via systemd or desktop entry
-        os.system("systemctl --user start ollama &")
-        os.system("ollama serve &")
-        time.sleep(5)
-    
-    for h in candidates:
-        try:
-            if requests.get(h.rstrip("/") + "/api/tags", timeout=2).status_code == 200:
-                cfg["ollama_host"] = h
-                save_config(cfg)
-                return {"fixed": True, "host": h}
-        except: continue
-            
-    return {"fixed": False}
+    if open_app_if_mac:
+        if sys.platform == "darwin":
+            os.system("open -a Ollama &")
+            time.sleep(5)
+        elif sys.platform == "linux":
+            # Try launching ollama via systemd or desktop entry
+            os.system("systemctl --user start ollama &")
+            os.system("ollama serve &")
+            time.sleep(5)
+
+        hit = _try_all()
+        if hit:
+            return hit
+
+    return {"fixed": False, "host": None, "attempts": attempts}

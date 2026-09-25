@@ -40,13 +40,15 @@ def test_repair_ollama_auth_required(mock_save, mock_load, mock_validate):
     saved_cfg = mock_save.call_args[0][0]
     assert saved_cfg["ollama_host"] == "http://localhost:11434"
 
-@patch('core.services._call_openai_chat')
+@patch('core.services._complete_via_litellm')
 @patch('core.services.get_api_key')
-def test_call_model_openai(mock_get_key, mock_call_openai):
+def test_call_model_openai(mock_get_key, mock_complete):
     mock_get_key.return_value = "fake_key"
-    mock_call_openai.return_value = {"ok": True, "text": "Hello"}
-    
+    fake_resp = MagicMock()
+    fake_resp.choices = [MagicMock(message=MagicMock(content="Hello"))]
+    mock_complete.return_value = fake_resp
+
     res = call_model(provider="openai", model="gpt-4o", messages_or_text="Hi")
     assert res["ok"] is True
     assert res["text"] == "Hello"
-    mock_call_openai.assert_called_once()
+    mock_complete.assert_called_once()

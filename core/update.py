@@ -4,7 +4,7 @@ import sys
 import subprocess
 import time
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from rich.console import Console
 
@@ -92,7 +92,7 @@ def apply_update(run_tests: bool = True, target_branch: Optional[str] = None) ->
         stashed = False
 
     # create a backup tag
-    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     backup_tag = f"pre-update-{timestamp}"
     try:
         _git(["tag", backup_tag], cwd=base_dir)
