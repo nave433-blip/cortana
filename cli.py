@@ -232,10 +232,17 @@ def process_think_res(res: Any, fallback_text: str = "") -> str:
 def interactive():
     """Launch the main interactive Gemini-style prompt."""
     from core.config import verify_and_fix_local_llm
-    display_welcome()
-    verify_and_fix_local_llm()
-    auto_check_on_launch()
-    startup_check_and_login(auto=False)
+    try:
+        display_welcome()
+        verify_and_fix_local_llm()
+        auto_check_on_launch()
+        startup_check_and_login(auto=False)
+    except (EOFError, KeyboardInterrupt):
+        # Startup prompts need a TTY. With piped/closed stdin (CI, `echo | jarvis`)
+        # or Ctrl+C during startup, exit cleanly instead of tracebacking.
+        # Interactive TTY behavior is unchanged.
+        console.print("\n[yellow]Startup input unavailable — exiting.[/yellow]")
+        return
 
     completer = WordCompleter(COMMANDS, ignore_case=True)
     kb = KeyBindings()
