@@ -149,6 +149,8 @@ COMMANDS = [
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
     "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/refine", "/stress-test",
     "/hive", "/swarm", "/mcp", "/research",
+    "/settings", "/profile", "/project", "/sim", "/prompt", "/memories",
+    "/connector", "/signin", "/account",
     "/help", "/t", "/thin", "/clippy",
     "/rewind", "/branch", "/branches", "/diff", "/skill", "/brief", "/handoff",
     "/schedule",
@@ -414,6 +416,31 @@ def interactive():
                     elif cmd == "/undo": undo(args or Prompt.ask("Path to undo"))
                     elif cmd == "/dashboard": dashboard()
                     elif cmd == "/memory": menus.memory_menu()
+                    elif cmd == "/memories":
+                        from core import memory_cores as _mc
+                        parts = args.split()
+                        sub = parts[0] if parts else "menu"
+                        if sub == "menu":
+                            _mc.memory_cores_menu()
+                        elif sub in ("show", "add", "forget", "export", "stats"):
+                            core = parts[1] if len(parts) > 1 and parts[1] in _mc.CORES else "facts"
+                            rest = " ".join(parts[2:] if len(parts) > 1 and parts[1] in _mc.CORES else parts[1:])
+                            if sub == "show":
+                                for e in _mc.recall(core, rest):
+                                    console.print(f"[dim]{e['id']}[/dim] {e['text']}")
+                            elif sub == "stats":
+                                console.print(_mc.cores_table())
+                            elif sub == "add":
+                                res = _mc.remember(core, rest or Prompt.ask("Memory text"))
+                                console.print(f"[green]✅ Stored.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+                            elif sub == "forget":
+                                res = _mc.forget(core, rest or Prompt.ask("Entry id or text"))
+                                console.print(f"[green]✅ Removed.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+                            elif sub == "export":
+                                res = _mc.export_core(core)
+                                console.print(res.get("json", ""))
+                        else:
+                            console.print("[red]Usage: /memories [menu|show|add|forget|export|stats] [core] [text][/red]")
                     elif cmd == "/personality": menus.personality_menu()
                     elif cmd == "/models": menus.models_menu()
                     elif cmd == "/multibrain": multibrain(args or Prompt.ask("Task for multi-brain reasoning"))
@@ -474,6 +501,130 @@ def interactive():
                     elif cmd == "/p2p-server": p2p_server()
                     elif cmd == "/p2p-tokens": p2p_tokens()
                     elif cmd == "/prompts": menus.prompts_menu()
+                    elif cmd == "/prompt":
+                        from core import prompts as _pr
+                        parts = args.split()
+                        sub = parts[0] if parts else "list"
+                        if sub == "list":
+                            console.print(_pr.list_prompts())
+                        elif sub == "save" and len(parts) >= 2:
+                            text = " ".join(parts[2:]) or Prompt.ask("System prompt text")
+                            console.print(f"[green]✅ {_pr.save_prompt(parts[1], text)}[/green]")
+                        elif sub == "apply" and len(parts) >= 2:
+                            ok, msg = _pr.apply_prompt(parts[1])
+                            console.print(f"[green]✅ {msg}[/green]" if ok else f"[red]❌ {msg}[/red]")
+                        elif sub == "delete" and len(parts) >= 2:
+                            console.print(f"[green]✅ {_pr.delete_prompt(parts[1])}[/green]")
+                        elif sub == "show":
+                            console.print(_pr.load_prompts().get(parts[1] if len(parts) > 1 else _pr.get_active_prompt_name(), "Not found."))
+                        elif sub == "override" and len(parts) >= 3:
+                            text = " ".join(parts[3:]) or Prompt.ask("Override text (empty clears)", default="")
+                            console.print(f"[green]✅ {_pr.set_personality_override(parts[1], parts[2], text)}[/green]")
+                        else:
+                            console.print("[red]Usage: /prompt [list|save <n> [text]|apply <n>|delete <n>|show [n]|override <personality> <n> [text]][/red]")
+                    elif cmd == "/settings":
+                        from core.settings import settings_menu
+                        settings_menu()
+                    elif cmd == "/profile":
+                        from core import profiles as _pf
+                        parts = args.split()
+                        if not parts:
+                            _pf.profiles_menu()
+                        elif parts[0] == "switch" and len(parts) > 1:
+                            res = _pf.switch_profile(parts[1])
+                            console.print(f"[green]✅ Now using profile '{parts[1]}'.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+                        elif parts[0] == "list":
+                            console.print(_pf.profiles_table())
+                        else:
+                            console.print("[red]Usage: /profile [list|switch <name>] (empty opens the menu)[/red]")
+                    elif cmd == "/project":
+                        from core import projects as _pj
+                        parts = args.split()
+                        if not parts:
+                            _pj.projects_menu()
+                        elif parts[0] == "new" and len(parts) > 1:
+                            res = _pj.create_project(" ".join(parts[1:]))
+                            console.print(f"[green]✅ Project created (slug: {res['slug']}).[/green]")
+                        elif parts[0] == "open" and len(parts) > 1:
+                            res = _pj.open_project(parts[1])
+                            console.print(f"[green]✅ Project '{parts[1]}' active.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+                        elif parts[0] == "close":
+                            _pj.close_project(); console.print("[green]✅ No active project.[/green]")
+                        elif parts[0] == "list":
+                            console.print(_pj.projects_table())
+                        elif parts[0] == "add" and len(parts) > 1:
+                            slug = _pj.get_active_project()
+                            res = _pj.add_attachment(slug, " ".join(parts[1:])) if slug else {"ok": False, "error": "No active project."}
+                            console.print(f"[green]✅ Attached.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+                        else:
+                            console.print("[red]Usage: /project [list|new <name>|open <slug>|close|add <path>] (empty opens the menu)[/red]")
+                    elif cmd == "/sim":
+                        from core import sims as _sm
+                        parts = args.split()
+                        if not parts:
+                            _sm.sims_menu()
+                        elif parts[0] == "list":
+                            console.print(_sm.sims_table())
+                        elif parts[0] == "chat" and len(parts) > 1:
+                            from rich.prompt import Prompt as _Prompt
+                            sname = parts[1]; history = []
+                            console.print("[dim]Chatting — empty message exits.[/dim]")
+                            while True:
+                                msg = _Prompt.ask("you").strip()
+                                if not msg: break
+                                history.append({"role": "user", "text": msg})
+                                res = _sm.sim_chat(sname, msg, history)
+                                if not res["ok"]:
+                                    console.print(f"[red]❌ {res['error']}[/red]"); break
+                                console.print(f"[magenta]{res['avatar']} {res['sim']}:[/magenta] {res['reply']}")
+                                history.append({"role": "assistant", "text": str(res["reply"])})
+                        elif parts[0] == "new":
+                            _sm.sims_menu()
+                        else:
+                            console.print("[red]Usage: /sim [list|chat <name>|new] (empty opens the menu)[/red]")
+                    elif cmd == "/connector":
+                        from core import connectors as _cx
+                        parts = args.split()
+                        if not parts:
+                            _cx.connectors_menu()
+                        elif parts[0] in ("list", "status"):
+                            for s in _cx.connector_status_all():
+                                mark = "🟢" if s["connected"] else "⚪"
+                                console.print(f"{mark} [cyan]{s['id']}[/cyan] — {s['display']}: {s['account'] or s['needs']}")
+                        elif parts[0] == "connect" and len(parts) > 1:
+                            try:
+                                res = _cx.get_connector(parts[1]).connect()
+                                console.print(f"[green]✅ Connected.[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
+                            except KeyError as e:
+                                console.print(f"[red]❌ {e}[/red]")
+                        elif parts[0] == "disconnect" and len(parts) > 1:
+                            try:
+                                res = _cx.get_connector(parts[1]).disconnect()
+                                console.print(f"[green]✅ {res.get('message', '')}[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
+                            except KeyError as e:
+                                console.print(f"[red]❌ {e}[/red]")
+                        else:
+                            console.print("[red]Usage: /connector [list|status|connect <id>|disconnect <id>] (empty opens the menu)[/red]")
+                    elif cmd == "/signin":
+                        from core import signin as _si
+                        parts = args.split()
+                        if not parts:
+                            _si.signin_menu()
+                        elif parts[0] == "in" and len(parts) > 1:
+                            res = _si.signin(parts[1])
+                            console.print(f"[green]✅ Signed in.[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
+                        elif parts[0] == "out" and len(parts) > 1:
+                            res = _si.signout(parts[1])
+                            console.print(f"[green]✅ {res.get('message', '')}[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
+                        elif parts[0] == "status":
+                            for s in _si.signin_status():
+                                mark = "🟢" if s["signed_in"] else "⚪"
+                                console.print(f"{mark} {s['display']}: {s['account'] or s['needs'] or 'not configured'}")
+                        else:
+                            console.print("[red]Usage: /signin [in|out <provider>|status] (empty opens the menu)[/red]")
+                    elif cmd == "/account":
+                        from core import cortana_account as _ca
+                        _ca.account_menu()
                     elif cmd == "/cloud": menus.cloud_menu()
                     elif cmd == "/connect": menus.connect_menu()
                     elif cmd == "/connections": connections()
@@ -1148,6 +1299,273 @@ def connections(test: bool = typer.Option(False, "--test", help="Probe reachabil
         console.print(panel)
     elif test:
         ui_success("All configured providers are reachable.")
+
+# ---------------------------------------------------------------------------
+# Platform round (Round C): settings, profiles, projects, sims, prompts,
+# memory cores, connectors, sign-in, account.
+# ---------------------------------------------------------------------------
+
+@app.command()
+def settings(action: str = typer.Argument("list", help="list|get|set|reset|export"),
+             key: Optional[str] = typer.Argument(None, help="Setting key"),
+             value: Optional[str] = typer.Argument(None, help="New value"),
+             category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category")):
+    """Manage Cortana's typed settings."""
+    from core.settings import settings_table, get_setting, set_setting, reset_setting, export_settings
+    import json as _json
+    if action == "list":
+        console.print(settings_table(category))
+    elif action == "get":
+        if not key:
+            console.print("[red]Usage: cortana settings get <key>[/red]"); return
+        try:
+            console.print(f"{key} = {get_setting(key)!r}")
+        except KeyError as e:
+            console.print(f"[red]❌ {e}[/red]")
+    elif action == "set":
+        if not key or value is None:
+            console.print("[red]Usage: cortana settings set <key> <value>[/red]"); return
+        res = set_setting(key, value)
+        console.print(f"[green]{res['message']}[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    elif action == "reset":
+        if not key:
+            console.print("[red]Usage: cortana settings reset <key>[/red]"); return
+        res = reset_setting(key)
+        console.print(f"[green]✅ {key} reset to {res['value']!r}[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    elif action == "export":
+        console.print(_json.dumps(export_settings(), indent=2))
+    else:
+        console.print(f"[red]Unknown action '{action}'.[/red]")
+
+@app.command()
+def profile(action: str = typer.Argument("list", help="list|switch|new|delete"),
+            name: Optional[str] = typer.Argument(None, help="Profile name")):
+    """Manage named profiles (work, personal, …)."""
+    from core import profiles as _p
+    if action == "list":
+        console.print(_p.profiles_table())
+    elif action == "switch":
+        if not name:
+            console.print("[red]Usage: cortana profile switch <name>[/red]"); return
+        res = _p.switch_profile(name)
+        console.print(f"[green]✅ Now using profile '{name}'.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    elif action == "new":
+        if not name:
+            console.print("[red]Usage: cortana profile new <name>[/red]"); return
+        res = _p.create_profile(name)
+        console.print(f"[green]✅ Profile '{name}' created.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    elif action == "delete":
+        if not name:
+            console.print("[red]Usage: cortana profile delete <name>[/red]"); return
+        res = _p.delete_profile(name)
+        console.print(f"[green]✅ Profile '{name}' deleted.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    else:
+        console.print(f"[red]Unknown action '{action}'.[/red]")
+
+@app.command()
+def project(action: str = typer.Argument("list", help="list|new|open|close|delete"),
+            name: Optional[str] = typer.Argument(None, help="Project name or slug")):
+    """Manage projects (grouped chats, files, instructions)."""
+    from core import projects as _pr
+    if action == "list":
+        console.print(_pr.projects_table())
+    elif action == "new":
+        if not name:
+            console.print("[red]Usage: cortana project new <name>[/red]"); return
+        res = _pr.create_project(name)
+        console.print(f"[green]✅ Project '{res['name']}' created (slug: {res['slug']}).[/green]")
+    elif action == "open":
+        if not name:
+            console.print("[red]Usage: cortana project open <slug>[/red]"); return
+        res = _pr.open_project(name)
+        console.print(f"[green]✅ Project '{name}' is now active.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    elif action == "close":
+        _pr.close_project()
+        console.print("[green]✅ No active project.[/green]")
+    elif action == "delete":
+        if not name:
+            console.print("[red]Usage: cortana project delete <slug>[/red]"); return
+        res = _pr.delete_project(name)
+        console.print(f"[green]✅ Deleted.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    else:
+        console.print(f"[red]Unknown action '{action}'.[/red]")
+
+@app.command()
+def sim(action: str = typer.Argument("list", help="list|chat|export|import|delete"),
+        name: Optional[str] = typer.Argument(None, help="Sim name or path")):
+    """Manage Cortana Sims (portable agents)."""
+    from core import sims as _s
+    if action == "list":
+        console.print(_s.sims_table())
+    elif action == "chat":
+        if not name:
+            console.print("[red]Usage: cortana sim chat <name>[/red]"); return
+        from rich.prompt import Prompt as _Prompt
+        history = []
+        console.print("[dim]Chatting — empty message exits.[/dim]")
+        while True:
+            msg = _Prompt.ask("you").strip()
+            if not msg:
+                break
+            history.append({"role": "user", "text": msg})
+            res = _s.sim_chat(name, msg, history)
+            if not res["ok"]:
+                console.print(f"[red]❌ {res['error']}[/red]"); break
+            console.print(f"[magenta]{res['avatar']} {res['sim']}:[/magenta] {res['reply']}")
+            history.append({"role": "assistant", "text": str(res["reply"])})
+    elif action == "export":
+        if not name:
+            console.print("[red]Usage: cortana sim export <name> <dest>[/red]"); return
+        dest = typer.prompt("Destination path")
+        res = _s.export_sim(name, dest)
+        console.print(f"[green]✅ Exported to {res['file']}[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    elif action == "import":
+        if not name:
+            console.print("[red]Usage: cortana sim import <path>[/red]"); return
+        res = _s.import_sim(name)
+        console.print(f"[green]✅ Imported sim '{res['name']}'.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    elif action == "delete":
+        if not name:
+            console.print("[red]Usage: cortana sim delete <name>[/red]"); return
+        res = _s.delete_sim(name)
+        console.print(f"[green]✅ Deleted.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    else:
+        console.print(f"[red]Unknown action '{action}'.[/red]")
+
+@app.command()
+def prompt(action: str = typer.Argument("list", help="list|save|apply|delete|show|override"),
+           name: Optional[str] = typer.Argument(None, help="Prompt name")):
+    """Manage the prompt template library."""
+    from core import prompts as _pr
+    if action == "list":
+        console.print(_pr.list_prompts())
+    elif action == "save":
+        if not name:
+            console.print("[red]Usage: cortana prompt save <name>[/red]"); return
+        text = typer.prompt("System prompt text")
+        console.print(f"[green]✅ {_pr.save_prompt(name, text)}[/green]")
+    elif action == "apply":
+        if not name:
+            console.print("[red]Usage: cortana prompt apply <name>[/red]"); return
+        ok, msg = _pr.apply_prompt(name)
+        console.print(f"[green]✅ {msg}[/green]" if ok else f"[red]❌ {msg}[/red]")
+    elif action == "delete":
+        if not name:
+            console.print("[red]Usage: cortana prompt delete <name>[/red]"); return
+        console.print(f"[green]✅ {_pr.delete_prompt(name)}[/green]")
+    elif action == "show":
+        if not name:
+            console.print(_pr.get_active_prompt_text())
+        else:
+            prompts = _pr.load_prompts()
+            console.print(prompts.get(name, f"[red]Prompt '{name}' not found.[/red]"))
+    elif action == "override":
+        # cortana prompt override <personality> <prompt-name>  (text via prompt)
+        if not name:
+            console.print("[red]Usage: cortana prompt override <personality> <prompt-name>[/red]"); return
+        parts = name.split(None, 1)
+        if len(parts) != 2:
+            console.print("[red]Usage: cortana prompt override <personality> <prompt-name>[/red]"); return
+        text = typer.prompt("Override text (empty clears)", default="")
+        console.print(f"[green]✅ {_pr.set_personality_override(parts[0], parts[1], text)}[/green]")
+    else:
+        console.print(f"[red]Unknown action '{action}'.[/red]")
+
+@app.command(name="memories")
+def memories_cmd(action: str = typer.Argument("show", help="show|add|forget|export|stats"),
+                 core: str = typer.Argument("facts", help="facts|preferences|projects|episodic"),
+                 text: Optional[str] = typer.Argument(None, help="Text for add/forget")):
+    """Manage inspectable memory cores."""
+    from core import memory_cores as _mc
+    import json as _json
+    if action == "stats":
+        console.print(_mc.cores_table())
+    elif action == "show":
+        entries = _mc.recall(core, text or "")
+        if not entries:
+            console.print("[yellow]No entries.[/yellow]"); return
+        for e in entries:
+            console.print(f"[dim]{e['id']}[/dim] {e['text']}")
+    elif action == "add":
+        if not text:
+            console.print("[red]Usage: cortana memories add <core> <text>[/red]"); return
+        res = _mc.remember(core, text)
+        console.print(f"[green]✅ Stored ({res['entry']['id']}).[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    elif action == "forget":
+        if not text:
+            console.print("[red]Usage: cortana memories forget <core> <id-or-text>[/red]"); return
+        res = _mc.forget(core, text)
+        console.print(f"[green]✅ Removed {res['removed']}.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    elif action == "export":
+        res = _mc.export_core(core)
+        console.print(res.get("json", "") if res["ok"] else f"[red]❌ {res['error']}[/red]")
+    else:
+        console.print(f"[red]Unknown action '{action}'.[/red]")
+
+@app.command()
+def connector(action: str = typer.Argument("list", help="list|status|connect|disconnect"),
+              conn_id: Optional[str] = typer.Argument(None, help="Connector id")):
+    """Manage app connectors (Drive, Gmail, Outlook, Calendar)."""
+    from core import connectors as _cx
+    if action == "list":
+        for c in _cx.list_connectors():
+            st = "🟢" if c.status()["connected"] else "⚪"
+            console.print(f"{st} [cyan]{c.id}[/cyan] — {c.display}: {c.description}")
+    elif action == "status":
+        if conn_id:
+            console.print_json(data=_cx.get_connector(conn_id).status())
+        else:
+            for s in _cx.connector_status_all():
+                console.print_json(data=s)
+    elif action == "connect":
+        if not conn_id:
+            console.print("[red]Usage: cortana connector connect <id>[/red]"); return
+        res = _cx.get_connector(conn_id).connect()
+        console.print(f"[green]✅ Connected.[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
+    elif action == "disconnect":
+        if not conn_id:
+            console.print("[red]Usage: cortana connector disconnect <id>[/red]"); return
+        res = _cx.get_connector(conn_id).disconnect()
+        console.print(f"[green]✅ {res.get('message', '')}[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
+    else:
+        console.print(f"[red]Unknown action '{action}'.[/red]")
+
+@app.command()
+def signin(action: str = typer.Argument("status", help="status|in|out"),
+           provider: Optional[str] = typer.Argument(None, help="microsoft|apple|google|github")):
+    """Sign in with Microsoft / Apple / Google / GitHub (OAuth2)."""
+    from core import signin as _si
+    if action == "status":
+        for s in _si.signin_status():
+            mark = "🟢" if s["signed_in"] else "⚪"
+            detail = s["account"] if s["signed_in"] else (s["needs"] or "client not configured")
+            console.print(f"{mark} [cyan]{s['display']}[/cyan] — {detail}")
+    elif action == "in":
+        if not provider:
+            console.print("[red]Usage: cortana signin in <microsoft|apple|google|github>[/red]"); return
+        res = _si.signin(provider)
+        console.print(f"[green]✅ Signed in as {res.get('account', '')}.[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
+    elif action == "out":
+        if not provider:
+            console.print("[red]Usage: cortana signin out <provider>[/red]"); return
+        res = _si.signout(provider)
+        console.print(f"[green]✅ {res.get('message', '')}[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
+    else:
+        console.print(f"[red]Unknown action '{action}'.[/red]")
+
+@app.command()
+def account(action: str = typer.Argument("show", help="show|set-name")):
+    """Local Cortana Account record (see docs/CORTANA_ACCOUNT.md)."""
+    from core import cortana_account as _ca
+    if action == "show":
+        import json as _json
+        console.print(_json.dumps(_ca.get_account(), indent=2))
+    elif action == "set-name":
+        name = typer.prompt("Display name")
+        res = _ca.set_display_name(name)
+        console.print(f"[green]✅ Display name: {res['display_name']}[/green]")
+    else:
+        console.print(f"[red]Unknown action '{action}'.[/red]")
 
 @app.command()
 def webask(query: str, provider: Optional[str] = None):

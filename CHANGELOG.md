@@ -4,6 +4,57 @@ All notable changes, newest first. Dates are when the work landed on the
 `audit/fix` branch. `JARVIS.md` (the user's own instructions file) is never
 modified by any of this work.
 
+## [platform] — 2026-09-25 (branch `feature/platform`, not yet merged)
+
+**Max customization round (competitor-grade): settings, profiles, projects,
+Sims, prompts, memory cores, connectors, sign-in, and a Cortana Account slot.**
+
+- **Typed settings schema** (`core/settings.py`): ~45 settings across 12
+  categories with validation, coercion, live-vs-restart metadata,
+  sensitive-key confirmations, profile override hook, and an interactive menu.
+  Old/unknown config keys are preserved on save; legacy keys keep loading.
+- **Profiles** (`core/profiles.py`): named settings bundles under
+  `~/.cortana/profiles/` with quick-switch API, per-profile memory scope,
+  and GUI-ready `list_profiles`/`get_active_profile`/`switch_profile`.
+- **Projects** (`core/projects.py`): named workspaces under
+  `~/.cortana/projects/<slug>/` with custom instructions, file/folder
+  attachments, active-project context injected into prompts (Round B/C safe),
+  per-project JSONL chat logs, and safe bounded attachment reading.
+- **Cortana Sims** (`core/sims.py`): portable JSON bots (name, avatar,
+  personality, system prompt, model, tool allowlist) under `~/.cortana/sims/`
+  with create/list/chat/import/export/delete and a hard tool-allowlist choke
+  point that strips sensitive tools from imported Sims.
+- **Prompt library** (`core/prompts.py`): save/list/apply/delete prompt
+  templates, per-personality overrides, and `get_prompt_for_personality`
+  hook consumed by Round B's personality system.
+- **Memory cores** (`core/memory_cores.py`): inspectable JSONL cores (facts,
+  preferences, projects, episodic) under `~/.cortana/memory/cores/` with
+  add/recall/forget/export/clear/stats, optional profile/project scopes, and
+  a consent-gated auto-capture helper that is off by default. Does not touch
+  P2P; never transmits tokens or private memories.
+- **Connector framework** (`core/connectors/`): OAuth2/PKCE helpers (stdlib
+  HTTP), keyring-backed tokens, per-connector scopes, confirmation before
+  interactive actions, and honest "not connected" statuses. Connectors:
+  Google Drive (read-only), Gmail (read-only), Google Calendar (upcoming,
+  read-only), Outlook/Microsoft 365 Graph (mail + calendar, read-only).
+  Requires real user OAuth client registrations; no live OAuth verified.
+- **Sign-in** (`core/signin.py`): client-side Microsoft (OAuth2/PKCE), Apple
+  (OAuth2), Google (OAuth2/PKCE via `google_client.json`), GitHub (device
+  flow) with keyring-backed tokens. **Apple sign-in currently incomplete:
+  callback only handles GET, not the form_post response Apple sends.**
+- **Cortana Account** (`core/cortana_account.py`): local account record at
+  `~/.cortana/account.json` — display name, linked providers, data controls
+  (`export_local_data` bundles config, profiles, Sims, prompts, memory
+  cores). `docs/CORTANA_ACCOUNT.md` states clearly the hosted backend does
+  not exist yet; API keys, OAuth tokens, and private vector memories are
+  never synced.
+- **CLI**: `settings`, `profile`, `project`, `sim`, `prompt`, `memories`,
+  `connector`, `signin`, `account` command groups; matching REPL slash
+  commands with menus.
+- **Dashboard**: editable settings page + authenticated API (`GET/POST
+  /api/settings`) driven by the same schema; secret-like keys are masked and
+  cannot be changed from the dashboard.
+
 ## [rename] — 2026-09-25 (branch `rename/cortana`, not yet merged)
 
 **Project rename: JARVIS → CORTANA.** Everything the user touches now says

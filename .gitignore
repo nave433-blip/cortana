@@ -15,3 +15,6 @@ dev_instructions.md
 # release build artifacts (see PACKAGING.md)
 dist/
 build/
+
+# local dev venv symlink (machine-specific, never commit)
+.audit-venv
