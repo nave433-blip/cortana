@@ -1,3 +1,4 @@
+LICENSE
 MANIFEST.in
 README.md
 cli.py
@@ -12,6 +13,7 @@ core/config.py
 core/connect.py
 core/dashboard.py
 core/deps.py
+core/devmode.py
 core/gemini_box.py
 core/global_p2p.py
 core/google_auth.py
@@ -46,6 +48,7 @@ core/__pycache__/config.cpython-312.pyc
 core/__pycache__/connect.cpython-312.pyc
 core/__pycache__/dashboard.cpython-312.pyc
 core/__pycache__/deps.cpython-312.pyc
+core/__pycache__/devmode.cpython-312.pyc
 core/__pycache__/gemini_box.cpython-312.pyc
 core/__pycache__/global_p2p.cpython-312.pyc
 core/__pycache__/google_auth.cpython-312.pyc
@@ -86,13 +89,17 @@ tests/test_audit_regressions.py
 tests/test_config_isolation.py
 tests/test_connect.py
 tests/test_deps_sync.py
+tests/test_devmode.py
+tests/test_first_run.py
 tests/test_integration_flows.py
 tests/test_intent_parser.py
+tests/test_packaging.py
 tests/test_phase1_hardening.py
 tests/test_repair_consent.py
 tests/test_repl_robustness.py
 tests/test_services.py
 tests/test_subsystems.py
+tests/test_ui_refinement.py
 tools/__init__.py
 tools/analytics.py
 tools/cloud.py

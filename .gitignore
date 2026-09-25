@@ -11,3 +11,7 @@ memory.index
 # defensive backstop in case one is ever dropped inside the tree.
 dev_instructions.md
 *-dev.local.md
+
+# release build artifacts (see PACKAGING.md)
+dist/
+build/
