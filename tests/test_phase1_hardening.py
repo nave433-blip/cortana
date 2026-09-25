@@ -26,7 +26,7 @@ import types
 import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-os.environ.setdefault("JARVIS_SKIP_STARTUP", "1")
+os.environ.setdefault("CORTANA_SKIP_STARTUP", "1")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 VENV_PY = os.path.join(REPO_ROOT, ".audit-venv", "bin", "python")
@@ -326,7 +326,7 @@ def _smoke_env(tmp_path):
     env = dict(os.environ)
     env["HOME"] = str(home)
     env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
-    env["JARVIS_SKIP_STARTUP"] = "1"
+    env["CORTANA_SKIP_STARTUP"] = "1"
     return env
 
 
@@ -337,7 +337,7 @@ def test_cli_help_smoke(tmp_path):
         capture_output=True, text=True, timeout=60,
     )
     assert r.returncode == 0, r.stderr[-2000:]
-    assert "JARVIS" in r.stdout
+    assert "CORTANA" in r.stdout
 
 
 def test_cli_menu_smoke(tmp_path):
@@ -348,7 +348,7 @@ def test_cli_menu_smoke(tmp_path):
         capture_output=True, text=True, timeout=60,
     )
     assert r.returncode == 0, r.stderr[-2000:]
-    assert "JARVIS SYSTEM INTERFACE" in r.stdout
+    assert "CORTANA SYSTEM INTERFACE" in r.stdout
 
 
 def test_cli_startup_eof_exits_cleanly(tmp_path):

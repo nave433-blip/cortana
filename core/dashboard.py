@@ -32,6 +32,8 @@ import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from core.config import CONFIG_DIR
+
 TOKEN_FILE = CONFIG_DIR / "dashboard_token"
 LOG_DIR = CONFIG_DIR / "logs"
 

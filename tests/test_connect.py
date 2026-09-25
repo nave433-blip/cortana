@@ -86,7 +86,7 @@ def test_fallback_roundtrip_and_0600(home, fail_keyring, capsys):
     assert res["ok"] and res["stored_in"] == "fallback_file"
     assert connect.get_key_secure("openai") == "sk-fallback-secret"
 
-    path = home / ".jarvis" / "keys.json"
+    path = home / ".cortana" / "keys.json"
     assert path.exists()
     mode = stat.S_IMODE(os.stat(path).st_mode)
     assert mode == 0o600, f"fallback keys file must be 0600, got {oct(mode)}"

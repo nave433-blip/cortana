@@ -86,16 +86,19 @@ def load_config():
     try:
         if CONFIG_FILE.exists():
             with open(CONFIG_FILE, "r") as f:
-                merged = {**DEFAULT_CONFIG, **json.load(f)}
+                raw = json.load(f)
         else:
-            merged = dict(DEFAULT_CONFIG)
+            raw = {}
     except Exception:
-        merged = dict(DEFAULT_CONFIG)
-    # Migrate pre-rename keys so existing configs keep working.
+        raw = {}
+    merged = {**DEFAULT_CONFIG, **raw}
+    # Migrate pre-rename keys so existing configs keep working. (Check the
+    # raw user file, not the merged dict — defaults already contain the new
+    # keys, which would otherwise shadow the old values.)
     for new_key, old_key in (("cortana_model", "jarvis_model"),
                              ("cortana_name", "jarvis_name")):
-        if new_key not in merged and old_key in merged:
-            merged[new_key] = merged[old_key]
+        if new_key not in raw and old_key in raw:
+            merged[new_key] = raw[old_key]
     return copy.deepcopy(merged)
 
 def save_config(config):
