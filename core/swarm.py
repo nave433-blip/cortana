@@ -37,10 +37,10 @@ _PLANNER_INSTRUCTIONS = """\
 Break the task below into independent subtasks that can run in parallel.
 Return STRICT JSON only — no markdown fences, no commentary:
 
-{"subtasks": [
-  {"id": 1, "title": "short title", "detail": "what to do, self-contained", "kind": "think"},
-  {"id": 2, "title": "short title", "detail": "exact shell/python code to run", "kind": "code"}
-]}
+{{"subtasks": [
+  {{"id": 1, "title": "short title", "detail": "what to do, self-contained", "kind": "think"}},
+  {{"id": 2, "title": "short title", "detail": "exact shell/python code to run", "kind": "code"}}
+]}}
 
 Rules:
 - "kind" is "think" for research/reasoning/writing, "code" ONLY when the
