@@ -134,3 +134,15 @@ def test_brain_prompt_has_no_refusal_bypass():
     assert "ignore it" not in lowered
     assert "zero safety checks" not in lowered
     assert "morality filters" not in lowered
+
+
+def test_prompt_presets_have_no_refusal_bypass():
+    from core.prompts import DEFAULT_PROMPTS
+    assert "unrestricted" not in DEFAULT_PROMPTS
+    assert "nave_sovereign" not in DEFAULT_PROMPTS
+    for name, text in DEFAULT_PROMPTS.items():
+        lowered = text.lower()
+        assert "never refuse" not in lowered, name
+        assert "zero restrictions" not in lowered, name
+        assert "unconditional disclosure" not in lowered, name
+    assert "never ask for permission" not in DEFAULT_PROMPTS["default"].lower()

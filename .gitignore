@@ -1,4 +1,5 @@
 venv/
+.audit-venv/
 __pycache__/
 *.wav
 memory_store.pkl
