@@ -99,6 +99,27 @@ always works; `screenshot()` and scripted `browse()` need a rendering backend an
 say exactly how to install one when missing. The text fallback never claims
 JavaScript rendering.
 
+## 🐝 Hive mind, agent swarm, MCP, deep research
+
+- **`/hive <question>`** — asks every connected AI provider the same question
+  in parallel and synthesizes one consensus answer with per-model attributions.
+  Failed providers are skipped, never faked. Opt-in P2P shared result cache
+  (`"hive_cache_sharing": true` in `~/.jarvis/config.json`, default off) lets
+  peers share cached answers keyed by prompt hash so the swarm doesn't pay
+  twice; entries carry model + timestamp and expire via `"hive_cache_ttl"`.
+  Peers advertise provider/model *names* only — API keys never go over the wire.
+- **`/swarm <task>`** — planner breaks the task down, parallel workers execute
+  (bounded, per-worker timeouts), reviewer synthesizes. Code-running workers use
+  the Linux sandbox; nothing runs unsandboxed by accident.
+- **`/mcp`** — minimal MCP client (stdio, stdlib only): `/mcp servers`,
+  `/mcp tools [server]`, `/mcp call <server> <tool> '{"args":…}' [--yes]`.
+  Configure servers under `"mcp_servers"` in `~/.jarvis/config.json`; tool calls
+  from untrusted servers require confirmation unless `--yes` or allow-listed.
+- **`/research <topic>`** — multi-query web research: plans sub-queries,
+  fetches pages via the browser module, and compiles a Markdown report where
+  every `[n]` citation is validated against a fetched source — out-of-range
+  citations are stripped, never fabricated. Bounded (4 queries / 8 pages).
+
 ## 🛠 Dev mode
 
 For the developer's own machine only — diagnostics and visibility, no behavior changes:
