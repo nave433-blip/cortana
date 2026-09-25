@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="jarvis-dev",
+    name="cortana",
     version="0.2.6",
     packages=find_packages(),
     py_modules=['cli'],
@@ -18,8 +18,10 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'jarvis=cli:app',
-            'jarvis-thin=tools.ollama_thin:main',
+            'cortana=cli:app',
+            'cortana-thin=tools.ollama_thin:main',
+            # Deprecated alias: prints a rename notice, then forwards.
+            'jarvis=cli:jarvis_shim',
         ],
     },
 )

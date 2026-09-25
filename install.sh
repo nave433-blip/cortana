@@ -1,21 +1,22 @@
 #!/bin/bash
 #
-# JARVIS: one-line installer for macOS & Linux
+# CORTANA: one-line installer for macOS & Linux
 #
 #   curl -fsSL https://raw.githubusercontent.com/nave433-blip/jarvis-dev/main/install.sh | bash
 #
 # What it does:
 #   1. Installs system audio/Python deps via your package manager (sudo)
-#   2. Fetches the sources into ~/.jarvis-app (clone, or refresh on re-run)
-#   3. Creates an isolated Python 3.12+ venv and installs JARVIS into it
-#   4. Links the `jarvis` command into /usr/local/bin
+#   2. Fetches the sources into ~/.cortana-app (clone, or refresh on re-run)
+#   3. Creates an isolated Python 3.12+ venv and installs CORTANA into it
+#   4. Links the `cortana` command into /usr/local/bin
 #   5. Smoke-tests the install
 #
 # Env knobs:
-#   JARVIS_REF=ref            git branch/tag to install (default: repo default branch)
-#   JARVIS_DIR=path           install location (default: ~/.jarvis-app)
-#   JARVIS_SKIP_SYSTEM_DEPS=1 skip the sudo system-package step (containers/CI)
-#   JARVIS_SKIP_GLOBAL_LINK=1 skip linking /usr/local/bin/jarvis
+#   CORTANA_REF=ref            git branch/tag to install (default: repo default branch)
+#   CORTANA_DIR=path           install location (default: ~/.cortana-app)
+#   CORTANA_SKIP_SYSTEM_DEPS=1 skip the sudo system-package step (containers/CI)
+#   CORTANA_SKIP_GLOBAL_LINK=1 skip linking /usr/local/bin/cortana
+# (The old JARVIS_REF/JARVIS_DIR/JARVIS_SKIP_* names still work as deprecated aliases.)
 #
 # Re-running is safe: sources are refreshed (git pull / re-copy) and the
 # install is redone in place.
@@ -28,14 +29,27 @@ ok()   { echo -e "${GREEN}$*${NC}"; }
 warn() { echo -e "${YELLOW}$*${NC}"; }
 die()  { echo -e "${RED}❌ $*${NC}" >&2; exit 1; }
 
-JARVIS_REF="${JARVIS_REF:-}"
-JARVIS_DIR="${JARVIS_DIR:-$HOME/.jarvis-app}"
-SKIP_DEPS="${JARVIS_SKIP_SYSTEM_DEPS:-0}"
-SKIP_LINK="${JARVIS_SKIP_GLOBAL_LINK:-0}"
+CORTANA_REF="${CORTANA_REF:-${JARVIS_REF:-}}"
+# Default install dir is ~/.cortana-app; an existing pre-rename ~/.jarvis-app
+# checkout is reused in place so re-running the installer never orphans it.
+CORTANA_DIR="${CORTANA_DIR:-${JARVIS_DIR:-}}"
+if [[ -z "$CORTANA_DIR" ]]; then
+    if [[ -d "$HOME/.cortana-app" ]]; then
+        CORTANA_DIR="$HOME/.cortana-app"
+    elif [[ -d "$HOME/.jarvis-app" ]]; then
+        CORTANA_DIR="$HOME/.jarvis-app"
+    else
+        CORTANA_DIR="$HOME/.cortana-app"
+    fi
+fi
+JARVIS_DIR="$CORTANA_DIR"  # internal alias: rest of script uses JARVIS_DIR
+JARVIS_REF="$CORTANA_REF"    # internal alias
+SKIP_DEPS="${CORTANA_SKIP_SYSTEM_DEPS:-${JARVIS_SKIP_SYSTEM_DEPS:-0}}"
+SKIP_LINK="${CORTANA_SKIP_GLOBAL_LINK:-${JARVIS_SKIP_GLOBAL_LINK:-0}}"
 OS_TYPE="$(uname -s | tr '[:upper:]' '[:lower:]')"
 REPO_URL="https://github.com/nave433-blip/jarvis-dev.git"
 
-info "🚀 Installing JARVIS on ${OS_TYPE} → ${JARVIS_DIR}"
+info "🚀 Installing CORTANA on ${OS_TYPE} → ${JARVIS_DIR}"
 
 # --- helpers -----------------------------------------------------------------
 # Run "$@" with sudo when not root; fail clearly when sudo is unavailable.
@@ -45,13 +59,13 @@ need_sudo() {
     elif command -v sudo >/dev/null 2>&1; then
         sudo "$@"
     else
-        die "Need root for system packages but 'sudo' is unavailable. Re-run as root or set JARVIS_SKIP_SYSTEM_DEPS=1."
+        die "Need root for system packages but 'sudo' is unavailable. Re-run as root or set CORTANA_SKIP_SYSTEM_DEPS=1."
     fi
 }
 
 # --- 1. system dependencies ----------------------------------------------------
 if [[ "$SKIP_DEPS" == "1" ]]; then
-    warn "⏭️  Skipping system dependencies (JARVIS_SKIP_SYSTEM_DEPS=1)."
+    warn "⏭️  Skipping system dependencies (CORTANA_SKIP_SYSTEM_DEPS=1)."
 elif [[ "$OS_TYPE" == "linux" ]]; then
     info "🔍 Installing Linux system dependencies..."
     if command -v apt-get >/dev/null 2>&1; then
@@ -85,7 +99,7 @@ mkdir -p "$JARVIS_DIR"
 MIN_KB=1572864  # 1.5 GiB
 HAVE_KB="$(df -k "$JARVIS_DIR" 2>/dev/null | awk 'NR==2 {print $4}')"
 if [[ -n "$HAVE_KB" ]] && [[ "$HAVE_KB" -lt "$MIN_KB" ]]; then
-    die "Only $(( HAVE_KB / 1024 )) MiB free where ${JARVIS_DIR} lives — JARVIS needs ~1.5 GiB. Free space or set JARVIS_DIR elsewhere."
+    die "Only $(( HAVE_KB / 1024 )) MiB free where ${JARVIS_DIR} lives — CORTANA needs ~1.5 GiB. Free space or set CORTANA_DIR elsewhere."
 fi
 if [[ "$(pwd -P)" == "$(cd "$JARVIS_DIR" && pwd -P)" ]]; then
     info "📂 Already inside ${JARVIS_DIR} — refreshing in place."
@@ -102,9 +116,9 @@ elif [[ -d "$JARVIS_DIR/.git" ]]; then
     git -C "$JARVIS_DIR" pull --ff-only >/dev/null 2>&1 \
         || warn "⚠️  git pull failed (offline or diverged?) — installing from existing files."
 elif [[ -n "$(ls -A "$JARVIS_DIR" 2>/dev/null)" ]]; then
-    die "$JARVIS_DIR exists but is not a JARVIS checkout. Move it aside and re-run."
+    die "$JARVIS_DIR exists but is not a CORTANA checkout. Move it aside and re-run."
 else
-    info "📂 Cloning JARVIS${JARVIS_REF:+ (ref: $JARVIS_REF)}..."
+    info "📂 Cloning CORTANA${JARVIS_REF:+ (ref: $JARVIS_REF)}..."
     if [[ -n "$JARVIS_REF" ]]; then
         git clone --depth 1 -b "$JARVIS_REF" "$REPO_URL" "$JARVIS_DIR"
     else
@@ -119,7 +133,7 @@ PYTHON_BIN="$(command -v python3.12 || command -v python3 || true)"
 [[ -n "$PYTHON_BIN" ]] || die "No python3 found. Install Python 3.12+ and re-run."
 PY_VER="$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 "$PYTHON_BIN" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' \
-    || die "JARVIS requires Python 3.12+ (found ${PY_VER} at ${PYTHON_BIN})."
+    || die "CORTANA requires Python 3.12+ (found ${PY_VER} at ${PYTHON_BIN})."
 
 # --- 4. venv + install ------------------------------------------------------------
 info "🐍 Setting up isolated virtual environment..."
@@ -128,23 +142,23 @@ info "🐍 Setting up isolated virtual environment..."
 # shellcheck disable=SC1091
 source "venv/bin/activate"
 
-info "📦 Installing JARVIS and dependencies (a few minutes on first run)..."
+info "📦 Installing CORTANA and dependencies (a few minutes on first run)..."
 pip install --quiet --upgrade pip
 pip install --quiet -e .
 
 # --- 5. global launcher -------------------------------------------------------------
 if [[ "$SKIP_LINK" == "1" ]]; then
-    warn "⏭️  Skipping global link (JARVIS_SKIP_GLOBAL_LINK=1). Run: ${JARVIS_DIR}/venv/bin/jarvis"
+    warn "⏭️  Skipping global link (CORTANA_SKIP_GLOBAL_LINK=1). Run: ${JARVIS_DIR}/venv/bin/cortana"
 else
-    info "🔗 Installing the 'jarvis' command..."
-    BIN_PATH="/usr/local/bin/jarvis"
+    info "🔗 Installing the 'cortana' command..."
+    BIN_PATH="/usr/local/bin/cortana"
     WRAPPER_TMP="$(mktemp)"
     cat > "$WRAPPER_TMP" <<EOF
 #!/bin/bash
-# Generated by JARVIS install.sh — do not edit.
-export JARVIS_ROOT="${JARVIS_DIR}"
-source "\$JARVIS_ROOT/venv/bin/activate"
-exec python "\$JARVIS_ROOT/cli.py" "\$@"
+# Generated by CORTANA install.sh — do not edit.
+export CORTANA_ROOT="${JARVIS_DIR}"
+source "\$CORTANA_ROOT/venv/bin/activate"
+exec python "\$CORTANA_ROOT/cli.py" "\$@"
 EOF
     chmod +x "$WRAPPER_TMP"
     if [[ -w /usr/local/bin ]]; then
@@ -153,7 +167,7 @@ EOF
         warn "⚠️  /usr/local/bin is not writable — installing the launcher with sudo..."
         need_sudo mv "$WRAPPER_TMP" "$BIN_PATH"
     fi
-    ok "✅ 'jarvis' command installed at ${BIN_PATH}"
+    ok "✅ 'cortana' command installed at ${BIN_PATH}"
 fi
 
 # --- 6. smoke test ------------------------------------------------------------------
@@ -161,7 +175,7 @@ info "🧪 Verifying installation..."
 if venv/bin/python cli.py --help >/dev/null 2>&1; then
     ok "✅ Smoke test passed."
 else
-    die "Install finished but 'jarvis --help' failed. Try: ${JARVIS_DIR}/venv/bin/python ${JARVIS_DIR}/cli.py --help"
+    die "Install finished but 'cortana --help' failed. Try: ${JARVIS_DIR}/venv/bin/python ${JARVIS_DIR}/cli.py --help"
 fi
 
-ok "✨ JARVIS installed! Start a new shell and run: jarvis"
+ok "✨ CORTANA installed! Start a new shell and run: cortana"

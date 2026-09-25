@@ -1160,4 +1160,13 @@ def optimize():
 
     console.print("[bold green]✅ Optimization complete![/bold green]")
 
+def jarvis_shim():
+    """Deprecated ``jarvis`` entry point: notifies about the rename, then forwards."""
+    import sys
+    print("Note: 'jarvis' has been renamed to 'cortana'. Please use 'cortana' going forward.",
+          file=sys.stderr)
+    sys.argv[0] = "cortana"
+    app()
+
+
 if __name__ == "__main__": app()

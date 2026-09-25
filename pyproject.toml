@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jarvis-dev"
+name = "cortana"
 version = "0.2.6"
-description = "Local AI coding assistant for macOS and Linux"
+description = "Cortana: local AI assistant for macOS and Linux"
 
 readme = "README.md"
 requires-python = ">=3.12"
@@ -54,7 +54,10 @@ dev = [
 Homepage = "https://github.com/nave433-blip/jarvis-dev"
 
 [project.scripts]
-jarvis = "cli:app"
+cortana = "cli:app"
+cortana-thin = "tools.ollama_thin:main"
+# Deprecated alias: prints a rename notice, then forwards to cortana.
+jarvis = "cli:jarvis_shim"
 
 [tool.setuptools]
 py-modules = ["cli"]

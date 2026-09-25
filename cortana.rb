@@ -1,5 +1,5 @@
-class Jarvis < Formula
-  desc "Local AI coding assistant for macOS and Linux"
+class Cortana < Formula
+  desc "Cortana: local AI assistant for macOS and Linux"
   homepage "https://github.com/nave433-blip/jarvis-dev"
   # Release checklist (see PACKAGING.md): on a new release, point this at the
   # new tag tarball and update sha256 to match (sha256sum of the download).
@@ -16,6 +16,6 @@ class Jarvis < Formula
   end
 
   test do
-    system "#{bin}/jarvis", "--help"
+    system "#{bin}/cortana", "--help"
   end
 end

@@ -1,3 +1,5 @@
 #!/bin/bash
+# Deprecated alias: 'jarvis' was renamed to 'cortana'.
+echo "Note: 'jarvis' has been renamed to 'cortana'. Please use 'cortana' going forward." >&2
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-$DIR/venv/bin/python $DIR/cli.py "$@"
+exec "$DIR/cortana" "$@"

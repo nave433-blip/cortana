@@ -1,0 +1,4 @@
+[console_scripts]
+cortana = cli:app
+cortana-thin = tools.ollama_thin:main
+jarvis = cli:jarvis_shim
