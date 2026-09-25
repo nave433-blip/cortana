@@ -40,6 +40,7 @@ dependencies = [
     "ddgs>=9.14.4",
     "litellm>=1.85.1",
     "typing-extensions>=4.15.0",
+    "packaging>=24.0",
     "botocore>=1.43.12",
     "boto3>=1.43.12"
 ]

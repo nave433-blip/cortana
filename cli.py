@@ -6,18 +6,30 @@ import subprocess
 from typing import Optional, Dict, Any
 from typing_extensions import Annotated
 
-# 1. Self-Repairing Dependency Check
+# 1. Self-Repairing Dependency Check (runs on CLI invocation, not on import —
+#    importing this module as a library must stay side-effect free)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from core.deps import ensure_all
-ensure_all()
 
 # 2. Global Self-Repair & Reporting Engine
 from core.repair import init_repair_engine
-init_repair_engine()
 
 # 3. Auto-Update Check
 from core.update import auto_update_check, CURRENT_VERSION
-auto_update_check()
+
+
+def run_startup_checks() -> None:
+    """Heavy startup side effects: only run for real CLI invocations.
+
+    Skipped when JARVIS_SKIP_STARTUP=1 (tests, library use) so that merely
+    importing this module never pip-installs packages, hits the network,
+    or prompts for input.
+    """
+    if os.environ.get("JARVIS_SKIP_STARTUP") == "1":
+        return
+    ensure_all()
+    init_repair_engine()
+    auto_update_check()
 
 import typer
 from rich.console import Console
@@ -55,13 +67,24 @@ warnings.simplefilter("ignore", SyntaxWarning)
 app = typer.Typer(help="🚀 JARVIS: The Ultimate Local AI Coding Assistant", add_completion=False)
 console = Console()
 
-@app.callback()
-def main(debug: bool = typer.Option(False, "--debug", help="Enable debug logging")):
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context,
+         debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
+         skip_startup: bool = typer.Option(False, "--skip-startup", help="Skip dependency/update startup checks")):
+    """JARVIS: Your local AI engineer."""
+    if skip_startup:
+        os.environ["JARVIS_SKIP_STARTUP"] = "1"
+    run_startup_checks()
     if debug:
         import logging
         logging.basicConfig(level=logging.DEBUG)
         os.environ["LITELLM_LOG"] = "DEBUG"
         console.print("[dim]Debug mode enabled.[/dim]")
+    if ctx.invoked_subcommand is None:
+        if not CONFIG_FILE.exists():
+            console.print("[yellow]No configuration found. Starting setup...[/yellow]")
+            setup_wizard()
+        interactive()
 
 # Initialize Advanced Handler
 handler = CommandHandler()
@@ -76,7 +99,7 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/ollama", "/refine", "/stress-test"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/refine", "/stress-test"
 ]
 
 # ... (omitted)
@@ -84,10 +107,16 @@ COMMANDS = [
 @app.command()
 def ollama_cmd(args: Annotated[Optional[str], typer.Argument(help="Ollama CLI arguments")] = None):
     """Direct interface to the local Ollama CLI."""
-    import os
-    cmd = f"ollama {args}" if args else "ollama"
-    console.print(f"[dim]Executing: {cmd}[/dim]")
-    os.system(cmd)
+    import shlex
+    import subprocess
+    cmd = ["ollama"] + (shlex.split(args) if args else [])
+    console.print(f"[dim]Executing: {' '.join(cmd)}[/dim]")
+    try:
+        subprocess.run(cmd, shell=False)
+    except FileNotFoundError:
+        console.print("[red]'ollama' executable not found in PATH.[/red]")
+    except Exception as e:
+        console.print(f"[red]Ollama CLI failed: {e}[/red]")
 
 @app.command()
 def scan_ollama():
@@ -302,7 +331,7 @@ def interactive():
                     elif cmd == "/ollama-login": ollama_login()
                     elif cmd == "/p2p-scan": p2p_scan()
                     elif cmd == "/p2p-status": p2p_status()
-                    elif cmd == "/p2p-read":
+                    elif cmd == "/p2p-edit":
 
                         p_ip = args.split()[0] if args else Prompt.ask("Peer IP")
                         p_path = args.split()[1] if args and len(args.split()) > 1 else Prompt.ask("File Path")
@@ -340,7 +369,7 @@ def interactive():
                         launch(tool=t)
                     elif cmd == "/focus": focus(args or Prompt.ask("Path"))
                     elif cmd in ["/troubleshoot", "/t"]: troubleshoot(args or Prompt.ask("Command"), prompt=prompt_name)
-                    elif cmd == "/free": free_keys()
+                    elif cmd == "/free": show_free_providers()
                     elif cmd == "/doctor": run_doctor()
                     elif cmd == "/git": ai_git(args or Prompt.ask("Git task?"))
                     elif cmd == "/restart": restart()
@@ -358,8 +387,6 @@ def interactive():
                     elif cmd == "/sync": update_all_repos()
                     elif cmd == "/box":
                         box_menu(args)
-                    elif cmd == "/ollama":
-                        ollama_cmd(args)
                     elif cmd == "/examine-py":
                         examine_py(args or Prompt.ask("Path to Python file"))
                     elif cmd == "/patch-py":
@@ -406,14 +433,7 @@ def interactive():
                 last_ctrl_c = now
         except EOFError: break
 
-@app.callback(invoke_without_command=True)
-def main(ctx: typer.Context):
-    """JARVIS: Your local AI engineer."""
-    if ctx.invoked_subcommand is None:
-        if not CONFIG_FILE.exists():
-            console.print("[yellow]No configuration found. Starting setup...[/yellow]")
-            setup_wizard()
-        interactive()
+# (single callback defined above; duplicate removed)
 
 def ollama_cli(args: str):
     """Pass-through CLI for Ollama."""
@@ -624,6 +644,24 @@ def launch(tool: str):
     from tools.launcher import launch_tool
     console.print(f"[bold cyan]Launching:[/bold cyan] {tool}")
     console.print(f"[green]{launch_tool(tool)}[/green]")
+
+def show_free_providers():
+    """Show providers usable without an API key (local models) and their status."""
+    from core.services import validate_ollama
+    from core.config import load_config
+    cfg = load_config()
+    host = cfg.get("ollama_host", "http://localhost:11434")
+    table = Table(title="Key-free providers", border_style="green")
+    table.add_column("Provider", style="cyan")
+    table.add_column("Status", style="white")
+    # Local providers that need no API key
+    res = validate_ollama(host)
+    ollama_ok = res.get("ok")
+    table.add_row("ollama (local)", "[green]reachable[/green]" if ollama_ok else f"[red]not reachable at {host}[/red]")
+    for name in ("llama_cpp", "gpt4all", "vllm", "sglang", "local"):
+        table.add_row(name, "[dim]configure a local server, then select via /model[/dim]")
+    console.print(table)
+    console.print("[dim]Tip: use /model to switch providers, /doctor to repair Ollama.[/dim]")
 
 @app.command()
 def troubleshoot(command: str, model: Annotated[Optional[str], typer.Option("--model", "-m")] = None, prompt: Annotated[Optional[str], typer.Option("--prompt", "-p")] = None):

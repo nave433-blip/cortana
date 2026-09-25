@@ -195,10 +195,11 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
 
     if start_maintenance:
         try:
-            from core.config import start_auto_maintenance
-            start_auto_maintenance(interval_hours=24)
+            from core.config import start_periodic_config_maintenance
+            start_periodic_config_maintenance(interval_hours=24)
             report["maintenance_started"] = True
-        except: pass
+        except Exception as e:
+            report["maintenance_error"] = str(e)
 
     console.print(Panel("Intelligence core online. Systems nominal.", title="Status", border_style="green"))
     return report

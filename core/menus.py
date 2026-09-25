@@ -487,15 +487,28 @@ def robust_help():
 
 def cloud_menu():
     """Interactive management for cloud storage platforms."""
-    from cli import cloud
+    from tools.cloud import list_gdrive, list_dropbox, list_icloud
     info = """
     [bold white]Unified Cloud Bridge[/bold white]
-    
-    [1] [bold cyan]Google Drive:[/bold cyan] Browse and fetch files from your G-Drive storage.
-    [2] [bold cyan]Dropbox:[/bold cyan] Synchronize and edit files stored in your Dropbox.
+
+    [1] [bold cyan]Google Drive:[/bold cyan] Browse files from your G-Drive storage.
+    [2] [bold cyan]Dropbox:[/bold cyan] List files stored in your Dropbox.
     [3] [bold cyan]iCloud Drive:[/bold cyan] Direct access to Apple Cloud files (macOS only).
     """
     console.print(Panel(info, title="Cloud Storage", border_style="cyan"))
-    if choice == "1": cloud("gdrive")
-    elif choice == "2": cloud("dropbox")
-    elif choice == "3": cloud("icloud")
+    choice = Prompt.ask("Select a provider", choices=["1", "2", "3"], default="1")
+    if choice == "1":
+        files = list_gdrive()
+        title = "Google Drive"
+    elif choice == "2":
+        files = list_dropbox()
+        title = "Dropbox"
+    else:
+        files = list_icloud()
+        title = "iCloud Drive"
+    if isinstance(files, str):
+        # tools/cloud.py returns an error string when a provider is unavailable
+        console.print(f"[red]{files}[/red]")
+    else:
+        body = "\n".join(files) if files else "[dim](empty)[/dim]"
+        console.print(Panel(body, title=title, border_style="green"))
