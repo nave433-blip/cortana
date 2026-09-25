@@ -67,7 +67,7 @@ def test_p2p_tls_socketpair_handshake(tmp_path):
 
     cert = str(tmp_path / "p2p.crt")
     key = str(tmp_path / "p2p.key")
-    p2p.generate_self_signed_cert(cert, key, hostname="jarvis-test")
+    p2p.generate_self_signed_cert(cert, key, hostname="cortana-test")
     assert os.path.exists(cert) and os.path.exists(key)
 
     server_ctx = p2p._build_ssl_context(cert, key)
@@ -87,7 +87,7 @@ def test_p2p_tls_socketpair_handshake(tmp_path):
     client_ctx = ssl.create_default_context()
     client_ctx.check_hostname = False
     client_ctx.verify_mode = ssl.CERT_NONE
-    tls_b = client_ctx.wrap_socket(b, server_hostname="jarvis-test")
+    tls_b = client_ctx.wrap_socket(b, server_hostname="cortana-test")
     try:
         tls_b.sendall(b"ping")
         assert tls_b.recv(4) == b"pong"

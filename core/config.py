@@ -20,13 +20,15 @@ def _resolve_config_dir():
     """Return the config dir, migrating ``~/.jarvis`` -> ``~/.cortana`` once.
 
     The old directory is copied (never moved or deleted); a notice is printed
-    to stderr so the user knows what happened.
+    to stderr so the user knows what happened. Migration still runs when
+    ``~/.cortana`` exists but has no ``config.json`` yet (e.g. only
+    auto-created cache dirs) — an existing ``config.json`` always wins.
     """
     new = Path.home() / ".cortana"
     old = Path.home() / ".jarvis"
-    if not new.exists() and old.is_dir():
+    if old.is_dir() and not (new / "config.json").exists():
         try:
-            shutil.copytree(old, new)
+            shutil.copytree(old, new, dirs_exist_ok=True)
             print("Migrated your Jarvis config (~/.jarvis) to ~/.cortana. "
                   "The old directory was left untouched.", file=sys.stderr)
         except Exception as e:
@@ -249,17 +251,21 @@ def quick_setup():
     _print_first_use()
 
 def get_env_with_config(key):
+    """Config lookup with env override; honors pre-rename ``JARVIS_*`` spellings.
+
+    Precedence: new env var, legacy env var, config file (which itself
+    migrates legacy ``jarvis_*`` keys on load).
+    """
     config = load_config()
     env_val = os.getenv(key.upper())
-    if env_val: return env_val
-    val = config.get(key.lower(), "")
-    if not val and key.lower().startswith("cortana_"):
-        # Deprecated pre-rename fallbacks.
-        legacy_env = "CORTANA_" + key[len("cortana_"):].upper()
-        env_val = os.getenv(legacy_env)
-        if env_val: return env_val
-        val = config.get("cortana_" + key[len("cortana_"):], "")
-    return val
+    if env_val:
+        return env_val
+    kl = key.lower()
+    if kl.startswith("cortana_"):
+        legacy_val = os.getenv("JARVIS_" + kl[len("cortana_"):].upper())
+        if legacy_val:
+            return legacy_val
+    return config.get(kl, "")
 
 def is_dev_mode(config=None):
     """Dev-mode toggle for the developer's own machine.

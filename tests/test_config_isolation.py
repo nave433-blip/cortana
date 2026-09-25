@@ -66,3 +66,27 @@ def test_returned_configs_are_independent(isolated_config_file):
     b = load_config()
     a["ollama_hosts"].append("http://one.example")
     assert b["ollama_hosts"] == DEFAULT_CONFIG["ollama_hosts"]
+
+
+def test_get_env_with_config_legacy_fallback(monkeypatch, isolated_config_file):
+    """Pre-rename JARVIS_MODEL env / jarvis_model key feed cortana_model lookups."""
+    from core.config import get_env_with_config
+    monkeypatch.delenv("CORTANA_MODEL", raising=False)
+    monkeypatch.setenv("JARVIS_MODEL", "env-legacy")
+    assert get_env_with_config("cortana_model") == "env-legacy"
+    monkeypatch.delenv("JARVIS_MODEL")
+    isolated_config_file.write_text(json.dumps({"jarvis_model": "cfg-legacy"}))
+    assert get_env_with_config("cortana_model") == "cfg-legacy"
+
+
+def test_get_env_with_config_precedence(monkeypatch, isolated_config_file):
+    """New env > legacy env > config file."""
+    from core.config import get_env_with_config
+    isolated_config_file.write_text(json.dumps({"cortana_model": "cfg-model"}))
+    monkeypatch.delenv("CORTANA_MODEL", raising=False)
+    monkeypatch.delenv("JARVIS_MODEL", raising=False)
+    assert get_env_with_config("cortana_model") == "cfg-model"
+    monkeypatch.setenv("JARVIS_MODEL", "legacy-env")
+    assert get_env_with_config("cortana_model") == "legacy-env"
+    monkeypatch.setenv("CORTANA_MODEL", "new-env")
+    assert get_env_with_config("cortana_model") == "new-env"

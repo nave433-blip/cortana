@@ -58,13 +58,13 @@ def test_memory_limit_kills_hog():
 
 @needs_linux
 def test_environment_is_scrubbed():
-    os.environ["JARVIS_TEST_SECRET_MARKER"] = "s3cret"
+    os.environ["CORTANA_TEST_SECRET_MARKER"] = "s3cret"
     try:
         r = run_sandboxed("env", backend="subprocess")
     finally:
-        del os.environ["JARVIS_TEST_SECRET_MARKER"]
+        del os.environ["CORTANA_TEST_SECRET_MARKER"]
     assert r.exit_code == 0
-    assert "JARVIS_TEST_SECRET_MARKER" not in r.stdout
+    assert "CORTANA_TEST_SECRET_MARKER" not in r.stdout
     assert "s3cret" not in r.stdout
 
 

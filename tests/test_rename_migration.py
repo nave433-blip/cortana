@@ -53,11 +53,28 @@ def test_new_dir_wins_when_both_exist(fake_home, monkeypatch, capsys):
     (old / "sentinel.txt").write_text("do not copy me")
     new = fake_home / ".cortana"
     new.mkdir()
+    (new / "config.json").write_text(json.dumps({"cortana_model": "llama3"}))
 
     resolved = _resolve_config_dir()
     assert resolved == new
     assert not (new / "sentinel.txt").exists()
     assert capsys.readouterr().err == ""
+
+
+def test_migration_merges_into_configless_new_dir(fake_home, monkeypatch, capsys):
+    """A ~/.cortana with only auto-created cache dirs must not block migration."""
+    old = fake_home / ".jarvis"
+    old.mkdir()
+    (old / "config.json").write_text(json.dumps({"jarvis_model": "mistral"}))
+    new = fake_home / ".cortana"
+    (new / "cache").mkdir(parents=True)
+
+    resolved = _resolve_config_dir()
+    assert resolved == new
+    assert (new / "config.json").exists()
+    assert (new / "cache").is_dir()
+    assert (old / "config.json").exists()  # copy, not move
+    assert "Migrated" in capsys.readouterr().err
 
 
 def test_no_old_dir_no_migration(fake_home, monkeypatch, capsys):
