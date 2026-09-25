@@ -22,13 +22,14 @@ console = Console()
 API_KEYS_KEY = "api_keys"
 KEYRING_SERVICE_NAME = "jarvis_cli"
 DEFAULT_MODELS_KEY = "default_models"
+# Providers with real support in this codebase: either connection validation
+# in validate_provider_connection() or a key mapping in set_key_for_litellm().
+# Image/video/speech services and invented names were removed — they were
+# advertised but had no working integration.
 KNOWN_PROVIDERS = [
-    "openai", "ollama", "anthropic", "gemini", "mistral", "gpt4all", "llama_cpp", "vllm", "sglang", 
-    "nemotron", "qwen", "deepseek", "kimi", "perplexity", "granite", "laguna", "gemma", "together", 
-    "glm", "minimax", "lfm", "essential", "olmo", "cogito", "meta", "microsoft", "minicpm", 
-    "smollm", "tii", "nous", "lg", "cohere", "yi", "upstage", "groq", "internlm", 
-    "athene", "stability", "reflection", "z_ai", "midjourney", "flux", "sora", "kling", "whisper",
-    "wolfram", "polly", "heygen", "veo", "mindsdb", "xiaomi", "tencent", "kwaipilot", "replit", "local"
+    "openai", "anthropic", "gemini", "ollama", "mistral", "deepseek", "groq",
+    "together", "cohere", "perplexity",
+    "gpt4all", "llama_cpp", "vllm", "sglang", "nemotron", "qwen", "local",
 ]
 
 # Key/model utilities

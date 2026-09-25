@@ -113,14 +113,14 @@ def setup_wizard():
         return
 
     config = load_config()
-    config["provider"] = Prompt.ask("Select your primary LLM provider", choices=["ollama", "gemini", "claude", "openai", "grok", "mistral", "nvidia", "deepseek", "kimi"], default=config["provider"])
+    config["provider"] = Prompt.ask("Select your primary LLM provider", choices=["ollama", "openai", "anthropic", "gemini", "mistral", "deepseek", "groq", "together", "cohere", "perplexity"], default=config["provider"])
     
     if config["provider"] == "ollama":
         config["ollama_host"] = smart_input("Ollama Host URL", config["ollama_host"], auto_detect_func=detect_ollama)
         config["jarvis_model"] = Prompt.ask("Ollama Model Name", default=config["jarvis_model"])
     
     if Confirm.ask("Would you like to configure Cloud API Keys now?"):
-        for key in ["gemini_api_key", "openai_api_key", "anthropic_api_key", "xai_api_key", "mistral_api_key", "nvidia_api_key", "deepseek_api_key", "moonshot_api_key", "ollama_token"]:
+        for key in ["gemini_api_key", "openai_api_key", "anthropic_api_key", "mistral_api_key", "deepseek_api_key", "groq_api_key", "ollama_token"]:
             name = key.replace("_", " ").title()
             if Confirm.ask(f"Configure {name}?"):
                 config[key] = Prompt.ask(f"Enter {name}", default=config.get(key, ""), password=True)

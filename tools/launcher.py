@@ -24,9 +24,6 @@ TOOL_REGISTRY = {
 }
 
 def is_tool_installed(cmd):
-    if " " in cmd: # Handle multi-part commands like 'ollama launch'
-        base = cmd.split()[0]
-        return shutil.which(base) is not None
     return shutil.which(cmd) is not None
 
 def _launch_gui_app(darwin_app_name: str, linux_bin: str) -> str:
@@ -80,8 +77,9 @@ def launch_tool(tool_name):
     console.print(f"[bold cyan]🚀 Launching {tool_name.title()}...[/bold cyan]")
     
     try:
-        # Using Popen to not block the main JARVIS thread
-        subprocess.Popen(cmd, shell=True)
+        # Using Popen to not block the main JARVIS thread.
+        # argv list (no shell): cmd is a plain binary name from the registry.
+        subprocess.Popen([cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return f"Successfully initiated launch for {tool_name}."
     except Exception as e:
         return f"Launch failed: {e}"

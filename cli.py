@@ -820,55 +820,46 @@ def models_command(name: Optional[str] = None):
     tier = config.get("machine_tier", "medium")
     
     # Advanced Model & Tool Mapping
+    # Providers/models here must have real support in core.services.
     model_map = {
-        "ollama": ["nave433/jarvis", "llama3.3", "llama3.2", "phi4", "muse-spark", "dbrx"],
-        "openai": ["gpt-5.5", "gpt-4o", "gpt-4o-mini", "o1-preview"],
-        "gemini": ["gemini-3.1-pro", "gemini-3-flash-preview", "gemini-1.5-pro"],
-        "claude": ["claude-4.7", "claude-3-5-sonnet-20240620", "claude-3-opus-20240229"],
-        "mistral": ["mistral-medium-3.5", "mistral-large-latest", "codestral"],
-        "deepseek": ["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v3.2", "deepseek-r1", "deepseek-coder-v2"],
-        "qwen": ["qwen3.6", "qwen3.5", "qwen3-coder-next", "qwq", "qwen2.5-math"],
-        "grok": ["grok-4.20", "grok-beta"],
-        "xiaomi": ["mimo-v2.5", "mimo-v2-pro", "mimo-v2-omni"],
-        "tencent": ["hy3-preview"],
-        "kwaipilot": ["kat-coder-pro-v2"],
-        "glm": ["glm-5.1", "glm-5", "glm-4.7", "glm-4.6", "glm-4.7-flash"],
-        "minimax": ["minimax-m2.7", "minimax-m2.5", "minimax-m2.1", "minimax-m2"],
-        "nvidia": ["nemotron-3-super", "nemotron-3-nano", "nemotron-cascade-2", "nvidia/nemotron-4-340b-instruct"],
+        "ollama": ["llama3.3", "llama3.2", "phi4", "qwen3", "deepseek-r1"],
+        "openai": ["gpt-4o", "gpt-4o-mini", "o1-preview", "o1-mini"],
+        "anthropic": ["claude-3-5-sonnet-20241022", "claude-3-5-sonnet-20240620",
+                      "claude-3-opus-20240229"],
+        "gemini": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+        "mistral": ["mistral-large-latest", "mistral-medium-latest"],
+        "deepseek": ["deepseek-chat", "deepseek-reasoner"],
+        "groq": ["llama-3.3-70b-versatile"],
+        "together": ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "Qwen/Qwen2.5-72B-Instruct"],
         "cohere": ["command-r-plus", "command-r"],
-        "gemma": ["gemma-4-27b", "gemma-4-9b", "translategemma", "gemma-3-flash-preview"],
-        "perplexity": ["llama-3.1-sonar-huge-128k-online"],
-        "granite": ["granite-4.1", "granite-3.1-8b-instruct", "granite-20b-code-instruct"],
-        "laguna": ["laguna-xs.2-33b"],
-        "lfm": ["lfm2.5-thinking", "lfm2-24b-a2b"],
-        "essential": ["rnj-1"],
-        "olmo": ["olmo-3.1", "olmo-3", "olmo2"],
-        "stability": ["stablelm2", "stable-code"],
-        "lg": ["exaone3.5", "exaone-deep"],
+        "perplexity": ["llama-3.1-sonar-large-128k-online"],
+        "qwen": ["qwen3", "qwen2.5"],
+        "gpt4all": ["default"],
+        "llama_cpp": ["local-model"],
         "vllm": ["meta-llama/Meta-Llama-3-70B-Instruct", "mistralai/Mixtral-8x7B-Instruct-v0.1"],
         "sglang": ["meta-llama/Meta-Llama-3-8B-Instruct"],
-        "llama_cpp": ["local-model"],
+        "nemotron": ["default"],
+        "local": ["default"],
     }
-    
+
+    # Must match tools.launcher.TOOL_REGISTRY — entries here launch for real.
     ai_tools = {
         "claude-desktop": "Anthropic's official desktop client",
         "claude": "Anthropic's Claude Code (with subagents)",
         "hermes": "Nous Research Hermes Agent",
         "openclaw": "OpenClaw Personal AI",
-        "opencode": "Anomaly OpenCode Agent",
-        "replit-agent": "Replit's autonomous app builder",
+        "opencode": "OpenCode terminal agent",
         "copilot": "GitHub Copilot CLI",
         "aider": "High-speed CLI pair programming agent",
-        "agent-zero": "Self-contained open-source autonomous helper",
-        "gumloop": "No-code visual AI workflow builder",
-        "space-agent": "Autonomous browser & computer automation",
-        "crew-ai": "Multi-agent role-playing framework",
-        "auto-gen": "Microsoft collaborative agent framework",
         "droid": "Factory's coding agent",
         "pi": "Minimal AI agent toolkit",
         "pool": "Poolside's coding agent",
         "codex": "OpenAI's open-source coding agent",
+        "interpreter": "Open Interpreter",
+        "gpt-engineer": "GPT Engineer",
+        "mentat": "Mentat coding assistant",
     }
+
     if name:
         if name in ai_tools:
             launch(tool=name)
@@ -895,10 +886,8 @@ def models_command(name: Optional[str] = None):
     status_table.add_column("Provider", style="cyan")
     status_table.add_column("Status", justify="center")
 
-    all_providers = [
-        "ollama", "openai", "gemini", "claude", "mistral", "deepseek", "qwen", 
-        "kimi", "perplexity", "granite", "cohere", "nvidia", "groq", "stability"
-    ]
+    from core.services import KNOWN_PROVIDERS
+    all_providers = KNOWN_PROVIDERS
 
     rows = []
     for i in range(0, len(all_providers), 3):
@@ -907,7 +896,7 @@ def models_command(name: Optional[str] = None):
             if i + j < len(all_providers):
                 p = all_providers[i+j]
                 is_linked = False
-                if p in ["ollama", "vllm", "sglang", "laguna", "llama_cpp", "gpt4all", "local"]:
+                if p in ["ollama", "vllm", "sglang", "llama_cpp", "gpt4all", "nemotron", "qwen", "local"]:
                     is_linked = config.get(f"{p}_host") is not None
                 else:
                     is_linked = get_api_key(p) is not None
@@ -923,13 +912,15 @@ def models_command(name: Optional[str] = None):
     console.print("\n[bold cyan]Intelligence Control Center[/bold cyan]")
     console.print("[1] Switch Models (Current Provider)")
     console.print("[2] Launch AI Tools (Specialized Agents)")
-    console.print("[3] Multimodal & Media (Vision, Video, Audio)")
     console.print("[b] Back")
-    
-    top_choice = Prompt.ask("Select category", choices=["1", "2", "3", "b"], default="1")
+
+    top_choice = Prompt.ask("Select category", choices=["1", "2", "b"], default="1")
     
     if top_choice == "1":
-        options = model_map.get(provider.lower(), ["llama3"])
+        _provider_key = provider.lower()
+        if _provider_key == "claude":
+            _provider_key = "anthropic"  # legacy config value
+        options = model_map.get(_provider_key, ["llama3"])
         
         # Hardware Tiering Filter
         if tier == "low" and provider == "ollama":
@@ -957,28 +948,6 @@ def models_command(name: Optional[str] = None):
         if choice != "b":
             selected = t_list[int(choice)-1]
             launch(tool=selected)
-
-    elif top_choice == "3":
-        media_tools = {
-            "midjourney": "High-quality aesthetic image generation",
-            "flux": "Photorealistic & accurate prompt adherence",
-            "veo": "Google frontier text-to-video engine",
-            "sora": "OpenAI text-to-video engine",
-            "kling": "State-of-the-art cinematic video generation",
-            "heygen": "Realistic AI avatars & video translation",
-            "whisper": "High-accuracy speech-to-text transcription",
-            "polly": "Amazon lifelike text-to-speech engine",
-            "stable-diffusion": "Customizable open-source image generation"
-        }
-        m_list = list(media_tools.keys())
-        console.print("\n[bold magenta]Multimodal & Media Intelligence:[/bold magenta]")
-        for i, m in enumerate(m_list):
-            console.print(f"[{i+1}] {m.capitalize()} - [dim]{media_tools[m]}[/dim]")
-        
-        choice = Prompt.ask("Choice", choices=[str(i+1) for i in range(len(m_list))] + ["b"], default="1")
-        if choice != "b":
-            selected = m_list[int(choice)-1]
-            console.print(f"[green]✅ Engaging {selected.capitalize()} pipeline...[/green]")
 
 @app.command()
 def update():

@@ -45,21 +45,28 @@ def system_find(name, root=None):
     """Search for a file/directory by name with sensible defaults and timeout."""
     # Prioritize home directory if no root is specified
     search_root = root or os.path.expanduser("~")
-    
+
+    def _find(search_root, maxdepth, limit):
+        # argv list (no shell) so `name` cannot inject commands
+        cmd = ["find", search_root, "-maxdepth", str(maxdepth),
+               "-name", f"*{name}*", "-not", "-path", "*/.*"]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True,
+                                    timeout=30, stderr=subprocess.DEVNULL)
+            lines = [l for l in result.stdout.splitlines() if l.strip()]
+            return lines[:limit]
+        except subprocess.TimeoutExpired:
+            return None
+
     try:
-        # Limit depth and time to prevent hangs
-        cmd = f"find {search_root} -maxdepth 4 -name '*{name}*' -not -path '*/.*' 2>/dev/null | head -n 20"
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-        output = result.stdout.strip()
-        
-        if not output and not root:
+        lines = _find(search_root, 4, 20)
+        if lines is None:
+            return "Search timed out. Please provide a more specific root path."
+        if not lines and not root:
             # If not found in home, try / (restricted)
-            cmd = f"find / -maxdepth 3 -name '*{name}*' -not -path '*/.*' 2>/dev/null | head -n 10"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=20)
-            output = result.stdout.strip()
-            
-        return output or "No matching files found within timeout limits."
-    except subprocess.TimeoutExpired:
-        return "Search timed out. Please provide a more specific root path."
+            lines = _find("/", 3, 10)
+            if lines is None:
+                return "Search timed out. Please provide a more specific root path."
+        return "\n".join(lines) if lines else "No matching files found within timeout limits."
     except Exception as e:
         return f"System search error: {e}"

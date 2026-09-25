@@ -206,15 +206,20 @@ def models_menu():
     specialties.add_row("Gemini 2.0 Flash", "Fast, multimodal, web-connected research")
     console.print(specialties)
 
+    # Providers shown here must have real support in core.services
+    # (connection validation and/or API-key handling).
     p_mapping = {
 
-        "1": "ollama", "2": "openai", "3": "gemini", "4": "claude", "5": "cohere", 
-        "6": "mistral", "7": "nvidia", "8": "glm", "9": "deepseek", "0": "qwen",
-        "g": "gemma", "k": "kimi", "p": "perplexity", "r": "granite", "l": "laguna",
-        "v": "vllm", "y": "sglang", "f": "lfm", "e": "essential", "o": "olmo",
-        "c": "cogito", "i": "minimax", "s": "stability", "u": "upstage", "z": "groq",
-        "x": "xiaomi", "t": "tencent", "q": "kwaipilot"
+        "1": "ollama", "2": "openai", "3": "anthropic", "4": "gemini",
+        "5": "mistral", "6": "deepseek", "7": "groq", "8": "together",
+        "9": "cohere", "0": "perplexity",
+        "g": "gpt4all", "l": "llama_cpp", "v": "vllm", "y": "sglang",
+        "n": "nemotron", "q": "qwen", "o": "local",
     }
+
+    # Providers that connect via a configured host rather than an API key
+    HOST_PROVIDERS = ["ollama", "vllm", "sglang", "llama_cpp", "gpt4all",
+                      "nemotron", "qwen", "local"]
 
     # Generate Status Table
     status_table = Table(title="Intelligence Provider Status", border_style="dim")
@@ -232,7 +237,7 @@ def models_menu():
         k1 = keys[i]
         p1 = p_mapping[k1]
         is_linked1 = False
-        if p1 in ["ollama", "vllm", "sglang", "laguna", "llama_cpp", "gpt4all", "local"]:
+        if p1 in HOST_PROVIDERS:
             is_linked1 = config.get(f"{p1}_host") is not None
         else:
             is_linked1 = get_api_key(p1) is not None
@@ -244,7 +249,7 @@ def models_menu():
             k2 = keys[i+1]
             p2 = p_mapping[k2]
             is_linked2 = False
-            if p2 in ["ollama", "vllm", "sglang", "laguna", "llama_cpp", "gpt4all", "local"]:
+            if p2 in HOST_PROVIDERS:
                 is_linked2 = config.get(f"{p2}_host") is not None
             else:
                 is_linked2 = get_api_key(p2) is not None
@@ -257,7 +262,7 @@ def models_menu():
 
     console.print(status_table)
     
-    choice = Prompt.ask("Select mode or provider", choices=["a", "s", "x", "m", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "g", "k", "p", "r", "l", "v", "y", "f", "e", "o", "c", "i", "s", "u", "z", "b"], default="b")
+    choice = Prompt.ask("Select mode or provider", choices=["a", "s", "x", "m", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "g", "l", "v", "y", "n", "q", "o", "b"], default="b")
     
     if choice == "a":
         config["model_mode"] = "auto-offline"
@@ -280,47 +285,40 @@ def models_menu():
         console.print("[green]✅ Switched to Manual mode. Please select your provider below.[/green]")
         return
 
+    # Providers offered here must have real support in core.services
+    # (connection validation and/or API-key handling). Fabricated providers
+    # and speculative model names were removed.
     p_mapping = {
-        "1": "ollama", "2": "openai", "3": "gemini", "4": "claude", "5": "cohere", 
-        "6": "mistral", "7": "nvidia", "8": "glm", "9": "deepseek", "0": "qwen",
-        "g": "gemma", "k": "kimi", "p": "perplexity", "r": "granite", "l": "laguna",
-        "v": "vllm", "y": "sglang", "f": "lfm", "e": "essential", "o": "olmo",
-        "c": "cogito", "i": "minimax", "s": "stability", "u": "upstage", "z": "groq",
-        "x": "xiaomi", "t": "tencent", "q": "kwaipilot"
+        "1": "ollama", "2": "openai", "3": "anthropic", "4": "gemini",
+        "5": "mistral", "6": "deepseek", "7": "groq", "8": "together",
+        "9": "cohere", "0": "perplexity",
+        "g": "gpt4all", "l": "llama_cpp", "v": "vllm", "y": "sglang",
+        "n": "nemotron", "q": "qwen", "o": "local",
     }
     if choice in p_mapping:
         config["model_mode"] = "manual"
         provider = p_mapping[choice]
         config["provider"] = provider
         models = {
-            "ollama": ["nave433/jarvis", "llama3.3", "llama3.2", "phi4", "muse-spark"],
-            "openai": ["gpt-5.5", "gpt-4o", "o1-preview"],
-            "gemini": ["gemini-3.1-pro", "gemini-3-flash-preview"],
-            "claude": ["claude-4.7", "claude-3-5-sonnet-20240620"],
+            "ollama": ["llama3.3", "llama3.2", "phi4", "qwen3", "deepseek-r1"],
+            "openai": ["gpt-4o", "gpt-4o-mini", "o1-preview", "o1-mini"],
+            "anthropic": ["claude-3-5-sonnet-20241022", "claude-3-5-sonnet-20240620",
+                          "claude-3-opus-20240229"],
+            "gemini": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+            "mistral": ["mistral-large-latest", "mistral-medium-latest"],
+            "deepseek": ["deepseek-chat", "deepseek-reasoner"],
+            "groq": ["llama-3.3-70b-versatile"],
+            "together": ["meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                         "Qwen/Qwen2.5-72B-Instruct"],
             "cohere": ["command-r-plus", "command-r"],
-            "mistral": ["mistral-medium-3.5", "mistral-large-latest"],
-            "nvidia": ["nemotron-3-super", "nemotron-3-nano"],
-            "glm": ["glm-5.1", "glm-5", "glm-4.7"],
-            "deepseek": ["deepseek-v4-pro", "deepseek-v3.2"],
-            "qwen": ["qwen3.6", "qwen3.5"],
-            "gemma": ["gemma-4-27b", "gemma-4-9b"],
-            "kimi": ["kimi-k2.6", "kimi-k2.5"],
-            "perplexity": ["llama-3.1-sonar-huge-128k-online"],
-            "granite": ["granite-4.1", "granite-3.1-8b-instruct"],
-            "laguna": ["laguna-xs.2-33b"],
+            "perplexity": ["llama-3.1-sonar-large-128k-online"],
+            "gpt4all": ["default"],
+            "llama_cpp": ["default"],
             "vllm": ["meta-llama/Meta-Llama-3-70B-Instruct"],
             "sglang": ["meta-llama/Meta-Llama-3-8B-Instruct"],
-            "lfm": ["lfm2.5-thinking", "lfm2-24b-a2b"],
-            "essential": ["rnj-1"],
-            "olmo": ["olmo-3.1", "olmo-2"],
-            "cogito": ["cogito-2.1"],
-            "minimax": ["minimax-m2.7", "minimax-m2.5"],
-            "stability": ["stablelm2", "stable-code"],
-            "upstage": ["solar-pro"],
-            "groq": ["llama-3.3-70b-versatile"],
-            "xiaomi": ["mimo-v2.5", "mimo-v2-pro"],
-            "tencent": ["hy3-preview"],
-            "kwaipilot": ["kat-coder-pro-v2"]
+            "nemotron": ["default"],
+            "qwen": ["qwen3", "qwen2.5"],
+            "local": ["default"],
         }
         console.print(f"\n[bold white]Recommended Models for {provider.upper()}:[/bold white]")
         for m in models.get(provider, ["default"]): console.print(f"→ {m}")
