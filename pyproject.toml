@@ -25,7 +25,6 @@ dependencies = [
     "sounddevice>=0.5.5",
     "scipy>=1.17.1",
     "numpy>=2.4.6",
-    "sentence-transformers>=5.5.1",
     "faiss-cpu>=1.13.2",
     "SpeechRecognition>=3.16.1",
     "prompt_toolkit>=3.0.52",
@@ -34,16 +33,13 @@ dependencies = [
     "google-auth-oauthlib>=1.4.0",
     "markdown>=3.10.2",
     "keyring>=25.7.0",
-    "Pillow>=12.2.0",
     "paramiko>=5.0.0",
     "psutil>=7.2.2",
     "ddgs>=9.14.4",
     "litellm>=1.85.1",
     "typing-extensions>=4.15.0",
     "packaging>=24.0",
-    "urllib3>=2.8.0",
-    "botocore>=1.43.12",
-    "boto3>=1.43.12"
+    "urllib3>=2.8.0"
 ]
 
 [project.optional-dependencies]

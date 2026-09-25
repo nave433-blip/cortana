@@ -22,11 +22,9 @@ PYTHON_DEPS: Dict[str, str] = {
     "sounddevice": "sounddevice",
     "scipy": "scipy",
     "numpy": "numpy",
-    "sentence-transformers": "sentence_transformers",
     "faiss-cpu": "faiss",
     "SpeechRecognition": "speech_recognition",
     "prompt_toolkit": "prompt_toolkit",
-    "Pillow": "PIL",
     "dropbox": "dropbox",
     "google-api-python-client": "googleapiclient",
     "google-auth-oauthlib": "google_auth_oauthlib",
@@ -36,8 +34,6 @@ PYTHON_DEPS: Dict[str, str] = {
     "markdown": "markdown",
     "keyring": "keyring",
     "litellm": "litellm",
-    "botocore": "botocore",
-    "boto3": "boto3"
 }
 
 # System deps mapping (platform tool -> package name hint)
