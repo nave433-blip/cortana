@@ -4,6 +4,58 @@ All notable changes, newest first. Dates are when the work landed on the
 `audit/fix` branch. `JARVIS.md` (the user's own instructions file) is never
 modified by any of this work.
 
+## [round-a] — 2026-09-25 (branch `feature/council-coding`, not yet merged)
+
+The "power + adoption" round: four tracks, all local, nothing published.
+
+### New: Council mode (`/council`, experimental, opt-in, off by default)
+
+Multiple connected providers propose answers to a question, critique one
+another's proposals, and converge over bounded rounds (default 3, `--rounds N`).
+Member providers/models come from the `council_members` config key or default to
+the first configured providers. Per-round proposals show with attribution,
+critiques render dimmed, and the converged final answer gets its own panel.
+Bounded cost: the estimated call count (`M*R + M*(R-1) + 1`) is shown and
+confirmed before starting (skipped only under auto-approve). Reuses the
+`/hive` provider-fanout machinery.
+
+### New: coding-first CLI (`/code`, `/suggest`, `/explain`)
+
+Project-aware agentic coding loop, Linux-first (macOS still works):
+`/code <task> [in <dir>]` reads repo context (respects `.gitignore` via
+`git ls-files`, with an honest fallback walker), proposes a unified diff,
+**always confirms before applying** (auto-approve aware), snapshots affected
+files to `.cortana/checkpoints/`, and prints rewind instructions.
+`/suggest <task>` proposes a shell command (never auto-executes);
+`/explain <command>` explains one in plain language. Project prefs live in
+`.cortana/config.json` (model, sandbox policy, extra ignores). Generated code
+only ever executes through the existing `tools/sandbox.py`.
+
+### New: Microsoft adoption kit
+
+- **OpenAI-compatible API server** (`core/apiserver.py`, `/api` command):
+  `POST /v1/chat/completions` and `GET /v1/models`, Bearer-token auth,
+  loopback-only by default, stdlib only. Existing Copilot-style clients can
+  point at Cortana with just a URL change. `stream:true` gets an honest 400.
+- **`cortana_core` importable library**: curated lazy re-exports of the stable
+  engine API (`think`, `think_structured`, `hive_ask`, config, sandbox,
+  `confirm`) decoupled from the CLI; added to the packaging includes.
+- **VS Code extension scaffold** (`extensions/vscode/`): reference TypeScript
+  extension (`cortana.ask`, `cortana.completeWithContext`) talking to the local
+  API server — documented scaffold, not built or published.
+- **`docs/ADOPTION.md`**: architecture overview, Copilot→Cortana feature map
+  (gaps marked honestly), integration points, a `proprietary/` drop-in contract
+  for licensed components (voice/wake-word slots), and security notes. No
+  proprietary code was reverse-engineered; only public interfaces are used.
+
+### New: GitHub connector (`/github`, `tools/github.py`)
+
+Repos, issues, PRs, Actions status, code search. Prefers the `gh` CLI when
+authenticated, falls back to stdlib REST with a keyring-stored token
+(`CORTANA_GITHUB_TOKEN` env fallback). Read-only by default; writes
+(create/comment) require confirmation. `core/repair.py`'s crash-report flow
+keeps its single consent prompt (no double-ask).
+
 ## [rename] — 2026-09-25 (branch `rename/cortana`, not yet merged)
 
 **Project rename: JARVIS → CORTANA.** Everything the user touches now says
