@@ -48,10 +48,17 @@ mkdir -p "$INSTALL_DIR"
 echo -e "${BLUE}📂 Setting up JARVIS in $INSTALL_DIR...${NC}"
 
 # 3. Clone or Copy Files
-if [ -d ".git" ]; then
+# If we're already inside the install dir (re-run), there is nothing to copy.
+if [ "$(pwd -P)" = "$(cd "$INSTALL_DIR" && pwd -P)" ]; then
+    echo -e "${BLUE}📂 Already inside $INSTALL_DIR, skipping copy.${NC}"
+elif [ -d ".git" ]; then
     echo -e "${BLUE}📂 Copying files from current directory...${NC}"
     cp -R . "$INSTALL_DIR"
 else
+    if ! command -v git &> /dev/null; then
+        echo -e "${RED}❌ git is required to download JARVIS but was not found. Install git and re-run.${NC}"
+        exit 1
+    fi
     echo -e "${BLUE}📂 Cloning JARVIS repository...${NC}"
     git clone https://github.com/nave433-blip/jarvis-dev.git "$INSTALL_DIR"
 fi
@@ -60,9 +67,19 @@ cd "$INSTALL_DIR"
 
 # 4. Virtual Environment & Install
 echo -e "${BLUE}🐍 Creating virtual environment...${NC}"
-# Use python3.12 if available, fallback to python3
+# Use python3.12 if available, fallback to python3 (must be 3.12+)
 PYTHON_BIN=$(command -v python3.12 || command -v python3)
-$PYTHON_BIN -m venv venv
+if [ -z "$PYTHON_BIN" ]; then
+    echo -e "${RED}❌ No python3 found. Install Python 3.12+ and re-run.${NC}"
+    exit 1
+fi
+PY_VER=$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+PY_OK=$("$PYTHON_BIN" -c 'import sys; print(1 if sys.version_info >= (3, 12) else 0)')
+if [ "$PY_OK" != "1" ]; then
+    echo -e "${RED}❌ JARVIS requires Python 3.12+ (found $PY_VER at $PYTHON_BIN). Install Python 3.12+ and re-run.${NC}"
+    exit 1
+fi
+"$PYTHON_BIN" -m venv venv
 source venv/bin/activate
 
 echo -e "${BLUE}📦 Installing JARVIS and dependencies...${NC}"
