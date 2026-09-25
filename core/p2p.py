@@ -2,6 +2,8 @@ import http.server
 import socketserver
 import json
 import os
+import hmac
+import ipaddress
 import threading
 import time
 import socket
@@ -13,6 +15,34 @@ from pathlib import Path
 from core.update import CURRENT_VERSION
 
 console = Console()
+
+# SECURITY NOTICE: the P2P protocol is plaintext HTTP with a shared token.
+# API keys requested via "get_token" travel unencrypted. Only enable P2P on
+# networks you trust, and use a strong p2p_token.
+
+# Remote file operations are confined to the JARVIS workspace root.
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
+
+def _is_path_confined(raw_path: str) -> "Path | None":
+    """Resolve a requested path and return it only if it stays inside the workspace."""
+    try:
+        full = Path(os.path.expanduser(raw_path)).resolve()
+    except Exception:
+        return None
+    try:
+        full.relative_to(WORKSPACE_ROOT)
+    except ValueError:
+        return None
+    return full
+
+def _is_private_peer(peer_ip: str) -> bool:
+    """Proper private-network classification (the old startswith check missed
+    most of 172.16/12 and all IPv6 private ranges)."""
+    try:
+        ip = ipaddress.ip_address(peer_ip)
+        return ip.is_private or ip.is_loopback
+    except ValueError:
+        return False
 
 # P2P Protocol versioning and feature compatibility map
 P2P_VERSION = CURRENT_VERSION
@@ -93,17 +123,17 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
         sender_version = data.get("version", "0.1.0")
         auth_token = data.get("token")
 
-        # Security: Check for P2P Token if configured
+        # Security: Check for P2P Token if configured (constant-time compare)
         from core.config import load_config
         cfg = load_config()
         required_token = cfg.get("p2p_token")
-        if required_token and auth_token != required_token:
+        if required_token and not hmac.compare_digest(str(auth_token), str(required_token)):
             if action != "status":
                 self.send_response(401); self.end_headers()
                 self.wfile.write(b"Unauthorized: Invalid P2P Token"); return
 
-        # Basic WAN restriction (from recent version)
-        is_local = peer_ip.startswith(("192.168.", "10.", "172.16.", "127.0.0.1"))
+        # Basic WAN restriction: only private/loopback peers may use mutating actions
+        is_local = _is_private_peer(peer_ip)
         if not is_local and action not in ["think", "status"]:
              self.send_response(403); self.end_headers()
              self.wfile.write(b"Forbidden: WAN access restricted."); return
@@ -147,11 +177,12 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
 
         elif action == "read_file":
             file_path = data.get("path")
-            if not file_path or ".." in file_path:
-                self.send_response(400); self.end_headers(); return
+            full_path = _is_path_confined(file_path) if file_path else None
+            if full_path is None:
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Forbidden: path is outside the JARVIS workspace"); return
             try:
-                full_path = os.path.abspath(os.path.expanduser(file_path))
-                if os.path.isfile(full_path):
+                if full_path.is_file():
                     with open(full_path, "r") as f: content = f.read()
                     self.send_response(200); self.send_header('Content-type', 'text/plain'); self.end_headers()
                     self.wfile.write(content.encode())
@@ -164,9 +195,13 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
             file_path, old_s, new_s = data.get("path"), data.get("old_string"), data.get("new_string")
             if not all([file_path, old_s, new_s]):
                 self.send_response(400); self.end_headers(); return
+            full_path = _is_path_confined(file_path)
+            if full_path is None:
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Forbidden: path is outside the JARVIS workspace"); return
             from tools.editor import replace_in_file
             try:
-                res = replace_in_file(file_path, old_s, new_s, interactive=False)
+                res = replace_in_file(str(full_path), old_s, new_s, interactive=False)
                 self.send_response(200); self.send_header('Content-type', 'text/plain'); self.end_headers()
                 self.wfile.write(res.encode())
             except Exception as e:
@@ -305,6 +340,8 @@ def p2p_status_report():
             except: pass
 
 def p2p_token_menu():
+    console.print("[yellow]⚠️ Tokens are transferred over plaintext HTTP. "
+                  "Only request tokens from peers on networks you trust.[/yellow]")
     peers = scan_for_jarvis_peers()
     if not peers: console.print("[yellow]No peers found.[/yellow]"); return
     table = Table(title="Peer Tokens")

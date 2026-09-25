@@ -4,6 +4,10 @@ import speech_recognition as sr
 from core.agent import debug_loop
 import os
 
+# NOTE: transcription uses Google's web speech API (recognize_google) and
+# therefore requires an internet connection. It is not offline/local speech
+# recognition.
+
 def record():
     fs = 44100
     duration = 5 # seconds
@@ -29,7 +33,7 @@ def run_voice():
     except sr.UnknownValueError:
         print("JARVIS could not understand the audio.")
     except sr.RequestError as e:
-        print(f"JARVIS error; {e}")
+        print(f"JARVIS voice error: {e} (speech recognition needs an internet connection)")
     finally:
         if os.path.exists("cmd.wav"):
             os.remove("cmd.wav")

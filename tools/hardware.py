@@ -1,4 +1,5 @@
 import subprocess
+import shutil
 import sys
 import uuid
 import hashlib
@@ -45,6 +46,20 @@ def probe_ports():
             return types
         except Exception as e:
             return f"Error probing hardware: {e}"
+    elif sys.platform == "linux":
+        # No system_profiler equivalent; summarize PCI and USB buses instead.
+        parts = []
+        for label, cmd in (("PCI", "lspci"), ("USB", "lsusb")):
+            if shutil.which(cmd):
+                try:
+                    out = subprocess.run([cmd], capture_output=True, text=True,
+                                         timeout=15, stderr=subprocess.DEVNULL).stdout.strip()
+                    parts.append(f"--- {label} ({cmd}) ---\n{out or '(no devices listed)'}")
+                except Exception as e:
+                    parts.append(f"--- {label} ({cmd}) ---\nError: {e}")
+            else:
+                parts.append(f"--- {label} ({cmd}) ---\n'{cmd}' not installed; cannot probe.")
+        return "\n".join(parts) or "No hardware buses could be probed."
     return "Unsupported platform for general probing."
 
 def get_hardware_summary():
