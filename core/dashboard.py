@@ -271,6 +271,12 @@ button{background:#238636;border-color:#238636;cursor:pointer}button:hover{backg
 <button onclick="sendChat()">send</button></div></div>
 <h2>Read-only commands</h2><div class="panel"><div class="row">
 <select id="cmd"></select><button onclick="runCmd()">run</button></div><pre id="cmdout"></pre></div>
+<h2>Settings</h2><div class="panel"><div class="row">
+<select id="setcat"></select><button onclick="loadSettings()">load</button></div>
+<div id="settings"></div><div class="row"><input type="text" id="setkey" placeholder="setting key" style="max-width:220px">
+<input type="text" id="setval" placeholder="new value"><button onclick="saveSetting()">save</button></div>
+<div id="setmsg" style="font-size:13px"></div>
+<p style="font-size:12px;color:#8b949e">Secrets (API keys, tokens, client ids) are never shown here and cannot be changed from the dashboard — use the CLI.</p></div>
 <h2>Logs</h2><div class="panel"><pre id="logs">loading…</pre><button onclick="loadLogs()">refresh</button></div>
 <script>
 const T = new URLSearchParams(location.search).get("token") || "";
@@ -279,6 +285,26 @@ async function refresh(){ const s = await api("/api/status"); document.getElemen
 async function sendChat(){ const el = document.getElementById("msg"); const m = el.value.trim(); if(!m) return; el.value=""; const log=document.getElementById("chatlog"); log.innerHTML += "<div><span class='u'>you:</span> "+m.replace(/</g,"&lt;")+"</div>"; const r = await api("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:m})}); log.innerHTML += "<div><span class='a'>cortana:</span> "+String(r.reply).replace(/</g,"&lt;")+"</div>"; log.scrollTop=log.scrollHeight; }
 async function runCmd(){ const c=document.getElementById("cmd").value; const r = await api("/api/cmd",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({command:c})}); document.getElementById("cmdout").textContent = r.output; }
 async function loadLogs(){ const r = await api("/api/logs"); document.getElementById("logs").textContent = r.lines.join("\\n"); }
+async function loadSettings(){
+  const r = await api("/api/settings"); if(r.error){ document.getElementById("settings").textContent = r.error; return; }
+  const cat = document.getElementById("setcat").value;
+  const cats = [...new Set(r.schema.map(s=>s.category))];
+  const sel = document.getElementById("setcat");
+  if(!sel.options.length){ cats.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;sel.appendChild(o);}); const a=document.createElement("option");a.value="";a.textContent="all";sel.appendChild(a); }
+  let html = "<table style='font-size:13px;border-collapse:collapse'>";
+  r.schema.filter(s=>!cat||s.category===cat).forEach(s=>{
+    let v = r.values[s.key]; if(v===true)v="on"; if(v===false)v="off";
+    html += "<tr><td style='padding:3px 8px;color:#79c0ff'>"+s.key+"</td><td style='padding:3px 8px'>"+String(v).replace(/</g,"&lt;")+"</td><td style='padding:3px 8px;color:#8b949e'>"+s.description.replace(/</g,"&lt;")+"</td></tr>";
+  });
+  document.getElementById("settings").innerHTML = html + "</table>";
+}
+async function saveSetting(){
+  const key = document.getElementById("setkey").value.trim(), value = document.getElementById("setval").value;
+  if(!key) return;
+  const r = await api("/api/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key,value})});
+  document.getElementById("setmsg").textContent = r.ok ? (r.message||"saved") : ("error: "+(r.error||"unknown"));
+  loadSettings();
+}
 (async function(){ const cmds = ["…"]; const r = await api("/api/commands"); const sel=document.getElementById("cmd"); sel.innerHTML=""; r.commands.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;sel.appendChild(o);}); refresh(); loadLogs(); })();
 </script></body></html>"""
 
@@ -326,6 +352,19 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json(collect_status())
         elif parsed.path == "/api/logs":
             self._json({"lines": tail_logs()})
+        elif parsed.path == "/api/settings":
+            try:
+                from core.settings import get_schema, export_settings
+                schema = get_schema()
+                # Never leak secrets to the dashboard page.
+                values = export_settings()
+                for entry in schema:
+                    k = entry["key"]
+                    if any(s in k for s in ("secret", "api_key", "token", "client_id")) and values.get(k):
+                        values[k] = "••••••••"
+                self._json({"schema": schema, "values": values})
+            except Exception as e:
+                self._json({"error": str(e)}, 500)
         elif parsed.path == "/api/commands":
             _register_readonly()
             self._json({"commands": [label for label, _ in _READONLY]})
@@ -349,6 +388,21 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._json({"reply": chat_reply(str(data.get("message", "")))})
         elif parsed.path == "/api/cmd":
             self._json({"output": run_readonly(str(data.get("command", "")))})
+        elif parsed.path == "/api/settings":
+            key = str(data.get("key", ""))
+            value = data.get("value")
+            if not key:
+                self._json({"ok": False, "error": "missing key"}, 400)
+            else:
+                try:
+                    from core.settings import set_setting
+                    # Never accept secrets through the dashboard settings page.
+                    if any(s in key for s in ("secret", "api_key", "token", "client_id")):
+                        self._json({"ok": False, "error": "Secrets cannot be changed from the dashboard. Use the CLI."}, 403)
+                    else:
+                        self._json(set_setting(key, value, _confirm_sensitive=False))
+                except Exception as e:
+                    self._json({"ok": False, "error": str(e)}, 500)
         else:
             self._json({"error": "not found"}, 404)
 

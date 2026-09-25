@@ -50,8 +50,83 @@ def list_prompts():
     table = Table(title="Cortana Prompt Library", border_style="magenta")
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Snippet", style="white")
-    
+
     for name, text in prompts.items():
+        if name.startswith("_"):
+            continue  # internal sections (e.g. _overrides) are not prompts
         snippet = text[:60] + "..." if len(text) > 60 else text
         table.add_row(name, snippet)
     return table
+
+
+# ---------------------------------------------------------------------------
+# Active prompt + per-personality overrides.
+#
+# ROUND B HOOK (personalities): when Round B resolves a personality, it should
+# call get_prompt_for_personality(personality, prompt_name) to obtain the
+# system prompt. Per-personality overrides live in prompts.json under the
+# "_overrides" key: {"<personality>": {"<prompt_name>": "<text>"}}.
+# Absent an override, the base prompt text is returned unchanged.
+# ---------------------------------------------------------------------------
+
+def apply_prompt(name):
+    """Set the active global prompt. Returns (ok, message)."""
+    from core.config import load_config, save_config
+    prompts = load_prompts()
+    if name not in prompts or name.startswith("_"):
+        return False, f"Prompt '{name}' not found."
+    config = load_config()
+    config["active_prompt"] = name
+    save_config(config)
+    return True, f"Active prompt set to '{name}'."
+
+
+def get_active_prompt_name():
+    from core.config import load_config
+    return load_config().get("active_prompt", "default")
+
+
+def get_active_prompt_text():
+    prompts = load_prompts()
+    name = get_active_prompt_name()
+    return prompts.get(name, prompts.get("default", ""))
+
+
+def get_overrides():
+    """Per-personality prompt overrides: {personality: {prompt_name: text}}."""
+    prompts = load_prompts()
+    ov = prompts.get("_overrides", {})
+    return ov if isinstance(ov, dict) else {}
+
+
+def set_personality_override(personality, prompt_name, text):
+    """Set per-personality override text (empty text clears it)."""
+    prompts = load_prompts()
+    ov = prompts.get("_overrides", {})
+    if not isinstance(ov, dict):
+        ov = {}
+    if text:
+        ov.setdefault(personality, {})[prompt_name] = text
+    else:
+        if personality in ov:
+            ov[personality].pop(prompt_name, None)
+            if not ov[personality]:
+                del ov[personality]
+    prompts["_overrides"] = ov
+    PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
+    with open(PROMPTS_FILE, "w") as f:
+        json.dump(prompts, f, indent=4)
+    return f"Override {'set' if text else 'cleared'} for personality '{personality}' / prompt '{prompt_name}'."
+
+
+def get_prompt_for_personality(personality, prompt_name=None):
+    """Resolve the system prompt for a personality + prompt name.
+
+    This is the hook Round B's personality system consumes: it returns the
+    per-personality override when one exists, else the base prompt text.
+    """
+    prompts = load_prompts()
+    name = prompt_name or get_active_prompt_name()
+    base = prompts.get(name, prompts.get("default", ""))
+    ov = get_overrides()
+    return ov.get(personality, {}).get(name, base)

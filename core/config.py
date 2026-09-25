@@ -80,7 +80,62 @@ DEFAULT_CONFIG = {
     # DEV MODE banner) + optional personal instructions from
     # ~/.cortana/dev_instructions.md. Also enabled via CORTANA_DEV_MODE=1
     # (JARVIS_DEV_MODE still works as a deprecated alias).
-    "dev_mode": False
+    "dev_mode": False,
+    # --- Maximal settings schema (core/settings.py). Kept in sync with
+    # SETTINGS_SCHEMA there; a test pins the two together. ---
+    # appearance
+    "theme": "dark",
+    "compact_mode": False,
+    "show_banner": True,
+    "easter_eggs": True,
+    # chat
+    "chat_streaming": True,
+    "enter_to_send": True,
+    "show_token_counts": False,
+    "confirm_destructive": True,
+    "chat_history_limit": 200,
+    # models
+    "model_chat": "",
+    "model_code": "",
+    "model_reasoning": "",
+    "model_routing": False,
+    # privacy
+    "telemetry": False,
+    "p2p_discovery": True,
+    "p2p_enabled": True,
+    # notifications
+    "notify_on_long_task": True,
+    "notify_sound": False,
+    # hotkeys
+    "overlay_hotkey": "ctrl+alt+c",
+    "push_to_talk_key": "ctrl+shift+space",
+    # voice
+    "voice_enabled": False,
+    "wake_word_enabled": False,
+    "voice_profile": "cortana-default",
+    "stt_engine": "auto",
+    "tts_engine": "auto",
+    # network
+    "dashboard_port": 0,
+    "proxy_url": "",
+    # sandbox
+    "sandbox_enabled": True,
+    "sandbox_network": False,
+    # data
+    "retention_days": 0,
+    "auto_backup": False,
+    # memory
+    "memory_enabled": True,
+    "memory_auto_capture": False,
+    # connectors
+    "connector_auto_refresh": True,
+    "ms_client_id": "",
+    "apple_client_id": "",
+    "apple_client_secret": "",
+    "github_client_id": "",
+    # active profile / project (core/profiles.py, core/projects.py)
+    "active_profile": "default",
+    "active_project": "",
 }
 
 def load_config():

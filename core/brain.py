@@ -467,14 +467,21 @@ def think_structured(context: str, task: str, model: Optional[str] = None, promp
         memory_context = "\n".join([f"- {m}" for m in relevant_memories])
     except Exception: pass
     
+    # Active project context (Round C): instructions + attached files.
+    project_context = ""
+    try:
+        from core.projects import project_context_block
+        project_context = project_context_block()
+    except Exception: pass
+
     personality_type = get_env_with_config("personality") or "professional"
     personality_prompt = PERSONALITIES.get(personality_type, PERSONALITIES["professional"])
 
     # Use ModelManager for standard thinking
     mgr = ModelManager()
     if model: mgr.current_model = model
-    
-    text = mgr.chat(task, context=context + "\n" + memory_context)
+
+    text = mgr.chat(task, context=context + "\n" + memory_context + "\n" + project_context)
     return {"ok": True, "text": text, "provider": mgr.current_model}
 
 def think(context: str, task: str, model: Optional[str] = None, prompt_name: Optional[str] = None):
