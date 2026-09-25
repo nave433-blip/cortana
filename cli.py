@@ -154,7 +154,7 @@ COMMANDS = [
     "/connector", "/signin", "/account",
     "/help", "/t", "/thin", "/clippy",
     "/rewind", "/branch", "/branches", "/diff", "/skill", "/brief", "/handoff",
-    "/schedule",
+    "/schedule", "/voice-profile", "/gui", "/overlay", "/tray", "/voice-wake",
 ]
 
 # ... (omitted)
@@ -404,7 +404,11 @@ def interactive():
                     elif cmd == "/decode": decode(args or Prompt.ask("Content to decode"))
                     elif cmd == "/lookup": lookup(args or Prompt.ask("What to find?"))
                     elif cmd == "/hardware": hardware_menu()
-                    elif cmd == "/voice": voice()
+                    elif cmd == "/voice":
+                        if args:
+                            set_voice_profile(args)
+                        else:
+                            voice()
                     elif cmd == "/watch": watch()
                     elif cmd == "/config": menus.config_menu()
                     elif cmd == "/init": init()
@@ -416,6 +420,17 @@ def interactive():
                     elif cmd == "/server": menus.server_menu()
                     elif cmd == "/undo": undo(args or Prompt.ask("Path to undo"))
                     elif cmd == "/dashboard": dashboard()
+                    elif cmd == "/gui":
+                        from core.desktop import launch_gui
+                        launch_gui()
+                    elif cmd == "/overlay":
+                        from core.desktop import launch_overlay
+                        launch_overlay()
+                    elif cmd == "/tray":
+                        from core.tray import run_tray
+                        run_tray()
+                    elif cmd == "/voice-wake":
+                        voice_wake(args or None)
                     elif cmd == "/memory": menus.memory_menu()
                     elif cmd == "/memories":
                         from core import memory_cores as _mc
@@ -442,7 +457,16 @@ def interactive():
                                 console.print(res.get("json", ""))
                         else:
                             console.print("[red]Usage: /memories [menu|show|add|forget|export|stats] [core] [text][/red]")
-                    elif cmd == "/personality": menus.personality_menu()
+                    elif cmd == "/personality":
+                        if args:
+                            set_personality(args)
+                        else:
+                            menus.personality_menu()
+                    elif cmd == "/voice-profile":
+                        if args:
+                            set_voice_profile(args)
+                        else:
+                            voice_profile_menu()
                     elif cmd == "/models": menus.models_menu()
                     elif cmd == "/multibrain": multibrain(args or Prompt.ask("Task for multi-brain reasoning"))
                     elif cmd == "/hive":
@@ -1033,6 +1057,121 @@ def voice():
         console.print("[dim]Install with: pip install sounddevice scipy SpeechRecognition[/dim]")
         return
     run_voice()
+
+
+def set_personality(name: str):
+    """Set the assistant personality directly (``/personality <name>``)."""
+    from core.personalities import is_known_personality, list_personalities, resolve_personality
+    from core.config import load_config, save_config
+    if not is_known_personality(name):
+        known = ", ".join(p.name for p in list_personalities())
+        console.print(f"[red]Unknown personality '{name}'. Choose from: {known}[/red]")
+        return
+    config = load_config()
+    config["personality"] = resolve_personality(name).name
+    save_config(config)
+    console.print(f"[green]✅ Personality set to {resolve_personality(name).title}. "
+                  f"{resolve_personality(name).greeting}[/green]")
+
+
+@app.command(name="personality")
+def personality_cmd(name: str = typer.Argument(None, help="Personality name (cortana, witty, clippy, professional). Omit for the picker.")):
+    """Set or pick Cortana's personality."""
+    if name:
+        set_personality(name)
+    else:
+        menus.personality_menu()
+
+
+def voice_profile_menu():
+    """Pick a TTS voice profile from the available list."""
+    from core.voice.profiles import list_profiles
+    from core.config import load_config, save_config
+    profiles = list_profiles()
+    config = load_config()
+    current = config.get("voice_profile", "default")
+    table_lines = [f"  [bold]{'→' if p.name == current else ' '} {p.name}[/bold] — {p.description}"
+                   for p in profiles]
+    console.print(Panel("\n".join(table_lines), title="Voice profiles", border_style="cyan"))
+    choice = Prompt.ask("Voice profile", default=current)
+    set_voice_profile(choice)
+
+
+def set_voice_profile(name: str):
+    """Set the TTS voice profile (``/voice <profile>``)."""
+    from core.voice.profiles import get_profile, list_profiles
+    from core.config import load_config, save_config
+    profile = get_profile(name)
+    if profile is None:
+        known = ", ".join(p.name for p in list_profiles())
+        console.print(f"[red]Unknown voice profile '{name}'. Available: {known}[/red]")
+        return
+    config = load_config()
+    config["voice_profile"] = profile.name
+    save_config(config)
+    console.print(f"[green]✅ Voice profile set to '{profile.name}' ({profile.engine}).[/green]")
+    if profile.note:
+        console.print(f"[dim]{profile.note}[/dim]")
+
+
+@app.command(name="voice-profile")
+def voice_profile_cmd(name: str = typer.Argument(None, help="Voice profile name. Omit for the picker.")):
+    """Set or pick Cortana's TTS voice profile."""
+    if name:
+        set_voice_profile(name)
+    else:
+        voice_profile_menu()
+
+
+@app.command()
+def gui():
+    """Launch the Cortana desktop app (chat window + overlay + tray)."""
+    from core.desktop import launch_gui
+    launch_gui()
+
+
+@app.command()
+def overlay():
+    """Launch the floating Cortana overlay (summon with the global hotkey)."""
+    from core.desktop import launch_overlay
+    launch_overlay()
+
+
+@app.command()
+def tray():
+    """Run the Cortana system-tray / menu-bar / panel icon."""
+    from core.tray import run_tray
+    run_tray()
+
+
+@app.command(name="voice-wake")
+def voice_wake(state: str = typer.Argument(None, help="'on' to listen for 'Hey Cortana', 'off' to disable.")):
+    """Opt-in 'Hey Cortana' wake-word listener (summons the overlay)."""
+    from core.voice import wakeword as ww
+    from core.config import load_config, save_config
+    if state is None or state.strip().lower() not in ("on", "off"):
+        cfg = load_config()
+        cur = "on" if cfg.get("wakeword_enabled") else "off"
+        console.print(f"[dim]Wake-word listening is {cur}. Usage: cortana voice-wake [on|off][/dim]")
+        console.print(f"[dim]{ww.WAKEWORD_NOTICE}[/dim]")
+        return
+    if state.strip().lower() == "off":
+        cfg = load_config()
+        cfg["wakeword_enabled"] = False
+        save_config(cfg)
+        console.print("[green]Wake-word listening disabled.[/green]")
+        return
+    if not ww.notice_acknowledged():
+        console.print(f"[yellow]Privacy notice:[/yellow] {ww.WAKEWORD_NOTICE}")
+        if not Confirm.ask("Enable 'Hey Cortana' wake-word listening?", default=False):
+            console.print("[dim]Wake-word listening stays off.[/dim]")
+            return
+        ww.acknowledge_notice()
+    cfg = load_config()
+    cfg["wakeword_enabled"] = True
+    save_config(cfg)
+    from core.desktop import launch_overlay
+    ww.run_listener(on_wake=lambda: launch_overlay())
 
 @app.command()
 def watch():

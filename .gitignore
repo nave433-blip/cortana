@@ -18,3 +18,6 @@ build/
 
 # local dev venv symlink (machine-specific, never commit)
 .audit-venv
+# Proprietary voice drop-ins (licensed models — never committed)
+/core/voice/proprietary/*
+!/core/voice/proprietary/README.md

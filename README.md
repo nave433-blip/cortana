@@ -7,6 +7,19 @@ CORTANA is a proactive AI engineering assistant that runs locally on macOS and L
 The audit-to-release arc — everything below was re-verified with
 `compileall` clean and the full test suite green:
 
+- **🖥️ Desktop app, overlay & tray** (`cortana gui` / `cortana overlay` /
+  `cortana tray`) — native window (optional `pywebview`, browser fallback),
+  floating glassmorphism overlay with global hotkey, and a Windows tray /
+  macOS menu-bar / Linux panel icon with quick toggles. First real Windows
+  support story.
+- **🎙️ Voice plugin architecture** (`core/voice/`) — swappable slots for
+  wake-word → capture → VAD → STT → TTS, OS-native TTS default, "Hey
+  Cortana" opt-in wake word, continuous conversation with barge-in, and a
+  git-ignored `proprietary/` drop-in dir for licensed models.
+- **🎭 Personalities & voice picker** — `cortana` (default), `witty`,
+  `clippy` 📎, `professional`; `/personality <name>`, `/voice <profile>`,
+  dashboard/GUI pickers.
+
 - **⏰ In-Cortana task scheduler** (`/schedule`) — persistent one-shot,
   interval, and cron jobs with whitelisted actions, atomic job storage
   (`0600`), and an append-only run log. No system cron needed:
@@ -181,6 +194,48 @@ stdlib `http.server` only, no dependencies:
 
 Flags: `--port 0` (random free port), `--open`, `--lan`.
 
+## 🖥️ Desktop app, overlay & tray
+
+`cortana gui` launches the desktop app — the same local dashboard UI in a
+native window, plus:
+
+- **Overlay** (`cortana overlay` or `/overlay`): a floating Perplexity-style
+  glassmorphism panel — ask, get an answer, dismiss with Esc. Summon it
+  globally with Ctrl+Shift+Space (needs the optional `keyboard` package).
+- **Tray / menu bar / panel icon** (`cortana tray` or `/tray`): Windows
+  system tray, macOS menu bar, Linux panel applet with quick toggles for
+  listening, voice, overlay, and personality (needs optional `pystray`).
+- The native window needs optional `pywebview`; without it Cortana opens
+  the same UI in your browser and tells you exactly what's missing. The CLI
+  never requires any GUI package.
+
+## 🎙️ Voice, wake word & personalities
+
+Voice is a plugin architecture (`core/voice/`) — every stage is a swappable
+slot with a working default or an honest "unavailable" message:
+
+- **TTS** defaults to your OS-native speech (`say` on macOS, `espeak-ng` /
+  `spd-say` on Linux, SAPI on Windows) — no new packages. `/voice
+  <profile>` picks a voice profile; profiles are JSON files under
+  `core/voice/profiles/`, so new ones drop in.
+- **STT** transcribes voice AND general sound-to-text (`SpeechRecognition`
+  or offline `faster-whisper`, both optional).
+- **"Hey Cortana"** (`cortana voice-wake on` or `/voice-wake`): opt-in
+  wake-word listening that summons the overlay. All detection is local; a
+  privacy notice is acknowledged on first enable. Custom `.onnx` models drop
+  in via `wakeword_model_path`.
+- **Conversation**: continuous mode with barge-in — interrupt her
+  mid-sentence and she yields. Push-to-talk and always-listening modes,
+  audio device selection, noise-suppression hooks.
+- **`core/voice/proprietary/`** (git-ignored): the drop-in home for licensed
+  models — e.g. a future authentic Cortana voice for the
+  `licensed-cortana` profile. One config line activates them; they're never
+  transmitted anywhere.
+- **Personalities**: `cortana` (default — loyal, dry wit), `witty`
+  (irreverent humor), `clippy` (full paperclip energy 📎), `professional`
+  (straight-laced). `/personality <name>`, `cortana personality`, the
+  `personality` config key, or the dashboard/GUI picker.
+
 ## 🦙 Ollama fleet management
 
 ```text
@@ -241,6 +296,13 @@ never executed.
 | `/research <topic>` | Cited multi-query web research report |
 | `/schedule` | `add/list/remove/run/pause/resume/log` persistent jobs |
 | `/dashboard` | Start the local web dashboard |
+| `/gui` | Launch the desktop app (native window) |
+| `/overlay` | Floating glassmorphism overlay (global hotkey) |
+| `/tray` | System tray / menu bar / panel icon |
+| `/voice` | Voice capture, or `/voice <profile>` to pick a TTS voice |
+| `/voice-profile [name]` | Pick a TTS voice profile |
+| `/voice-wake [on|off]` | "Hey Cortana" wake-word listening |
+| `/personality [name]` | Pick a personality (cortana, witty, clippy, professional) |
 | `/ollama` | `ps/pull/prune/bench/stats/auto-pull` fleet management |
 | `/thin` | Thin client against a fat peer |
 | `/rewind [n]`, `/branch`, `/branches`, `/diff` | Conversation time-travel |

@@ -3,6 +3,56 @@
 All notable changes, newest first. Dates are when the work landed on the
 `audit/fix` branch. `JARVIS.md` (the user's own instructions file) is never
 modified by any of this work.
+## [desktop-voice] — 2026-09-25 (branch `feature/desktop-voice`, not yet merged)
+
+**Round B: desktop app + voice, everything plus the kitchen sink.**
+
+- **Desktop GUI** (`cortana gui`): chat-first window built on web tech over
+  the existing local dashboard HTTP core. Native window via optional
+  `pywebview`; falls back to the browser with an honest install hint. CLI
+  works with zero GUI dependencies.
+- **Perplexity-style overlay** (`cortana overlay`): floating glassmorphism
+  overlay (frosted blur via `backdrop-filter`, graceful fallback where the
+  OS can't blur), ask → answer → dismiss (Esc). Global hotkey
+  (default Ctrl+Shift+Space) via optional `keyboard` package.
+- **OS-native presence** (`cortana tray`): Windows system tray, macOS menu
+  bar, Linux panel applet via optional `pystray`, with quick toggles
+  (listening, voice, overlay, personality picker). Honest "not supported
+  here" when the backend is missing — first real Windows support story.
+- **"Hey Cortana" wake word** (`cortana voice-wake on`): opt-in
+  always-listening hotword that summons the overlay. Pluggable engine
+  (`openwakeword` default when installed); custom `.onnx` model drops in via
+  `wakeword_model_path`. Privacy notice acknowledged on first enable; mic
+  audio never leaves the machine for detection.
+- **Voice plugin architecture** (`core/voice/`): independent drop-in slots —
+  wake-word → audio capture → VAD → STT → TTS — each with a documented
+  interface, a working default (or honest unavailable error), and an engine
+  registry for proprietary drop-ins. Features: continuous conversation mode,
+  barge-in (interrupt her mid-sentence, she yields), push-to-talk AND
+  always-listening, audio device selection, noise-suppression hooks.
+  STT covers voice AND sound-to-text. TTS defaults to the OS-native
+  synthesizer (`say`/`espeak-ng`/`spd-say`/SAPI) — no new packages needed.
+- **`core/voice/proprietary/`** (git-ignored): drop-in directory with README
+  templates — licensed voice models and custom wake-word models go here,
+  one config line activates them. Never transmitted anywhere.
+- **Personalities**: `cortana` (new default — loyal, dry wit),
+  `witty` (irreverent humor, original writing), `clippy` (full paperclip
+  energy, just for fun), `professional` (straight-laced). `/personality
+  <name>`, `cortana personality`, config `personality`, dashboard/GUI
+  picker. Legacy keys (`sarcastic`, `concise`, `mentor`, `nave_ai`) still
+  resolve. Fixed a real bug: the personality prompt was computed but never
+  passed to the model. No refusal-bypass content (pinned by tests).
+- **Voice picker**: `/voice <profile>`, `cortana voice-profile`, GUI
+  picker. Profiles are JSON data files (`core/voice/profiles/`) — new ones
+  drop in. Includes a `licensed-cortana` placeholder slot for a future
+  licensed voice model.
+- **Logo**: new Cortana mark (`assets/cortana-mark.png`, +64/256px sizes)
+  wired as app icon, tray/menu-bar icon, and overlay mark.
+- Dashboard: new Personality & Voice picker panel; `/overlay` page served
+  with the same token auth.
+
+Tests: +35 new (`tests/test_desktop_voice.py`), full suite 474 passed,
+1 skipped (pre-existing UDP env skip), `compileall` clean.
 
 ## [platform] — 2026-09-25 (branch `feature/platform`, not yet merged)
 
@@ -54,6 +104,7 @@ Sims, prompts, memory cores, connectors, sign-in, and a Cortana Account slot.**
 - **Dashboard**: editable settings page + authenticated API (`GET/POST
   /api/settings`) driven by the same schema; secret-like keys are masked and
   cannot be changed from the dashboard.
+
 ## [round-a] — 2026-09-25 (branch `feature/council-coding`, not yet merged)
 
 The "power + adoption" round: four tracks, all local, nothing published.

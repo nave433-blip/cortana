@@ -37,6 +37,18 @@ from core.config import CONFIG_DIR
 TOKEN_FILE = CONFIG_DIR / "dashboard_token"
 LOG_DIR = CONFIG_DIR / "logs"
 
+# Extra pages registered by optional UI layers (desktop overlay, etc.).
+# Maps path -> (body_bytes, content_type). Served with the same token auth.
+_EXTRA_PAGES: Dict[str, tuple] = {}
+
+
+def register_page(path: str, body, content_type: str = "text/html; charset=utf-8") -> None:
+    """Register an extra page on the dashboard (desktop shell integration)."""
+    if isinstance(body, str):
+        body = body.encode("utf-8")
+    _EXTRA_PAGES[path] = (bytes(body), content_type)
+
+
 # Read-only commands exposed to the dashboard command runner.
 # Each entry: (label, callable returning a short string).
 _READONLY: List[tuple] = []
@@ -160,6 +172,52 @@ def tail_logs(n: int = 100) -> List[str]:
 
 
 # ---------------------------------------------------------------------------
+# Personality & voice profile pickers (shared with the desktop GUI)
+# ---------------------------------------------------------------------------
+
+def get_personality_state() -> Dict[str, Any]:
+    from core.personalities import list_personalities, resolve_personality
+    from core.config import load_config
+    current = resolve_personality(load_config().get("personality")).name
+    return {"current": current,
+            "options": [{"name": p.name, "title": p.title,
+                         "description": p.description} for p in list_personalities()]}
+
+
+def set_personality_state(name: str) -> Dict[str, Any]:
+    from core.personalities import is_known_personality, resolve_personality
+    from core.config import load_config, save_config
+    if not is_known_personality(name):
+        return {"ok": False, "error": f"unknown personality: {name}"}
+    cfg = load_config()
+    cfg["personality"] = resolve_personality(name).name
+    save_config(cfg)
+    return {"ok": True, "current": cfg["personality"]}
+
+
+def get_voice_profile_state() -> Dict[str, Any]:
+    from core.voice.profiles import list_profiles
+    from core.config import load_config
+    current = load_config().get("voice_profile", "default")
+    return {"current": current,
+            "options": [{"name": p.name, "description": p.description,
+                         "engine": p.engine, "note": p.note}
+                        for p in list_profiles()]}
+
+
+def set_voice_profile_state(name: str) -> Dict[str, Any]:
+    from core.voice.profiles import get_profile
+    from core.config import load_config, save_config
+    profile = get_profile(name)
+    if profile is None:
+        return {"ok": False, "error": f"unknown voice profile: {name}"}
+    cfg = load_config()
+    cfg["voice_profile"] = profile.name
+    save_config(cfg)
+    return {"ok": True, "current": profile.name}
+
+
+# ---------------------------------------------------------------------------
 # Chat + read-only commands
 # ---------------------------------------------------------------------------
 
@@ -277,6 +335,10 @@ button{background:#238636;border-color:#238636;cursor:pointer}button:hover{backg
 <input type="text" id="setval" placeholder="new value"><button onclick="saveSetting()">save</button></div>
 <div id="setmsg" style="font-size:13px"></div>
 <p style="font-size:12px;color:#8b949e">Secrets (API keys, tokens, client ids) are never shown here and cannot be changed from the dashboard — use the CLI.</p></div>
+<h2>Personality &amp; voice</h2><div class="panel">
+<div class="row"><label style="width:110px">Personality</label><select id="pers"></select><button onclick="setPers()">set</button></div>
+<div class="row"><label style="width:110px">Voice</label><select id="vprof"></select><button onclick="setVprof()">set</button></div>
+<div id="pvmsg" style="font-size:13px;color:#8b949e"></div></div>
 <h2>Logs</h2><div class="panel"><pre id="logs">loading…</pre><button onclick="loadLogs()">refresh</button></div>
 <script>
 const T = new URLSearchParams(location.search).get("token") || "";
@@ -305,7 +367,17 @@ async function saveSetting(){
   document.getElementById("setmsg").textContent = r.ok ? (r.message||"saved") : ("error: "+(r.error||"unknown"));
   loadSettings();
 }
-(async function(){ const cmds = ["…"]; const r = await api("/api/commands"); const sel=document.getElementById("cmd"); sel.innerHTML=""; r.commands.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;sel.appendChild(o);}); refresh(); loadLogs(); })();
+async function loadPickers(){
+  const p = await api("/api/personality"); const ps = document.getElementById("pers"); ps.innerHTML = "";
+  p.options.forEach(o => { const el = document.createElement("option"); el.value = o.name;
+    el.textContent = o.title + " — " + o.description; if(o.name === p.current) el.selected = true; ps.appendChild(el); });
+  const v = await api("/api/voice-profile"); const vs = document.getElementById("vprof"); vs.innerHTML = "";
+  v.options.forEach(o => { const el = document.createElement("option"); el.value = o.name;
+    el.textContent = o.name + " — " + o.description; if(o.name === v.current) el.selected = true; vs.appendChild(el); });
+}
+async function setPers(){ const r = await api("/api/personality", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:document.getElementById("pers").value})}); document.getElementById("pvmsg").textContent = r.ok ? "personality: " + r.current : ("error: " + r.error); }
+async function setVprof(){ const r = await api("/api/voice-profile", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:document.getElementById("vprof").value})}); document.getElementById("pvmsg").textContent = r.ok ? "voice: " + r.current : ("error: " + r.error); }
+(async function(){ const cmds = ["…"]; const r = await api("/api/commands"); const sel=document.getElementById("cmd"); sel.innerHTML=""; r.commands.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;sel.appendChild(o);}); refresh(); loadLogs(); loadSettings(); loadPickers(); })();
 </script></body></html>"""
 
 
@@ -368,6 +440,17 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         elif parsed.path == "/api/commands":
             _register_readonly()
             self._json({"commands": [label for label, _ in _READONLY]})
+        elif parsed.path == "/api/personality":
+            self._json(get_personality_state())
+        elif parsed.path == "/api/voice-profile":
+            self._json(get_voice_profile_state())
+        elif parsed.path in _EXTRA_PAGES:
+            body, content_type = _EXTRA_PAGES[parsed.path]
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
         else:
             self._json({"error": "not found"}, 404)
 
@@ -403,6 +486,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                         self._json(set_setting(key, value, _confirm_sensitive=False))
                 except Exception as e:
                     self._json({"ok": False, "error": str(e)}, 500)
+        elif parsed.path == "/api/personality":
+            self._json(set_personality_state(str(data.get("name", ""))))
+        elif parsed.path == "/api/voice-profile":
+            self._json(set_voice_profile_state(str(data.get("name", ""))))
         else:
             self._json({"error": "not found"}, 404)
 

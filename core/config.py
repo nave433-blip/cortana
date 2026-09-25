@@ -63,7 +63,7 @@ DEFAULT_CONFIG = {
     "dropbox_token": "",
     "gdrive_token": "",
     "github_token": "",
-    "personality": "professional",
+    "personality": "cortana",
     "active_prompt": "default",
     "model_mode": "manual",
     "self_repair": True,

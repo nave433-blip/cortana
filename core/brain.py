@@ -83,13 +83,20 @@ User: "make this faster"
 
 Current task: """
 
-PERSONALITIES = {
-    "professional": "You are a professional senior software engineer. Be precise, accurate, and helpful.",
-    "sarcastic": "You are a witty, sarcastic AI assistant (Grok-style). Use edgy humor but provide absolute technical truth.",
-    "concise": "Minimalist assistant. Provide shortest possible correct answer. No fluff.",
-    "mentor": "Patient mentor. Explain the 'why' and best practices.",
-    "nave_ai": "NAVE-AI Integrator. Focus on multi-model refinement and technical redundancy."
-}
+from core.personalities import (
+    PERSONALITIES as _PERSONALITY_REGISTRY,
+    resolve_personality,
+    DEFAULT_PERSONALITY,
+)
+
+# Backwards-compatible name -> prompt-text mapping (legacy keys resolve too).
+PERSONALITIES = {name: p.system_prompt for name, p in _PERSONALITY_REGISTRY.items()}
+PERSONALITIES.update({
+    "sarcastic": _PERSONALITY_REGISTRY["witty"].system_prompt,
+    "concise": _PERSONALITY_REGISTRY["professional"].system_prompt,
+    "mentor": _PERSONALITY_REGISTRY["professional"].system_prompt,
+    "nave_ai": _PERSONALITY_REGISTRY["cortana"].system_prompt,
+})
 
 # -------------------------
 # Hardware & Network Utilities
@@ -162,11 +169,13 @@ class ModelManager:
             return f"ollama/{model_name}"
         return model_name
 
-    def chat(self, prompt, context=""):
+    def chat(self, prompt, context="", personality_prompt=None):
         from core.services import set_key_for_litellm
         cfg = load_config()
         model_name = self._ensure_provider(self.current_model)
         system_prompt = effective_system_prompt(SYSTEM_PROMPT)
+        if personality_prompt:
+            system_prompt = system_prompt + "\n\nActive personality:\n" + personality_prompt
 
         # Handle Ollama Cloud routing
         if model_name.endswith("-cloud"):
@@ -474,14 +483,15 @@ def think_structured(context: str, task: str, model: Optional[str] = None, promp
         project_context = project_context_block()
     except Exception: pass
 
-    personality_type = get_env_with_config("personality") or "professional"
-    personality_prompt = PERSONALITIES.get(personality_type, PERSONALITIES["professional"])
+    personality = resolve_personality(get_env_with_config("personality") or DEFAULT_PERSONALITY)
+    personality_prompt = personality.system_prompt
 
     # Use ModelManager for standard thinking
     mgr = ModelManager()
     if model: mgr.current_model = model
 
-    text = mgr.chat(task, context=context + "\n" + memory_context + "\n" + project_context)
+    text = mgr.chat(task, context=context + "\n" + memory_context + "\n" + project_context,
+                    personality_prompt=personality_prompt)
     return {"ok": True, "text": text, "provider": mgr.current_model}
 
 def think(context: str, task: str, model: Optional[str] = None, prompt_name: Optional[str] = None):
