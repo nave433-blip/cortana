@@ -137,6 +137,7 @@ COMMANDS = [
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/connections", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
     "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/refine", "/stress-test",
+    "/hive", "/swarm", "/mcp", "/research",
     "/help", "/t",
 ]
 
@@ -370,6 +371,18 @@ def interactive():
                     elif cmd == "/personality": menus.personality_menu()
                     elif cmd == "/models": menus.models_menu()
                     elif cmd == "/multibrain": multibrain(args or Prompt.ask("Task for multi-brain reasoning"))
+                    elif cmd == "/hive":
+                        from core.hive import hive_ask, display_hive_result
+                        display_hive_result(hive_ask(args or Prompt.ask("Question for the hive")))
+                    elif cmd == "/swarm":
+                        from core.swarm import run_swarm, display_swarm_result
+                        display_swarm_result(run_swarm(args or Prompt.ask("Task for the swarm")))
+                    elif cmd == "/mcp":
+                        from core.mcp_client import handle_mcp_command
+                        handle_mcp_command(args or "")
+                    elif cmd == "/research":
+                        from core.research import run_research, display_research_result
+                        display_research_result(run_research(args or Prompt.ask("Research topic")))
                     elif cmd == "/scan-ollama": scan_ollama()
                     elif cmd == "/ollama": ollama_cli(args)
                     elif cmd == "/refine":

@@ -62,7 +62,8 @@ def _is_private_peer(peer_ip: str) -> bool:
 P2P_VERSION = CURRENT_VERSION
 P2P_FEATURES = {
     "0.1.7": ["status", "edit_file", "read_file"],
-    "0.2.6": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think", "handoff", "execute_chunk"]
+    "0.2.6": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think", "handoff", "execute_chunk",
+              "hive_cache_get", "hive_cache_put", "capabilities"]
 }
 
 def is_p2p_compatible(remote_version: str, action: str = "status") -> bool:
@@ -160,6 +161,11 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
             from core.resource_manager import resource_manager
             health = resource_manager.check_hive_health()
             self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+            try:
+                from core import hive as hive_mod
+                capabilities = hive_mod.local_capabilities()
+            except Exception:
+                capabilities = {"providers": [], "models": [], "features": []}
             status_data = {
                 "status": "online",
                 "name": cfg.get("jarvis_name", "JARVIS-PEER"),
@@ -167,9 +173,44 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
                 "model": cfg.get("jarvis_model", "unknown"),
                 "local_models": cfg.get("detected_local_models", []),
                 "p2p_enabled": cfg.get("p2p_enabled", True),
-                "hive_load": health
+                "hive_load": health,
+                # Capability registry: provider/model NAMES only.
+                # API keys and tokens are NEVER advertised or transmitted.
+                "capabilities": capabilities,
             }
             self.wfile.write(json.dumps(status_data).encode()); return
+
+        # Hive shared result cache. Participation is opt-in on BOTH sides:
+        # this node only serves/stores when "hive_cache_sharing" is true.
+        # Entries carry prompts, answers, model names, timestamps — never keys.
+        if action == "hive_cache_get":
+            from core import hive as hive_mod
+            if not hive_mod.sharing_enabled():
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Cache sharing is disabled on this node."); return
+            h = str(data.get("prompt_hash", ""))
+            entries = hive_mod.cache_lookup_local_hash(h) if h else []
+            self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+            self.wfile.write(json.dumps({"entries": entries}).encode()); return
+
+        if action == "hive_cache_put":
+            from core import hive as hive_mod
+            if not hive_mod.sharing_enabled():
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Cache sharing is disabled on this node."); return
+            entry = data.get("entry") or {}
+            try:
+                ok = bool(entry.get("prompt_hash") and entry.get("answer"))
+                if ok:
+                    hive_mod.cache_store_hash(
+                        entry.get("prompt_hash"), entry.get("model", "peer"),
+                        entry.get("answer"), entry.get("timestamp") or time.time(),
+                        origin=f"peer:{peer_ip}")
+            except Exception:
+                ok = False
+            self.send_response(200 if ok else 400)
+            self.send_header('Content-type', 'application/json'); self.end_headers()
+            self.wfile.write(json.dumps({"stored": ok}).encode()); return
 
         if action == "list_tokens":
             from core.services import list_available_keys

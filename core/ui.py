@@ -124,6 +124,9 @@ def get_menu_grid() -> Table:
         ("/troubleshoot", "Run a command, auto-fix errors"),
         ("/analyze", "Project health audit: lines, complexity, hotspots"),
         ("/nave", "Multi-model reasoning & refinement"),
+        ("/hive", "Hive mind: ask all connected AIs, get one consensus"),
+        ("/swarm", "Agent swarm: parallel planner → workers → reviewer"),
+        ("/research", "Deep research: multi-query web research w/ citations"),
     ])
     devops = _menu_group("🛠️ DevOps & Utilities", "green", [
         ("/doctor", "System health check & self-repair"),
@@ -133,6 +136,7 @@ def get_menu_grid() -> Table:
         ("/ssh", "Run commands on remote servers"),
         ("/memory", "Search your persistent knowledge base"),
         ("/dashboard", "Live system monitoring interface"),
+        ("/mcp", "External tool servers via MCP (stdio)"),
     ])
     accounts = _menu_group("🔌 Accounts & Setup", "cyan", [
         ("/connect", "Link AI providers (API keys, Ollama, …)"),
