@@ -121,7 +121,7 @@ def ensure_watcher() -> None:
         return
     _watcher_stop.clear()
     _watcher_thread = threading.Thread(target=_watch_loop, args=(s["watch_paths"],),
-                                       daemon=True, name="jarvis-briefs")
+                                       daemon=True, name="cortana-briefs")
     _watcher_thread.start()
 
 

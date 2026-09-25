@@ -6,9 +6,9 @@ from rich.console import Console
 
 console = Console()
 
-# Discovery server URL. There is no hosted JARVIS discovery service;
+# Discovery server URL. There is no hosted CORTANA discovery service;
 # set "discovery_server_url" in the config to point at your own.
-DISCOVERY_SERVER_URL = "https://jarvis-discovery-server.example.com"
+DISCOVERY_SERVER_URL = "https://cortana-discovery-server.example.com"
 
 def _server_url(cfg) -> str | None:
     url = cfg.get("discovery_server_url") or DISCOVERY_SERVER_URL

@@ -1,5 +1,5 @@
 """
-Robust LLM brain for JARVIS.
+Robust LLM brain for CORTANA.
 
 Improvements:
 - Intelligent task-based routing
@@ -25,7 +25,7 @@ from core.config import load_config, save_config, get_env_with_config
 from core.devmode import timed_request, effective_system_prompt
 
 # litellm is heavy (~3s import). Load it lazily on first actual LLM call so
-# `jarvis --help` and other non-LLM paths start fast.
+# `cortana --help` and other non-LLM paths start fast.
 _litellm_mod = None
 
 
@@ -58,12 +58,12 @@ def _short_err_str(text: str) -> str:
     return text.splitlines()[0] if text else "unknown error"
 
 console = Console()
-logger = logging.getLogger("jarvis_brain")
+logger = logging.getLogger("cortana_brain")
 
 # -------------------------
 # Behavioral Mandates
 # -------------------------
-SYSTEM_PROMPT = """You are JARVIS, a highly intelligent, proactive, and precise personal AI coding assistant.
+SYSTEM_PROMPT = """You are CORTANA, a highly intelligent, proactive, and precise personal AI coding assistant.
 
 Core Directives:
 1. TECHNICAL HELPFULNESS: Provide direct, accurate technical help for coding and system tasks.
@@ -373,13 +373,13 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
 
     # Tier 1.5: P2P Swarm (Hive Mind)
     try:
-        from core.p2p import scan_for_jarvis_peers, send_remote_command
+        from core.p2p import scan_for_cortana_peers, send_remote_command
         import json
         
         if not hasattr(multibrain_think, "_peer_index"):
             multibrain_think._peer_index = 0
             
-        all_peers = scan_for_jarvis_peers()
+        all_peers = scan_for_cortana_peers()
         
         if all_peers:
             all_peers.sort()
@@ -505,9 +505,9 @@ def get_provider(model_override=None, task_hint=None):
 
 def distribute_task(task: str) -> str:
     from core.torrent_balancer import chunk_task, aggregate_results
-    from core.p2p import scan_for_jarvis_peers, send_remote_command
+    from core.p2p import scan_for_cortana_peers, send_remote_command
     
-    peers = scan_for_jarvis_peers()
+    peers = scan_for_cortana_peers()
     if not peers:
         # Fallback to local
         return think(context="Local Fallback", task=task)

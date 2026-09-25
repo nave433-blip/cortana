@@ -19,8 +19,8 @@ from rich.console import Console
 
 console = Console()
 
-_JARVIS_END_MARKER = "__JARVIS_END__"
-_JARVIS_EXIT_PREFIX = "__JARVIS_EXIT_CODE:"
+_CORTANA_END_MARKER = "__CORTANA_END__"
+_CORTANA_EXIT_PREFIX = "__CORTANA_EXIT_CODE:"
 
 @dataclass
 class BoxLogEntry:
@@ -185,7 +185,7 @@ class GeminiSession:
             except Exception as e:
                 return {"ok": False, "error": str(e)}
         # PTY path: write wrapper to print exit code and end marker
-        wrapper = f"{command}\nprintf '\\n{_JARVIS_EXIT_PREFIX}%s\\n' \"$?\"\nprintf '{_JARVIS_END_MARKER}\\n'\n"
+        wrapper = f"{command}\nprintf '\\n{_CORTANA_EXIT_PREFIX}%s\\n' \"$?\"\nprintf '{_CORTANA_END_MARKER}\\n'\n"
         try:
             os.write(box.master_fd, wrapper.encode())
         except Exception as e:
@@ -197,13 +197,13 @@ class GeminiSession:
         while time.time() < end_time:
             time.sleep(0.05)
             collected = self._collect_buffer(name)
-            if _JARVIS_END_MARKER in collected:
+            if _CORTANA_END_MARKER in collected:
                 # parse exit code
                 # find last occurrence of exit prefix
-                idx = collected.rfind(_JARVIS_EXIT_PREFIX)
+                idx = collected.rfind(_CORTANA_EXIT_PREFIX)
                 try:
                     if idx != -1:
-                        start_idx = idx + len(_JARVIS_EXIT_PREFIX)
+                        start_idx = idx + len(_CORTANA_EXIT_PREFIX)
                         # next line contains code
                         rest = collected[start_idx:].splitlines()
                         if rest:
@@ -215,11 +215,11 @@ class GeminiSession:
             if box.proc and box.proc.poll() is not None:
                 time.sleep(0.05)
                 collected = self._collect_buffer(name)
-                if _JARVIS_END_MARKER in collected:
-                    idx = collected.rfind(_JARVIS_EXIT_PREFIX)
+                if _CORTANA_END_MARKER in collected:
+                    idx = collected.rfind(_CORTANA_EXIT_PREFIX)
                     try:
                         if idx != -1:
-                            start_idx = idx + len(_JARVIS_EXIT_PREFIX)
+                            start_idx = idx + len(_CORTANA_EXIT_PREFIX)
                             rest = collected[start_idx:].splitlines()
                             if rest:
                                 exit_code = int(rest[0].strip())
@@ -229,19 +229,19 @@ class GeminiSession:
         duration = time.time() - start
         # cleanup marker(s) from output
         raw = collected
-        raw = raw.replace(_JARVIS_END_MARKER, "")
-        raw = raw.replace(_JARVIS_EXIT_PREFIX, "[EXIT_PREFIX]")
+        raw = raw.replace(_CORTANA_END_MARKER, "")
+        raw = raw.replace(_CORTANA_EXIT_PREFIX, "[EXIT_PREFIX]")
         # attempt to extract stdout/stderr combined; PTY mixes both
         entry = BoxLogEntry(ts=time.time(), command=command, output=raw, exit_code=(exit_code if exit_code is not None else -1), duration=duration)
         box.logs.append(entry)
         return {"ok": True, "output": raw, "exit_code": (exit_code if exit_code is not None else -1), "duration": duration}
 
     def run_script_in_box(self, name: str, script_text: str, timeout: int = 120) -> Dict[str, Any]:
-        # write to temp file in current working dir of Jarvis process
+        # write to temp file in current working dir of Cortana process
         box = self._boxes.get(name)
         if not box:
             return {"ok": False, "error": f"Box '{name}' not found."}
-        fd, path = tempfile.mkstemp(prefix="jarvis_gemini_", suffix=".sh", text=True)
+        fd, path = tempfile.mkstemp(prefix="cortana_gemini_", suffix=".sh", text=True)
         os.close(fd)
         try:
             with open(path, "w", encoding="utf-8") as f:

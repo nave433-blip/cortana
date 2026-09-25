@@ -30,12 +30,12 @@ console = Console()
 #   python3 -c "from core.p2p import generate_self_signed_cert; \
 #       generate_self_signed_cert('/path/to/p2p.crt', '/path/to/p2p.key')"
 # (equivalently: openssl req -x509 -newkey rsa:2048 -keyout p2p.key -out p2p.crt
-#  -days 825 -nodes -subj "/CN=jarvis-p2p").
+#  -days 825 -nodes -subj "/CN=cortana-p2p").
 # TLS clients skip certificate verification by default (verify_tls=False) so
 # self-signed certs work; pass verify_tls=True when you have a CA-signed cert
 # you want validated. Default behavior (plaintext HTTP) is unchanged.
 
-# Remote file operations are confined to the JARVIS workspace root.
+# Remote file operations are confined to the CORTANA workspace root.
 WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
 
 def _is_path_confined(raw_path: str) -> "Path | None":
@@ -69,7 +69,7 @@ P2P_FEATURES = {
 }
 
 def is_p2p_compatible(remote_version: str, action: str = "status") -> bool:
-    """Check if the remote JARVIS version supports the requested action."""
+    """Check if the remote CORTANA version supports the requested action."""
     supported_features = P2P_FEATURES.get(remote_version, P2P_FEATURES.get("0.1.7"))
     if action == "status": return True
     return action in supported_features
@@ -100,7 +100,7 @@ def check_permission(peer_ip, action):
     if choice == "never":
         return False
 
-    console.print(f"\n[bold yellow]⚠️ REMOTE REQUEST:[/bold yellow] JARVIS instance at [cyan]{peer_ip}[/cyan] wants to [bold magenta]{action}[/bold magenta].")
+    console.print(f"\n[bold yellow]⚠️ REMOTE REQUEST:[/bold yellow] CORTANA instance at [cyan]{peer_ip}[/cyan] wants to [bold magenta]{action}[/bold magenta].")
     options = {"1": "always", "2": "this once", "3": "never", "4": "not right now"}
     console.print("[1] Always | [2] This once | [3] Never | [4] Not right now")
     ans = Prompt.ask("Choice", choices=["1", "2", "3", "4"], default="4")
@@ -123,7 +123,7 @@ def check_permission(peer_ip, action):
 class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
 
-class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
+class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         peer_ip = self.client_address[0]
         content_length = int(self.headers.get('Content-Length', 0))
@@ -237,7 +237,7 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
             full_path = _is_path_confined(file_path) if file_path else None
             if full_path is None:
                 self.send_response(403); self.end_headers()
-                self.wfile.write(b"Forbidden: path is outside the JARVIS workspace"); return
+                self.wfile.write(b"Forbidden: path is outside the CORTANA workspace"); return
             try:
                 if full_path.is_file():
                     with open(full_path, "r") as f: content = f.read()
@@ -255,7 +255,7 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
             full_path = _is_path_confined(file_path)
             if full_path is None:
                 self.send_response(403); self.end_headers()
-                self.wfile.write(b"Forbidden: path is outside the JARVIS workspace"); return
+                self.wfile.write(b"Forbidden: path is outside the CORTANA workspace"); return
             from tools.editor import replace_in_file
             try:
                 res = replace_in_file(str(full_path), old_s, new_s, interactive=False)
@@ -326,7 +326,7 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
 # Optional TLS (stdlib ssl). All helpers are opt-in; defaults stay plaintext.
 # ---------------------------------------------------------------------------
 
-def generate_self_signed_cert(certfile, keyfile=None, hostname="jarvis-p2p"):
+def generate_self_signed_cert(certfile, keyfile=None, hostname="cortana-p2p"):
     """Generate a self-signed cert/key pair using the openssl CLI.
 
     Uses an argv list (no shell=True), so paths cannot inject commands.
@@ -379,7 +379,7 @@ def _make_p2p_server(port=0, use_tls=False, certfile=None, keyfile=None, bind="1
     """
     from core.config import load_config
     cfg = load_config()
-    httpd = ThreadedHTTPServer((bind, port), JarvisP2PHandler)
+    httpd = ThreadedHTTPServer((bind, port), CortanaP2PHandler)
     if use_tls:
         certfile = certfile or cfg.get("p2p_tls_certfile")
         keyfile = keyfile or cfg.get("p2p_tls_keyfile") or certfile
@@ -417,7 +417,7 @@ def run_p2p_server(port=11435, use_tls=None, certfile=None, keyfile=None,
     scheme = "https" if use_tls else "http"
     with _make_p2p_server(port, use_tls=use_tls, certfile=certfile,
                           keyfile=keyfile, bind="") as httpd:
-        console.print(f"[green]🚀 JARVIS P2P Server listening on port {port} ({scheme})...[/green]")
+        console.print(f"[green]🚀 CORTANA P2P Server listening on port {port} ({scheme})...[/green]")
         httpd.serve_forever()
 
 def run_udp_discovery_listener(http_port, discovery_port=11436):
@@ -470,7 +470,7 @@ def discover_peer_endpoints(discovery_port=11436, timeout=1.5, target='<broadcas
     return found
 
 
-def scan_for_jarvis_peer_endpoints(port=11435, timeout=1.5, use_tls=None,
+def scan_for_cortana_peer_endpoints(port=11435, timeout=1.5, use_tls=None,
                                    verify_tls=False, discovery_port=11436):
     """Discover peers as (ip, http_port) pairs.
 
@@ -521,10 +521,10 @@ def scan_for_jarvis_peer_endpoints(port=11435, timeout=1.5, use_tls=None,
     return sorted(found)
 
 
-def scan_for_jarvis_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
+def scan_for_cortana_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
                           discovery_port=11436):
     """Backwards-compatible wrapper returning just the peer IPs."""
-    return sorted({ip for ip, _port in scan_for_jarvis_peer_endpoints(
+    return sorted({ip for ip, _port in scan_for_cortana_peer_endpoints(
         port, timeout, use_tls, verify_tls, discovery_port)})
 
 def send_remote_command(peer_ip, action, params, port=11435, use_tls=None, verify_tls=False):
@@ -558,11 +558,11 @@ def p2p_status_report(port=11435, use_tls=None, verify_tls=False):
     scheme = _p2p_scheme(use_tls, cfg)
     if scheme == "https" and not verify_tls:
         _quiet_insecure_warnings()
-    table = Table(title="JARVIS P2P Swarm Status", border_style="cyan")
+    table = Table(title="CORTANA P2P Swarm Status", border_style="cyan")
     table.add_column("Peer IP"); table.add_column("Name"); table.add_column("Version"); table.add_column("Compatibility"); table.add_column("Model"); table.add_column("Latency")
-    console.print("[bold cyan]📡 Discovering JARVIS instances...[/bold cyan]")
+    console.print("[bold cyan]📡 Discovering CORTANA instances...[/bold cyan]")
     with Live(table, refresh_per_second=4):
-        peers = scan_for_jarvis_peer_endpoints(port=port, use_tls=use_tls,
+        peers = scan_for_cortana_peer_endpoints(port=port, use_tls=use_tls,
                                                verify_tls=verify_tls)
         for ip, peer_port in peers:
             start = time.time()
@@ -574,11 +574,13 @@ def p2p_status_report(port=11435, use_tls=None, verify_tls=False):
                     sync = "[green]✓ MATCH[/green]" if data.get("version") == CURRENT_VERSION else "[yellow]⚠ LEGACY[/yellow]"
                     table.add_row(ip, data.get("name"), data.get("version"), sync, data.get("model"), lat)
             except Exception: pass
+    if peers:
+        console.print("[dim]Squad up.[/dim]")
 
 def p2p_token_menu():
     console.print("[yellow]⚠️ Tokens are transferred over plaintext HTTP. "
                   "Only request tokens from peers on networks you trust.[/yellow]")
-    peers = scan_for_jarvis_peers()
+    peers = scan_for_cortana_peers()
     if not peers: console.print("[yellow]No peers found.[/yellow]"); return
     table = Table(title="Peer Tokens")
     table.add_column("ID"); table.add_column("IP"); table.add_column("Tokens")

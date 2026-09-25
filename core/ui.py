@@ -17,7 +17,7 @@ def set_warp_status(text: str):
 
 def clear_warp_status():
     """Reset the terminal tab title."""
-    set_warp_status("JARVIS")
+    set_warp_status("CORTANA")
 
 def display_chat_message(role: str, text: str):
     """Display a message in a Gemini-style high-fidelity ASCII box."""
@@ -28,8 +28,8 @@ def display_chat_message(role: str, text: str):
     # Clear status when message is displayed
     clear_warp_status()
     
-    color = "cyan" if role.lower() == "jarvis" else "green"
-    icon = "🧠" if role.lower() == "jarvis" else "👤"
+    color = "cyan" if role.lower() == "cortana" else "green"
+    icon = "🧠" if role.lower() == "cortana" else "👤"
     
     panel = Panel(
         Markdown(text),
@@ -44,7 +44,7 @@ def display_chat_message(role: str, text: str):
 
 def display_welcome():
     console.print(Align.center(Panel(
-        Markdown(f"# JARVIS\nCreated by **Nave433 (Evan Shipley)**\n\nVersion: `{CURRENT_VERSION}`"),
+        Markdown(f"# CORTANA\nCreated by **Nave433 (Evan Shipley)**\n\nVersion: `{CURRENT_VERSION}`"),
         style="bold blue",
         border_style="cyan",
         subtitle="Type /help to see what I can do",
@@ -54,6 +54,7 @@ def display_welcome():
         "[dim]Tip: run [bold cyan]/connect[/bold cyan] to link your AI providers, "
         "[bold cyan]/menu[/bold cyan] for the dashboard[/dim]\n"
     ))
+    console.print(Align.center("[dim italic]Wake me when you need me.[/dim italic]"))
 
 
 # ---------------------------------------------------------------------------
@@ -117,7 +118,7 @@ def get_menu_grid() -> Table:
     grid.add_column(justify="center")
 
     agents = _menu_group("🤖 Core AI Agents", "magenta", [
-        ("/chat", "Consult JARVIS — technical advice, explanations"),
+        ("/chat", "Consult CORTANA — technical advice, explanations"),
         ("/fix", "Autonomous research & repair loop for bugs"),
         ("/forge", "Code synthesis & creation"),
         ("/plan", "Strategic engineering roadmaps"),
@@ -127,7 +128,7 @@ def get_menu_grid() -> Table:
         ("/hive", "Hive mind: ask all connected AIs, get one consensus"),
         ("/swarm", "Agent swarm: parallel planner → workers → reviewer"),
         ("/research", "Deep research: multi-query web research w/ citations"),
-        ("/schedule", "Task scheduler: cron/interval/one-shot jobs in-Jarvis"),
+        ("/schedule", "Task scheduler: cron/interval/one-shot jobs in-Cortana"),
         ("/rewind", "Conversation time-travel: rewind, branch, diff"),
     ])
     devops = _menu_group("🛠️ DevOps & Utilities", "green", [
@@ -159,7 +160,7 @@ def get_menu_grid() -> Table:
     grid.add_row(accounts, _menu_group("⚡ Quick Starts", "yellow", [
         ("/connect", "First run? Start here to link an AI"),
         ("/chat hello", "Talk to your active provider"),
-        ("/fix .", "Let JARVIS audit this directory"),
+        ("/fix .", "Let CORTANA audit this directory"),
         ("/doctor", "Check everything is healthy"),
     ]))
     return grid
@@ -192,7 +193,7 @@ def get_main_menu_table():
     table.add_column("Command", style="cyan", justify="right")
     table.add_column("Description", style="white")
     
-    table.add_row("/chat", "Consult JARVIS for technical advice or code explanation")
+    table.add_row("/chat", "Consult CORTANA for technical advice or code explanation")
     table.add_row("/fix", "Autonomous research & repair loop for project bugs")
     table.add_row("/analyze", "Deep health audit: lines, complexity, and file hotspots")
     table.add_row("/analyze-file", "Focused security and performance audit on a single file")
@@ -201,7 +202,7 @@ def get_main_menu_table():
     table.add_row("/network", "Fing-style local network discovery and port scanning")
     table.add_row("/ssh", "Execute commands on remote servers via agentic SSH")
     table.add_row("/server", "Monitor local ports, process stats, and manage services")
-    table.add_row("/undo", "Safety rollback: Revert the last file change made by JARVIS")
+    table.add_row("/undo", "Safety rollback: Revert the last file change made by CORTANA")
     table.add_row("/dashboard", "Launch live multi-window system monitoring interface")
     table.add_row("/memory", "Search or manage the persistent vector knowledge base")
     table.add_row("/personality", "Switch between Professional, Sarcastic, Concise, or Mentor vibes")
@@ -211,6 +212,7 @@ def get_main_menu_table():
     table.add_row("/cloud", "Bridge to Google Drive, Dropbox, and iCloud storage")
     table.add_row("/focus", "Set a specific path as the primary work context for the agent")
     table.add_row("/help", "Access detailed system documentation and role guide")
+    table.add_row("/clippy", "A familiar little helper has questions about what you're doing")
     table.add_row("/exit", "Secure shutdown of all background threads and exit")
     
     return Panel(table, title="[bold white]System Commands & Capabilities[/bold white]", border_style="blue", expand=False)

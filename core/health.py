@@ -15,7 +15,7 @@ REPOS = {
 }
 
 def check_system_health():
-    """Check health of JARVIS and related engineering repos."""
+    """Check health of CORTANA and related engineering repos."""
     results = []
     
     if not REPOS:

@@ -1,4 +1,4 @@
-"""Cross-device session handoff: hand a live session to another Jarvis node.
+"""Cross-device session handoff: hand a live session to another Cortana node.
 
 `/handoff <peer-ip> [note]` packages recent conversation context (from the
 time-travel tree), open tasks, and your note — and sends it to the peer.
@@ -55,7 +55,7 @@ def build_handoff(note: str = "", context_turns: int = 12,
     except Exception:
         context, branch = "", "main"
     payload = {
-        "format": "jarvis-handoff/1",
+        "format": "cortana-handoff/1",
         "from": _node_name(),
         "ts": time.time(),
         "branch": branch,
@@ -111,7 +111,7 @@ def _handoffs_dir() -> Path:
 
 def handle_session_handoff(peer_ip: str, payload: Dict[str, Any]):
     """Receiver side (called from the P2P handler). Returns (status, ctype, body)."""
-    if not isinstance(payload, dict) or payload.get("format") != "jarvis-handoff/1":
+    if not isinstance(payload, dict) or payload.get("format") != "cortana-handoff/1":
         return 400, "text/plain", b"bad handoff payload"
     hit = _contains_forbidden(payload)
     if hit:

@@ -9,7 +9,7 @@ from typing import Callable, Dict, List, Optional, Any
 from core.brain import get_provider
 from core.logger import ErrorLogger
 
-logger = logging.getLogger("jarvis.command_handler")
+logger = logging.getLogger("cortana.command_handler")
 
 class CommandError(Exception):
     pass

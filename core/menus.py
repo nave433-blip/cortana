@@ -8,7 +8,7 @@ from core.config import load_config, save_config, setup_wizard
 console = Console()
 
 def config_menu():
-    """Manage global JARVIS settings, identities, and API keys with detailed guidance."""
+    """Manage global CORTANA settings, identities, and API keys with detailed guidance."""
     while True:
         config_data = load_config()
         table = Table(title="[bold cyan]Global System Configuration Control[/bold cyan]", show_header=True, header_style="bold magenta")
@@ -21,19 +21,19 @@ def config_menu():
             "cortana_model": "The specific model identifier (e.g., 'gpt-4o' or 'llama3'). This string is passed directly to the active provider's API.",
             "personality": "Controls the assistant's tone, verbosity, and interaction style. Affects both chat and autonomous agent responses.",
             "active_prompt": "Your persistent system persona. This role is loaded from your Prompt Library and guides all high-level technical reasoning.",
-            "github_token": "Enables JARVIS to autonomously push code, open Pull Requests, manage issues, and sync with your repositories.",
+            "github_token": "Enables CORTANA to autonomously push code, open Pull Requests, manage issues, and sync with your repositories.",
             "gemini_api_key": "Token for Google Gemini. Recommended for free users (1,500 req/day) seeking professional-grade reasoning.",
             "openai_api_key": "Token for OpenAI GPT series. Industry standard for technical logic and sophisticated code synthesis.",
             "anthropic_api_key": "Token for Claude 3.5. Renowned for world-class coding ability and accurate follow-through on complex tasks.",
             "nvidia_api_key": "Token for NVIDIA NIM. Provides access to massive open-source models like Llama 3.1 405B on optimized hardware.",
             "xai_api_key": "Token for xAI Grok-Beta. Focused on technical truth, edge-case detection, and witty interaction.",
             "mistral_api_key": "Token for Mistral AI. Excellent performance-to-cost ratio for technical audits and multilingual decoding.",
-            "ollama_host": "The URL where your local Ollama server is running. JARVIS will auto-detect this during setup if you're unsure.",
+            "ollama_host": "The URL where your local Ollama server is running. CORTANA will auto-detect this during setup if you're unsure.",
             "lm_studio_host": "The URL for your local LM Studio server. Enables use of any GGUF model as the assistant's brain.",
             "llama_cpp_host": "The URL for a Llama.cpp server instance. Optimized for low-level performance on specific hardware.",
             "gpt4all_host": "The URL for the local GPT4All API. Another layer of free, private, and offline intelligence support.",
             "model_mode": "Switch between 'manual', 'auto-offline' (Local Only), 'auto-online' (Cloud Priority), or 'auto-mixed' (Connectivity-aware).",
-            "self_repair": "When ENABLED, JARVIS will autonomously attempt to patch its own source code if it crashes or hits a critical runtime error."
+            "self_repair": "When ENABLED, CORTANA will autonomously attempt to patch its own source code if it crashes or hits a critical runtime error."
         }
         
         for k, v in config_data.items():
@@ -143,7 +143,8 @@ def memory_menu():
                 console.print("[yellow]⚠️ No relevant insights found in existing vector storage.[/yellow]")
             input("\nPress Enter to continue...")
         elif choice == "2":
-            if Confirm.ask("[bold red]DANGER: Are you sure you want to permanently erase all JARVIS memories?[/bold red]"):
+            console.print("[dim italic]Don't make a girl a promise you can't keep.[/dim italic]")
+            if Confirm.ask("[bold red]DANGER: Are you sure you want to permanently erase all CORTANA memories?[/bold red]"):
                 console.print(f"[green]✅ {clear()}[/green]")
         else: break
 
@@ -227,7 +228,7 @@ def models_menu():
     if choice == "a":
         config["model_mode"] = "auto-offline"
         save_config(config)
-        console.print("[green]✅ Switched to Auto-Offline mode. JARVIS will now stay local.[/green]")
+        console.print("[green]✅ Switched to Auto-Offline mode. CORTANA will now stay local.[/green]")
         return
     elif choice == "s":
         config["model_mode"] = "auto-online"
@@ -237,7 +238,7 @@ def models_menu():
     elif choice == "x":
         config["model_mode"] = "auto-mixed"
         save_config(config)
-        console.print("[green]✅ Switched to Auto-Mixed mode. JARVIS will now manage connectivity.[/green]")
+        console.print("[green]✅ Switched to Auto-Mixed mode. CORTANA will now manage connectivity.[/green]")
         return
     elif choice == "m":
         config["model_mode"] = "manual"
@@ -354,7 +355,7 @@ def robust_help():
     """Grouped, scannable command reference."""
     from core.ui import get_menu_grid, next_steps_panel
     console.print(Panel(
-        "[bold green]JARVIS Command Reference[/bold green]\n"
+        "[bold green]CORTANA Command Reference[/bold green]\n"
         "[dim]Everything you can type. Natural language works too — "
         "just describe what you want.[/dim]",
         title="[bold green]Help[/bold green]", border_style="green",
@@ -366,6 +367,7 @@ def robust_help():
          "`/fix .` — autonomous audit & repair of this directory"],
         title="New here? Start with these",
     ))
+    console.print("[dim]Psst… there's a [bold]/clippy[/bold] hiding in here somewhere.[/dim]")
 
 def cloud_menu():
     """Interactive management for cloud storage platforms."""

@@ -147,7 +147,7 @@ def apply_update(run_tests: bool = True, target_branch: Optional[str] = None) ->
             _git(["reset", "--hard", backup_tag], cwd=base_dir)
             return False
 
-    console.print("[bold green]✅ Update successful. Please restart JARVIS to apply changes.[/bold green]")
+    console.print("[bold green]✅ Update successful. Please restart CORTANA to apply changes.[/bold green]")
 
     # Optionally pop stash if we stashed earlier
     if stashed:
@@ -166,11 +166,11 @@ def auto_update_check():
     """
     latest = check_for_updates()
     if latest:
-        console.print(f"[bold green]A new version of JARVIS is available: {latest} (Current: {CURRENT_VERSION})[/bold green]")
+        console.print(f"[bold green]A new version of CORTANA is available: {latest} (Current: {CURRENT_VERSION})[/bold green]")
         if console.input("Would you like to upgrade now? (y/n): ").lower() == "y":
             ok = apply_update()
             if ok:
-                console.print("[bold green]Upgrade complete! Please restart JARVIS.[/bold green]")
+                console.print("[bold green]Upgrade complete! Please restart CORTANA.[/bold green]")
                 sys.exit(0)
             else:
                 console.print("[red]Upgrade failed. See messages above.[/red]")

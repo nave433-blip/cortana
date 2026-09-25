@@ -30,11 +30,11 @@ from core.update import auto_update_check, CURRENT_VERSION
 def run_startup_checks() -> None:
     """Heavy startup side effects: only run for real CLI invocations.
 
-    Skipped when JARVIS_SKIP_STARTUP=1 (tests, library use) so that merely
+    Skipped when CORTANA_SKIP_STARTUP=1 (tests, library use) so that merely
     importing this module never pip-installs packages, hits the network,
     or prompts for input.
     """
-    if os.environ.get("JARVIS_SKIP_STARTUP") == "1":
+    if os.environ.get("CORTANA_SKIP_STARTUP") == "1":
         return
     ensure_all()
     init_repair_engine()
@@ -82,7 +82,7 @@ _welcome_shown = False
 
 def _show_welcome_once() -> None:
     """Welcome-first startup: splash and dev banner print exactly once,
-    before any setup wizard, so first-run users see JARVIS before questions."""
+    before any setup wizard, so first-run users see CORTANA before questions."""
     global _welcome_shown
     if not _welcome_shown:
         display_welcome()
@@ -90,16 +90,16 @@ def _show_welcome_once() -> None:
         _welcome_shown = True
 
 
-app = typer.Typer(help="🚀 JARVIS: The Ultimate Local AI Coding Assistant", add_completion=False)
+app = typer.Typer(help="🚀 CORTANA: The Ultimate Local AI Coding Assistant", add_completion=False)
 console = Console()
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context,
          debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
          skip_startup: bool = typer.Option(False, "--skip-startup", help="Skip dependency/update startup checks")):
-    """JARVIS: Your local AI engineer."""
+    """CORTANA: Your local AI engineer."""
     if skip_startup:
-        os.environ["JARVIS_SKIP_STARTUP"] = "1"
+        os.environ["CORTANA_SKIP_STARTUP"] = "1"
     run_startup_checks()
     if debug:
         import logging
@@ -123,7 +123,7 @@ def main(ctx: typer.Context,
             setup_wizard()
         try:
             from core.scheduler import maybe_start_scheduler
-            maybe_start_scheduler()  # background thread; jobs persist in ~/.jarvis/
+            maybe_start_scheduler()  # background thread; jobs persist in ~/.cortana/
         except Exception:
             pass
         interactive()
@@ -143,7 +143,7 @@ COMMANDS = [
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
     "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/refine", "/stress-test",
     "/hive", "/swarm", "/mcp", "/research",
-    "/help", "/t", "/thin",
+    "/help", "/t", "/thin", "/clippy",
     "/rewind", "/branch", "/branches", "/diff", "/skill", "/brief", "/handoff",
     "/schedule",
 ]
@@ -192,7 +192,7 @@ def multibrain(task: Annotated[str, typer.Argument(help="The task or query to re
     from core.brain import multibrain_think
     res = multibrain_think(task)
     if res.get("ok"):
-        display_chat_message("JARVIS", res.get("text"))
+        display_chat_message("CORTANA", res.get("text"))
     else:
         console.print(f"[red]Error: {res.get('error')}[/red]")
 
@@ -213,14 +213,39 @@ def get_bottom_toolbar():
 
 @app.command()
 def menu():
-    """Launch the high-fidelity JARVIS Dashboard Menu."""
+    """Launch the high-fidelity CORTANA Dashboard Menu."""
     console.clear()
-    header = Panel(Markdown(f"# JARVIS SYSTEM INTERFACE\nVersion: `{CURRENT_VERSION}`"), style="bold cyan", border_style="cyan")
+    header = Panel(Markdown(f"# CORTANA SYSTEM INTERFACE\nVersion: `{CURRENT_VERSION}`"), style="bold cyan", border_style="cyan")
     console.print(header)
     console.print(get_menu_grid())
     footer = Panel("[bold white]Settings:[/bold white] /config  [bold white]Accounts:[/bold white] /connect /connections", border_style="dim")
     console.print(footer)
     console.print("\n[dim]*Type any command or natural language request below.*[/dim]")
+
+CLIPPY_ART = r"""
+   +-----+
+   |     |
+   |     |
+   +-----+
+     |_|
+"""
+
+@app.command()
+def clippy():
+    """A familiar little helper with questions about what you're doing."""
+    from core.config import load_config
+    cfg = load_config()
+    provider = (cfg.get("provider") or "").strip()
+    if not provider:
+        line = "It looks like you're trying to give me a brain. Shall we run /connect?"
+    elif provider == "ollama":
+        line = "It looks like you're running local. Need a model tuned up? Try /ollama bench."
+    else:
+        line = "It looks like you're getting things done. Need a hand? Try /menu to see what I can do."
+    console.print(Panel(
+        f"[bold yellow]{CLIPPY_ART}[/bold yellow]\n{line}\n[dim]— Clippy (definitely not watching you type)[/dim]",
+        title="📎 Clippy", border_style="yellow", expand=False,
+    ))
 
 def process_think_res(res: Any, fallback_text: str = "") -> str:
     """Processes the structured dictionary from think() and handles failures."""
@@ -237,10 +262,10 @@ def process_think_res(res: Any, fallback_text: str = "") -> str:
         
     # Failure case — human-friendly. Raw provider errors stay hidden unless
     # the user is debugging (dev mode / --debug).
-    debug = os.environ.get("JARVIS_DEV_MODE") in ("1", "true", "yes", "on") or is_dev_mode()
+    debug = os.environ.get("CORTANA_DEV_MODE") in ("1", "true", "yes", "on") or is_dev_mode()
     why = res.get("error", "no provider could answer")
     next_steps = "Run /connect to link a provider, /connections --test to check them, or /models to switch."
-    console.print(ui_error("No answer", "JARVIS could not get an answer from any provider.",
+    console.print(ui_error("No answer", "CORTANA could not get an answer from any provider.",
                            why=why if debug else "", next_steps=next_steps))
 
     # Show short history only when debugging
@@ -270,10 +295,10 @@ def process_think_res(res: Any, fallback_text: str = "") -> str:
 def interactive():
     """Launch the main interactive Gemini-style prompt."""
     from core.config import verify_and_fix_local_llm
-    # JARVIS_SKIP_STARTUP=1 (tests, CI, piped use) also skips interactive()'s
+    # CORTANA_SKIP_STARTUP=1 (tests, CI, piped use) also skips interactive()'s
     # own startup routines so piped stdin reaches the REPL instead of being
     # eaten by setup prompts. Real interactive use is unchanged.
-    skip_startup = os.environ.get("JARVIS_SKIP_STARTUP") == "1"
+    skip_startup = os.environ.get("CORTANA_SKIP_STARTUP") == "1"
     try:
         _show_welcome_once()
         if not skip_startup:
@@ -281,7 +306,7 @@ def interactive():
             auto_check_on_launch()
             startup_check_and_login(auto=False)
     except (EOFError, KeyboardInterrupt):
-        # Startup prompts need a TTY. With piped/closed stdin (CI, `echo | jarvis`)
+        # Startup prompts need a TTY. With piped/closed stdin (CI, `echo | cortana`)
         # or Ctrl+C during startup, exit cleanly instead of tracebacking.
         # Interactive TTY behavior is unchanged.
         console.print("\n[yellow]Startup input unavailable — exiting.[/yellow]")
@@ -309,11 +334,12 @@ def interactive():
 
     while True:
         try:
-            text = session.prompt('JARVIS > ', style=style).strip()
+            text = session.prompt('CORTANA > ', style=style).strip()
             last_ctrl_c = 0 
             if not text: continue
             if text in ["/exit", "exit", "quit"]:
-                console.print("[yellow]Goodbye, Sir.[/yellow]"); break
+                console.print("[yellow]Goodbye, Sir.[/yellow]")
+                console.print("[dim]It is now safe to turn off your computer.[/dim]"); break
             
             try:
                 # 1. Intelligent Input Interpretation
@@ -480,6 +506,7 @@ def interactive():
                         console.print(Panel("\n".join(matches[-10:]), title=f"History: {q}"))
                     elif cmd == "/clear": console.clear()
                     elif cmd == "/help": menus.robust_help()
+                    elif cmd == "/clippy": clippy()
                     elif cmd == "/health": display_health_report(check_system_health())
                     elif cmd in ["/upgrade", "/update"]:
                         from core.update import manual_upgrade
@@ -556,7 +583,7 @@ def _timetravel_cb(role, text):
 
 def ollama_cli(args: str):
     """Managed Ollama subcommands (/ollama ps|list|prune|stats|…) + raw passthrough."""
-    # Jarvis-managed subcommands first; anything else falls through to the
+    # Cortana-managed subcommands first; anything else falls through to the
     # raw `ollama` binary below. `handle_ollama_args("")` shows managed help.
     from core.ollama_mgmt import handle_ollama_args
     if handle_ollama_args(args or ""):
@@ -609,24 +636,24 @@ def setup(): setup_wizard()
 
 @app.command()
 def p2p_scan():
-    """Scan local network for other JARVIS instances."""
-    from core.p2p import scan_for_jarvis_peers
-    console.print("[cyan]Searching for JARVIS peers on local network...[/cyan]")
-    peers = scan_for_jarvis_peers()
+    """Scan local network for other CORTANA instances."""
+    from core.p2p import scan_for_cortana_peers
+    console.print("[cyan]Searching for CORTANA peers on local network...[/cyan]")
+    peers = scan_for_cortana_peers()
     if not peers:
-        console.print("[yellow]No other JARVIS instances found.[/yellow]")
+        console.print("[yellow]No other CORTANA instances found.[/yellow]")
     else:
-        console.print(f"[green]Found JARVIS peers at: {', '.join(peers)}[/green]")
+        console.print(f"[green]Found CORTANA peers at: {', '.join(peers)}[/green]")
 
 @app.command()
 def p2p_status():
-    """Scan and display a detailed report of all JARVIS peers on the network."""
+    """Scan and display a detailed report of all CORTANA peers on the network."""
     from core.p2p import p2p_status_report
     p2p_status_report()
 
 @app.command()
 def p2p_edit(peer_ip: str, path: str, old_string: str, new_string: str):
-    """Request to edit a file on a remote JARVIS instance."""
+    """Request to edit a file on a remote CORTANA instance."""
     from core.p2p import send_remote_command
     console.print(f"[cyan]Requesting to edit '{path}' on {peer_ip}...[/cyan]")
     res = send_remote_command(peer_ip, "edit_file", {"path": path, "old_string": old_string, "new_string": new_string})
@@ -646,7 +673,7 @@ def p2p_set_token(token: str):
 
 @app.command()
 def p2p_read(peer_ip: str, path: str):
-    """Request to read a file from a remote JARVIS instance."""
+    """Request to read a file from a remote CORTANA instance."""
     from core.p2p import send_remote_command
     console.print(f"[cyan]Requesting to read '{path}' from {peer_ip}...[/cyan]")
     res = send_remote_command(peer_ip, "read_file", {"path": path})
@@ -669,17 +696,17 @@ def p2p_tokens():
 
 @app.command()
 def restart():
-    console.print("[yellow]🔄 Restarting JARVIS...[/yellow]")
+    console.print("[yellow]🔄 Restarting CORTANA...[/yellow]")
     os.execv(sys.executable, ['python3'] + sys.argv)
 
 @app.command()
 def reinstall():
-    """Perform a clean sovereign reinstallation of the JARVIS ecosystem."""
+    """Perform a clean sovereign reinstallation of the CORTANA ecosystem."""
     if Confirm.ask("[bold red]⚠️ DANGER: This will wipe your local installation and start fresh. Proceed?[/bold red]"):
         console.print("[bold yellow]🚀 Initiating Sovereign Reinstallation...[/bold yellow]")
         base_dir = os.path.dirname(os.path.abspath(__file__))
         os.system(f"cd {base_dir} && bash install.sh")
-        console.print("[bold green]✅ Reinstallation complete. Please restart JARVIS.[/bold green]")
+        console.print("[bold green]✅ Reinstallation complete. Please restart CORTANA.[/bold green]")
         sys.exit(0)
 
 @app.command()
@@ -934,7 +961,7 @@ def patch_py(path: str, instruction: str = ""):
 def init():
     if os.path.exists("JARVIS.md"): console.print("[yellow]Exists.[/yellow]")
     else:
-        with open("JARVIS.md", "w") as f: f.write("# JARVIS Rules")
+        with open("JARVIS.md", "w") as f: f.write("# CORTANA Rules")
         console.print("[green]Created.[/green]")
 
 def show_model_status():
@@ -1134,7 +1161,7 @@ def webask(query: str, provider: Optional[str] = None):
 
 @app.command()
 def optimize():
-    """Optimize JARVIS and system environment for peak performance."""
+    """Optimize CORTANA and system environment for peak performance."""
     from core.deps import ensure_all
     import shutil
     
@@ -1161,7 +1188,7 @@ def optimize():
     console.print("[bold green]✅ Optimization complete![/bold green]")
 
 def jarvis_shim():
-    """Deprecated ``jarvis`` entry point: notifies about the rename, then forwards."""
+    """Deprecated ``cortana`` entry point: notifies about the rename, then forwards."""
     import sys
     print("Note: 'jarvis' has been renamed to 'cortana'. Please use 'cortana' going forward.",
           file=sys.stderr)

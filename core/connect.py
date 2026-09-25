@@ -432,7 +432,7 @@ def run_connect_wizard() -> None:
     """Interactive provider setup: numbered list with status dots, per-provider flow."""
     console.print(Panel(
         "🌐 [bold cyan]Account Connection Center[/bold cyan]\n"
-        "[dim]Link an AI provider so JARVIS has a brain. Nothing is saved until it validates.[/dim]",
+        "[dim]Link an AI provider so CORTANA has a brain. Nothing is saved until it validates.[/dim]",
         border_style="cyan",
     ))
 

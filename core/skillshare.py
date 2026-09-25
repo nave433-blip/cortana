@@ -1,4 +1,4 @@
-"""P2P skill sharing: package a Jarvis skill/prompt-pack, share it with a
+"""P2P skill sharing: package a Cortana skill/prompt-pack, share it with a
 peer, verify it, and install it — with the paranoia such a feature needs.
 
 Security model (non-negotiable):
@@ -88,7 +88,7 @@ def pack_skill(skill_dir: str, out_path: Optional[str] = None) -> Tuple[str, Dic
             files[rel] = _sha256_bytes(data)
             zf.writestr(rel, data)
     manifest = {
-        "format": "jarvis-skill/1",
+        "format": "cortana-skill/1",
         "name": meta["name"], "version": meta["version"],
         "description": meta.get("description", ""),
         "author": meta.get("author", "unknown"),
@@ -117,7 +117,7 @@ def verify_pack(zip_path: str) -> Dict[str, Any]:
         zf = zipfile.ZipFile(io.BytesIO(data))
         names = zf.namelist()
         if "skill.json" not in names:
-            return {"ok": False, "error": "not a Jarvis skill pack (no skill.json)"}
+            return {"ok": False, "error": "not a Cortana skill pack (no skill.json)"}
         meta = json.loads(zf.read("skill.json"))
     except Exception as e:
         return {"ok": False, "error": f"unreadable zip: {e}"}
@@ -206,7 +206,7 @@ def install_skill(zip_path: str, auto_yes: bool = False) -> Dict[str, Any]:
     with zipfile.ZipFile(Path(zip_path).expanduser()) as zf:
         zf.extractall(dest)
     console.print(f"[green]✅ Installed to {dest}[/green]")
-    console.print("[dim]Note: skill scripts always run inside the Jarvis sandbox.[/dim]")
+    console.print("[dim]Note: skill scripts always run inside the Cortana sandbox.[/dim]")
     return {"ok": True, "path": str(dest)}
 
 

@@ -40,23 +40,23 @@ def transcribe_wav(path):
 
 
 def run_voice():
-    fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="jarvis-voice-")
+    fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="cortana-voice-")
     os.close(fd)
     try:
         try:
             record_to_wav(wav_path)
         except RuntimeError as e:
-            print(f"JARVIS voice error: {e}")
+            print(f"CORTANA voice error: {e}")
             return
         try:
             cmd = transcribe_wav(wav_path)
         except sr.UnknownValueError:
-            print("JARVIS could not understand the audio.")
+            print("CORTANA could not understand the audio.")
             return
         except sr.RequestError as e:
-            print(f"JARVIS voice error: {e} (speech recognition needs an internet connection)")
+            print(f"CORTANA voice error: {e} (speech recognition needs an internet connection)")
             return
-        print(f"JARVIS heard: {cmd}")
+        print(f"CORTANA heard: {cmd}")
 
         # Use the debug_loop to allow tool execution
         debug_loop(cmd)

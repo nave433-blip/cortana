@@ -16,7 +16,7 @@ from rich.prompt import Prompt, Confirm
 console = Console()
 
 def _resolve_config_dir():
-    """Return the config dir, migrating ``~/.jarvis`` -> ``~/.cortana`` once.
+    """Return the config dir, migrating ``~/.cortana`` -> ``~/.cortana`` once.
 
     The old directory is copied (never moved or deleted); a notice is printed
     to stderr so the user knows what happened.
@@ -26,7 +26,7 @@ def _resolve_config_dir():
     if not new.exists() and old.is_dir():
         try:
             shutil.copytree(old, new)
-            print("Migrated your Jarvis config (~/.jarvis) to ~/.cortana. "
+            print("Migrated your Jarvis config (~/.cortana) to ~/.cortana. "
                   "The old directory was left untouched.", file=sys.stderr)
         except Exception as e:
             print(f"Could not migrate ~/.jarvis to ~/.cortana ({e}); "
@@ -138,7 +138,7 @@ def verify_and_fix_local_llm():
             return True
     except Exception:
         console.print("[yellow]⚠️ Ollama unreachable at configured host.[/yellow]")
-        console.print("[dim]JARVIS will not auto-switch providers. You can run '/repair-ollama-cmd' or '/setup' to reconfigure.[/dim]")
+        console.print("[dim]CORTANA will not auto-switch providers. You can run '/repair-ollama-cmd' or '/setup' to reconfigure.[/dim]")
         return False
     return True
 
@@ -161,12 +161,12 @@ def _print_first_use():
     Console().print(next_steps_panel(
         ["`/connections --test` — verify your providers are reachable",
          "`/chat hello` — have your first conversation",
-         "`/fix .` — let JARVIS audit this directory"],
+         "`/fix .` — let CORTANA audit this directory"],
         title="You're set up — try these",
     ))
 
 def setup_wizard():
-    console.print("[bold cyan]Welcome to JARVIS Setup[/bold cyan]\n")
+    console.print("[bold cyan]Welcome to CORTANA Setup[/bold cyan]\n")
     console.print("[dim]Takes about a minute. API keys are validated, then stored in your "
                   "OS keyring — never in plain text.[/dim]\n")
 
@@ -200,8 +200,8 @@ def setup_wizard():
     _print_first_use()
 
 def quick_setup():
-    """Hyper-automated setup for JARVIS."""
-    console.print("[bold cyan]🚀 Initializing JARVIS Automation Setup...[/bold cyan]")
+    """Hyper-automated setup for CORTANA."""
+    console.print("[bold cyan]🚀 Initializing CORTANA Automation Setup...[/bold cyan]")
     config = load_config()
 
     # 1. Detect Ollama
@@ -215,7 +215,7 @@ def quick_setup():
         # No silent Gemini default (that dead-ended: no key, no guidance).
         # Take the user straight to the connection center instead.
         console.print("[yellow]⚠️ No local Ollama found.[/yellow]")
-        console.print("[dim]JARVIS needs an AI provider to think. Let's link one now — "
+        console.print("[dim]CORTANA needs an AI provider to think. Let's link one now — "
                       "your key is validated, then stored in the OS keyring.[/dim]\n")
         from core.auth import AuthManager
         from core.connect import is_configured, run_connect_wizard
@@ -250,10 +250,10 @@ def get_env_with_config(key):
     val = config.get(key.lower(), "")
     if not val and key.lower().startswith("cortana_"):
         # Deprecated pre-rename fallbacks.
-        legacy_env = "JARVIS_" + key[len("cortana_"):].upper()
+        legacy_env = "CORTANA_" + key[len("cortana_"):].upper()
         env_val = os.getenv(legacy_env)
         if env_val: return env_val
-        val = config.get("jarvis_" + key[len("cortana_"):], "")
+        val = config.get("cortana_" + key[len("cortana_"):], "")
     return val
 
 def is_dev_mode(config=None):

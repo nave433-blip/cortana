@@ -1,4 +1,4 @@
-"""Minimal MCP (Model Context Protocol) client — Jarvis's spin.
+"""Minimal MCP (Model Context Protocol) client — Cortana's spin.
 
 Connects to MCP servers over stdio using newline-delimited JSON-RPC 2.0
 (per the MCP stdio transport), performs the initialize handshake, lists
@@ -189,7 +189,7 @@ def connect_server(name: str, timeout: float = 15.0) -> MCPClient:
 def setup_docs() -> Panel:
     return Panel(
         "[bold]No MCP servers configured.[/bold]\n\n"
-        "MCP (Model Context Protocol) lets Jarvis use external tools through\n"
+        "MCP (Model Context Protocol) lets Cortana use external tools through\n"
         "standardized servers. Add one to [cyan]~/.cortana/config.json[/cyan]:\n\n"
         '[green]"mcp_servers"[/green]: {\n'
         '  [green]"my-server"[/green]: {\n'

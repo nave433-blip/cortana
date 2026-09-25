@@ -11,7 +11,7 @@ OLLAMA_HOST = get_env_with_config("ollama_host") or "http://localhost:11434"
 OLLAMA_EMBED_URL = f"{OLLAMA_HOST}/api/embeddings"
 MODEL = get_env_with_config("jarvis_model") or "llama3"
 
-# Move storage to ~/.jarvis/memory
+# Move storage to ~/.cortana/memory
 MEMORY_DIR = Path.home() / ".jarvis" / "memory"
 DB_PATH = MEMORY_DIR / "memory_store.pkl"
 INDEX_PATH = MEMORY_DIR / "memory.index"

@@ -1,4 +1,4 @@
-"""Local web dashboard for Jarvis — stdlib only.
+"""Local web dashboard for Cortana — stdlib only.
 
 A small loopback-bound web UI served with :mod:`http.server`:
 
@@ -11,7 +11,7 @@ Security:
   - Binds 127.0.0.1 by default. ``bind_lan=True`` binds 0.0.0.0 but prints
     a loud warning and requires explicit opt-in.
   - Every request needs the bearer token (``?token=`` or
-    ``X-Jarvis-Token`` header), compared with :func:`hmac.compare_digest`.
+    ``X-Cortana-Token`` header), compared with :func:`hmac.compare_digest`.
     The token is random per creation, stored at ``~/.cortana/dashboard_token``
     (0600), and printed once at startup. It is never logged.
   - No credentials are ever rendered: provider/model NAMES only.
@@ -58,7 +58,7 @@ def _get_token() -> str:
 def _authed(handler: http.server.BaseHTTPRequestHandler, token: str) -> bool:
     parsed = urllib.parse.urlparse(handler.path)
     qs = urllib.parse.parse_qs(parsed.query)
-    supplied = handler.headers.get("X-Jarvis-Token") or (qs.get("token", [""])[0])
+    supplied = handler.headers.get("X-Cortana-Token") or (qs.get("token", [""])[0])
     return bool(supplied) and hmac.compare_digest(supplied, token)
 
 
@@ -85,7 +85,7 @@ def _p2p() -> Dict[str, Any]:
         peers: List[Dict[str, Any]] = []
         if enabled:
             try:
-                eps = p2p_mod.scan_for_jarvis_peer_endpoints(timeout=1.0)
+                eps = p2p_mod.scan_for_cortana_peer_endpoints(timeout=1.0)
                 peers = [{"ip": ip, "port": port} for ip, port in eps]
             except Exception:
                 peers = []
@@ -248,7 +248,7 @@ def run_readonly(command: str) -> str:
 # ---------------------------------------------------------------------------
 
 _PAGE = """<!doctype html><html><head><meta charset="utf-8">
-<title>Jarvis dashboard</title>
+<title>Cortana dashboard</title>
 <style>
 body{font-family:system-ui,sans-serif;background:#0d1117;color:#c9d1d9;max-width:980px;margin:0 auto;padding:16px}
 h1{color:#58a6ff;font-size:22px}h2{color:#58a6ff;font-size:16px;margin-top:24px}
@@ -261,10 +261,11 @@ button{background:#238636;border-color:#238636;cursor:pointer}button:hover{backg
 .row{display:flex;gap:8px;margin:6px 0}input[type=text]{flex:1}
 .warn{color:#f85149}
 </style></head><body>
-<h1>🤖 Jarvis dashboard <span id="ver" style="font-size:13px;color:#8b949e"></span></h1>
+<h1>🤖 Cortana dashboard <span id="ver" style="font-size:13px;color:#8b949e"></span></h1>
+<div style="color:#8b949e;font-size:13px;margin:-8px 0 12px 2px"><i>Wake me when you need me.</i></div>
 <h2>Status</h2><div class="panel"><pre id="status">loading…</pre><button onclick="refresh()">refresh</button></div>
 <h2>Chat</h2><div class="panel"><div id="chatlog"></div>
-<div class="row"><input type="text" id="msg" placeholder="Ask Jarvis…" onkeydown="if(event.key==='Enter')sendChat()">
+<div class="row"><input type="text" id="msg" placeholder="Ask Cortana…" onkeydown="if(event.key==='Enter')sendChat()">
 <button onclick="sendChat()">send</button></div></div>
 <h2>Read-only commands</h2><div class="panel"><div class="row">
 <select id="cmd"></select><button onclick="runCmd()">run</button></div><pre id="cmdout"></pre></div>
@@ -286,7 +287,7 @@ async function loadLogs(){ const r = await api("/api/logs"); document.getElement
 
 class _Handler(http.server.BaseHTTPRequestHandler):
     token: str = ""
-    server_version = "JarvisDashboard/1.0"
+    server_version = "CortanaDashboard/1.0"
 
     def log_message(self, *a):  # keep quiet; never log tokens
         pass
@@ -379,7 +380,7 @@ def run_dashboard(port: int = 0, bind_lan: bool = False,
     actual_port = server.server_address[1]
     display_host = "127.0.0.1"
     url = f"http://{display_host}:{actual_port}/?token={token}"
-    print(f"🖥️  Jarvis dashboard: http://{display_host}:{actual_port}/")
+    print(f"🖥️  Cortana dashboard: http://{display_host}:{actual_port}/")
     print("   Token: printed below (also in ~/.cortana/dashboard_token, 0600).")
     print(f"   {token}")
     if open_browser:
