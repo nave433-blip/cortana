@@ -698,11 +698,23 @@ def focus(path: str):
 
 @app.command()
 def voice():
-    from voice.voice import run_voice; run_voice()
+    try:
+        from voice.voice import run_voice
+    except ImportError as e:
+        console.print(f"[red]Voice support needs extra packages: {e}.[/red]")
+        console.print("[dim]Install with: pip install sounddevice scipy SpeechRecognition[/dim]")
+        return
+    run_voice()
 
 @app.command()
 def watch():
-    from watcher.monitor import start_monitor; start_monitor()
+    try:
+        from watcher.monitor import start_monitor
+    except ImportError as e:
+        console.print(f"[red]Watcher needs the watchdog package: {e}.[/red]")
+        console.print("[dim]Install with: pip install watchdog[/dim]")
+        return
+    start_monitor()
 
 @app.command()
 def config(): menus.config_menu()

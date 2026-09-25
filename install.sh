@@ -23,6 +23,12 @@ if [[ "$OS_TYPE" == "linux" ]]; then
         sudo apt-get install -y python3-venv python3-pip portaudio19-dev libffi-dev libssl-dev
     elif command -v dnf &> /dev/null; then
         sudo dnf install -y python3-devel portaudio-devel libffi-devel openssl-devel
+    elif command -v pacman &> /dev/null; then
+        sudo pacman -S --noconfirm --needed python python-pip portaudio
+    elif command -v zypper &> /dev/null; then
+        sudo zypper install -y python3 python3-pip portaudio-devel libffi-devel libopenssl-devel
+    else
+        echo -e "${YELLOW}⚠️ No supported package manager found (apt, dnf, pacman, zypper). Install Python 3.12+, pip, and portaudio manually.${NC}"
     fi
 elif [[ "$OS_TYPE" == "darwin" ]]; then
     if ! command -v brew &> /dev/null; then
