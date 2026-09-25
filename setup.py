@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="cortana",
     version="0.2.6",
-    packages=find_packages(),
+    packages=find_packages(exclude=["server", "server.*", "tests", "tests.*"]),
     py_modules=['cli'],
     python_requires=">=3.12",
     install_requires=[

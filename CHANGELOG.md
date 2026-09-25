@@ -157,6 +157,43 @@ authenticated, falls back to stdlib REST with a keyring-stored token
 (create/comment) require confirmation. `core/repair.py`'s crash-report flow
 keeps its single consent prompt (no double-ask).
 
+## [server] — 2026-09-25 (branch `feature/server`, not yet merged)
+
+**Reference cloud server** (`server/`): the honest minimal backend a
+local-first assistant needs, so Microsoft (or anyone) can deploy it with
+near-zero heavy lifting. Pure stdlib + `cryptography` (server-only;
+`setup.py` now excludes `server/` from the CLI package).
+
+- **Accounts**: email+password signup/login (PBKDF2-SHA256, 600k iters,
+  per-user salt; argon2 upgrade path documented), session tokens (only
+  SHA-256 stored), change-password, logout.
+- **Social sign-in**: `POST /v1/auth/oidc/{google,apple,microsoft}` with
+  real server-side ID-token validation (RS256 signature via JWKS,
+  iss/aud/exp checks — unverifiable tokens are rejected, never trusted);
+  GitHub via server-side code exchange + `/user` lookup (documented as
+  non-OIDC). Exact client contract in `server/README.md` for the
+  client-side auth round.
+- **OAuth brokerage**: the server holds one OAuth app per provider
+  (Google Drive, Gmail, Google Calendar, Outlook, GitHub); PKCE authorize
+  flow, per-user tokens encrypted at rest (Fernet), refresh handled
+  server-side — clients never see refresh tokens. Refuses to store tokens
+  if the encryption key/package is missing instead of storing insecurely.
+- **Device pairing**: short `CORT-XXXXXX` codes with explicit owner
+  accept/reject; server is signaling-only and never sees conversation
+  content (actual handoff stays device-to-device via `core/handoff.py`).
+- **Hosted chat**: OpenAI-compatible `POST /v1/chat/completions`
+  (incl. SSE streaming) relaying to a configured provider — the hosted
+  counterpart to the on-device API; honest 501 when unconfigured.
+- **One-command deploy**: `Dockerfile`, `docker-compose.yml` (app +
+  postgres + redis provisioned for the production path), `.env.example`,
+  Azure Container Apps bicep template, `server/README.md` 5-minute guide.
+- **Honesty docs**: `server/PRODUCTION.md` — the exact hardening checklist
+  (Postgres swap, Key Vault, Argon2, TLS, Redis rate limiting, audit
+  logging, backups) with "deliberately out of scope" section.
+- 27 new tests in `tests/test_server.py` (in-process server, no live
+  network: stubbed JWKS/token/GitHub/chat upstreams). Rate limiting,
+  security headers, secret-scrubbing log filter included.
+
 ## [rename] — 2026-09-25 (branch `rename/cortana`, not yet merged)
 
 **Project rename: JARVIS → CORTANA.** Everything the user touches now says
