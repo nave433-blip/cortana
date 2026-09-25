@@ -63,6 +63,42 @@ echoed — the status table only shows set/not-set. Keys left in the old config-
 store are migrated into the keyring on first successful connect and removed from
 the config file.
 
+Validation is real: every provider is checked against a documented live endpoint
+(never a "key present" fake), and a failed `/connections --test` tells you exactly
+what to do next — e.g. a rejected key points at that provider's key page. The
+wizard also labels legitimate free options it verified (Gemini, Groq, Mistral,
+Cohere, Together, GitHub, and self-hosted local providers); paid-only providers
+carry no free-tier claim rather than a guessed one.
+
+## 📡 P2P swarm (opt-in)
+
+JARVIS instances can link over the LAN: `p2p-server` starts your node, `p2p-scan`
+finds peers, `p2p-status` shows the swarm, and (with your explicit per-action
+approval) peers can exchange files, tokens, and think-tasks.
+Plaintext HTTP is the default; set `"p2p_use_tls": true` plus
+`"p2p_tls_certfile"`/`"p2p_tls_keyfile"` in `~/.jarvis/config.json` for TLS
+(a self-signed cert is fine on a trusted LAN — generate one with
+`generate_self_signed_cert()` from `core.p2p`). Only enable P2P on networks you
+trust; API keys requested via `get_token` travel over the P2P transport.
+
+## 📦 Linux code sandbox (opt-in)
+
+The agent's SHELL tool runs commands directly by default. For contained execution
+on Linux, set `"code_sandbox": true` in `~/.jarvis/config.json`:
+
+- fresh temporary working directory per run, wall-clock timeout, CPU/memory/file-size/process limits, scrubbed environment;
+- with **bubblewrap** installed: read-only system mounts and optional network cut-off (`--unshare-net`);
+- without it: a restricted-subprocess fallback (limits + temp dir only — honestly **not** a security boundary);
+- on macOS/Windows the sandbox reports itself unavailable instead of pretending.
+
+## 🌐 Browser capability (optional, no new dependencies)
+
+`tools/browser.py` fetches pages with the best backend available: Playwright if
+installed → system Chromium headless → plain-HTTP text fallback. `fetch_text()`
+always works; `screenshot()` and scripted `browse()` need a rendering backend and
+say exactly how to install one when missing. The text fallback never claims
+JavaScript rendering.
+
 ## 🛠 Dev mode
 
 For the developer's own machine only — diagnostics and visibility, no behavior changes:
