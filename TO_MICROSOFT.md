@@ -19,7 +19,7 @@ So here's the deal. I'm giving it to you. Free. Open. No licensing games, no acq
 I don't want money. But a man's gotta live, so here are the terms, payable in gifts:
 
 1. One new Ford F-150 (for work) — or a Kia Stinger, I'm flexible.
-2. One current MacBook. Apple Silicon, obviously — I know the Intel ones are vintage now.
+2. One Intel MacBook. Yes, Intel — Apple's abandoning us Homebrew people and home devs with the Silicon lock-in, and I want a machine that actually runs everything.
 3. One house: 3757 E Stipp Rd, Bloomington, IN 47401. 5.5 acres, log cabin, a mile from Lake Monroe. It's down to about $250K. Pocket change.
 
 Do this and your AI division gets a flagship local assistant built by someone who actually ships — plus the best headline you've had in years: *"Microsoft accepts free AI assistant from Indiana builder; pays in truck."*
