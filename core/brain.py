@@ -21,15 +21,26 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
-import litellm
 from core.config import load_config, save_config, get_env_with_config
 from core.devmode import timed_request, effective_system_prompt
 
-# Keep LiteLLM quiet: never append full tracebacks to exception messages
-# (a failed provider call should show one clean error line, not an internal
-# stack dump), and disable verbose request logging.
-litellm.suppress_debug_info = True
-litellm.set_verbose = False
+# litellm is heavy (~3s import). Load it lazily on first actual LLM call so
+# `jarvis --help` and other non-LLM paths start fast.
+_litellm_mod = None
+
+
+def _litellm():
+    """Import litellm on first use (cached). Never import at module level."""
+    global _litellm_mod
+    if _litellm_mod is None:
+        import litellm as _m
+        # Keep LiteLLM quiet: never append full tracebacks to exception
+        # messages (a failed provider call should show one clean error line,
+        # not an internal stack dump), and disable verbose request logging.
+        _m.suppress_debug_info = True
+        _m.set_verbose = False
+        _litellm_mod = _m
+    return _litellm_mod
 
 
 def _short_err(e: Exception) -> str:
@@ -164,7 +175,7 @@ class ModelManager:
 
                 try:
                     with timed_request("ollama-cloud", actual_model):
-                        res = litellm.completion(
+                        res = _litellm().completion(
                             model=actual_model,
                             api_base=cloud_host,
                             extra_headers={"Authorization": f"Bearer {token}"},
@@ -180,7 +191,7 @@ class ModelManager:
         set_key_for_litellm(provider)
         try:
             with timed_request(provider, model_name):
-                res = litellm.completion(
+                res = _litellm().completion(
                     model=model_name,
                     messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}]
                 )
@@ -196,7 +207,7 @@ class ModelManager:
         set_key_for_litellm(provider)
         try:
             with timed_request(provider, model_name):
-                response = litellm.completion(
+                response = _litellm().completion(
                     model=model_name,
                     messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}],
                     stream=True
@@ -326,7 +337,7 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
                 res = mgr.chat(task, context=f"Ollama Cloud Refinement\n{task}")
             else:
                 m_str = f"ollama/{m}" if "ollama/" not in m else m
-                res = litellm.completion(model=m_str, messages=[{"role":"user", "content": task}], timeout=10).choices[0].message.content
+                res = _litellm().completion(model=m_str, messages=[{"role":"user", "content": task}], timeout=10).choices[0].message.content
             
             if res:
                 responses[m] = res
@@ -390,7 +401,7 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
         provider_name = m_str.split('/')[0]
         set_key_for_litellm(provider_name)
         try:
-            return litellm.completion(model=m_str, messages=[{"role": "user", "content": f"Context: {search_context}\n\nTask: {task}"}], timeout=20).choices[0].message.content
+            return _litellm().completion(model=m_str, messages=[{"role": "user", "content": f"Context: {search_context}\n\nTask: {task}"}], timeout=20).choices[0].message.content
         except Exception: return None
 
     with ThreadPoolExecutor(max_workers=len(target_models)) as executor:

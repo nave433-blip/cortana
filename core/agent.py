@@ -10,8 +10,8 @@ from tools.github import github_tool
 from tools.analytics import analyze_complexity, project_summary
 from tools.cloud import list_dropbox, list_gdrive, list_icloud
 from tools.network import scan_network, scan_ports
-from tools.ssh import run_remote
 from tools.server import list_listening_ports, get_process_stats, kill_process
+# tools.ssh pulls paramiko (~110ms) — import lazily at the SSH dispatch site.
 from tools.hardware import list_usb_devices, probe_ports
 from tools.launcher import launch_tool
 from rich.console import Console
@@ -97,6 +97,7 @@ def dispatch_tool(line, next_line):
             if action == "scan": return scan_network()
             if action == "ports": return scan_ports(args["ip"], args.get("range", (1, 1024)))
         elif tool_name == "SSH":
+            from tools.ssh import run_remote  # lazy: paramiko is slow to import
             return run_remote(args["host"], args["username"], args["command"], args.get("password"), args.get("key"))
         elif tool_name == "SERVER":
             action = args.get("action", "ports")
