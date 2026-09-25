@@ -136,7 +136,7 @@ def enable_gpu_offload():
 class ModelManager:
     def __init__(self):
         cfg = load_config()
-        self.current_model = cfg.get("jarvis_model", "llama3")
+        self.current_model = cfg.get("cortana_model", "llama3")
         # Ensure 'ollama/' prefix if no provider is specified
         if "/" not in self.current_model:
             self.current_model = f"ollama/{self.current_model}"
@@ -247,7 +247,7 @@ class GeminiProvider(LiteLLMProvider):
 
 class OllamaProvider(LLMProvider):
     def __init__(self, model=None):
-        super().__init__(model or get_env_with_config("jarvis_model") or "llama3")
+        super().__init__(model or get_env_with_config("cortana_model") or "llama3")
         cfg = load_config()
         self.hosts = cfg.get("ollama_hosts", ["http://localhost:11434"])
         self.host = random.choice(self.hosts)
@@ -491,7 +491,7 @@ def think_stream(context: str, task: str, model: Optional[str] = None, prompt_na
 def get_provider(model_override=None, task_hint=None):
     cfg = load_config()
     provider_name = cfg.get("provider", "ollama")
-    model = model_override or cfg.get("jarvis_model")
+    model = model_override or cfg.get("cortana_model")
     
     if provider_name == "ollama":
         return OllamaProvider(model=model)

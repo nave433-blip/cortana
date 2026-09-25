@@ -10,6 +10,7 @@ from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
+from core.config import CONFIG_DIR
 
 console = Console()
 
@@ -50,9 +51,9 @@ PIP_RETRY_DELAY = 3  # seconds
 
 # Cache directory for downloaded artifacts and backups
 def get_cache_dir() -> Path:
-    # Prefer ~/.jarvis/cache, fallback to repo-local .jarvis_cache
-    home_cache = Path.home() / ".jarvis" / "cache"
-    repo_cache = Path(os.path.dirname(os.path.abspath(__file__))) / ".." / ".jarvis_cache"
+    # Prefer ~/.cortana/cache, fallback to repo-local .cortana_cache
+    home_cache = CONFIG_DIR / "cache"
+    repo_cache = Path(os.path.dirname(os.path.abspath(__file__))) / ".." / ".cortana_cache"
     try:
         home_cache.mkdir(parents=True, exist_ok=True)
         return home_cache
@@ -99,7 +100,7 @@ def dry_run_download_packages(packages: List[str], include_deps: bool = True, ti
     Perform a dry-run that downloads package artifacts (wheels/sdists) to a temp dir using `pip download`.
     """
     report = {"requested": packages, "files": [], "error": None}
-    tmp = Path(tempfile.mkdtemp(prefix="jarvis_pip_download_"))
+    tmp = Path(tempfile.mkdtemp(prefix="cortana_pip_download_"))
     try:
         cmd = _which_pip_executable() + ["download", "--dest", str(tmp)]
         if not include_deps:
@@ -139,7 +140,7 @@ def dry_run_download_packages(packages: List[str], include_deps: bool = True, ti
 
 def save_cache_artifacts(paths: List[Path]) -> List[str]:
     """
-    Move artifact files into the jarvis cache directory to be reused later.
+    Move artifact files into the cortana cache directory to be reused later.
     """
     saved = []
     cache_dir = Path(CACHE_DIR)
@@ -316,7 +317,7 @@ def rollback_from_cache(backup_tar: str, base_dir: Optional[str] = None) -> bool
         if base_dir is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         base = Path(base_dir)
-        tmpdir = Path(tempfile.mkdtemp(prefix="jarvis_restore_"))
+        tmpdir = Path(tempfile.mkdtemp(prefix="cortana_restore_"))
         console.print(f"[dim]Extracting backup {backup_tar} to temporary directory {tmpdir}[/dim]")
         with tarfile.open(backup_tar, "r:gz") as tar:
             tar.extractall(path=str(tmpdir))
@@ -344,7 +345,7 @@ def ensure_all(prompt_for_system_install: bool = False, dry_run: bool = False, f
     Run all dependency checks and attempt to self-heal.
     Uses a cache to avoid slow checks on every startup.
     """
-    cache_file = os.path.expanduser("~/.jarvis/.deps_checked")
+    cache_file = str(CONFIG_DIR / ".deps_checked")
     
     # Skip check if cached and not forced (cache valid for 24h)
     if not force and not dry_run and os.path.exists(cache_file):

@@ -3,8 +3,8 @@
 Key storage policy
 ------------------
 API keys are stored in the OS keyring via the ``keyring`` package
-(service ``"jarvis-dev"``, account ``"jarvis-<provider>"``). When no keyring
-backend is available, keys fall back to ``~/.jarvis/keys.json`` with 0600
+(service ``"cortana-dev"``, account ``"cortana-<provider>"``). When no keyring
+backend is available, keys fall back to ``~/.cortana/keys.json`` with 0600
 permissions, and a clear warning is printed. Keys are never printed, logged,
 or echoed — entry is always via ``getpass`` and a key is only stored after
 it passes validation.
@@ -27,16 +27,23 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from core.auth import AuthManager
-from core.config import load_config, save_config
+from core.config import CONFIG_DIR, load_config, save_config
 from core.services import validate_provider_connection
 from core.ui import next_steps_panel
 
 console = Console()
 
-KEYRING_SERVICE = "jarvis-dev"
+KEYRING_SERVICE = "cortana-dev"
+# Pre-rename service name: read for compatibility, never written.
+_KEYRING_SERVICE_LEGACY = "jarvis-dev"
 
 
 def _account(provider: str) -> str:
+    return f"cortana-{provider.lower()}"
+
+
+def _account_legacy(provider: str) -> str:
+    """Pre-rename account name: read for compatibility, never written."""
     return f"jarvis-{provider.lower()}"
 
 
@@ -51,7 +58,7 @@ def _keyring_backend_ok() -> bool:
 
 def _fallback_keys_path() -> Path:
     """Resolved at call time so tests can redirect $HOME."""
-    return Path.home() / ".jarvis" / "keys.json"
+    return CONFIG_DIR / "keys.json"
 
 
 _fallback_warned = False
@@ -110,6 +117,9 @@ def get_key_secure(provider: str) -> Optional[str]:
     if _keyring_backend_ok():
         try:
             key = keyring.get_password(KEYRING_SERVICE, _account(provider))
+            if not key:
+                key = keyring.get_password(
+                    _KEYRING_SERVICE_LEGACY, _account_legacy(provider))
             if key:
                 return key
         except Exception:
@@ -156,10 +166,11 @@ def save_key_secure(provider: str, key: str) -> Dict:
 def unset_key_secure(provider: str) -> Dict:
     """Remove a stored key from every store."""
     provider = provider.lower()
-    try:
-        keyring.delete_password(KEYRING_SERVICE, _account(provider))
-    except Exception:
-        pass
+    for service in (KEYRING_SERVICE, _KEYRING_SERVICE_LEGACY):
+        try:
+            keyring.delete_password(service, _account(provider))
+        except Exception:
+            pass
     keys = _read_fallback_keys()
     if provider in keys:
         del keys[provider]

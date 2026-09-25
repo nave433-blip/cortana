@@ -35,7 +35,7 @@ def register_node():
     payload = {
         "node_id": node_id,
         "endpoint": cfg.get("p2p_public_endpoint"),
-        "name": cfg.get("jarvis_name", "JARVIS-NODE")
+        "name": cfg.get("cortana_name", "Cortana")
     }
 
     try:

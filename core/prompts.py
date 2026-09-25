@@ -3,9 +3,10 @@ import os
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
+from core.config import CONFIG_DIR
 
 console = Console()
-PROMPTS_DIR = Path.home() / ".jarvis"
+PROMPTS_DIR = CONFIG_DIR
 PROMPTS_FILE = PROMPTS_DIR / "prompts.json"
 
 DEFAULT_PROMPTS = {

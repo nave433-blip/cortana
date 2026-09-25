@@ -5,10 +5,11 @@ import traceback
 import tempfile
 from rich.console import Console
 from rich.panel import Panel
+from core.config import CONFIG_DIR
 
 console = Console()
 
-LOG_DIR = os.path.expanduser("~/.jarvis/logs")
+LOG_DIR = str(CONFIG_DIR / "logs")
 
 class ErrorLogger:
     @staticmethod

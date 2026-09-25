@@ -109,7 +109,7 @@ def _resolve_agent_model(agent: Agent) -> str:
     """ Maps brain_type to the best available model in config. """
     cfg = load_config()
     if agent.model == "auto":
-        return cfg.get("jarvis_model", "llama3")
+        return cfg.get("cortana_model", "llama3")
     return agent.model
 
 def _run_agent_call(agent: Agent, input_text: str, online_context: Optional[str] = None) -> Dict:

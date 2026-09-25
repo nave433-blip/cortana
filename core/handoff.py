@@ -72,9 +72,9 @@ def build_handoff(note: str = "", context_turns: int = 12,
 def _node_name() -> str:
     try:
         from core.config import load_config
-        return load_config().get("jarvis_name", "JARVIS-PEER")
+        return load_config().get("cortana_name", "Cortana")
     except Exception:
-        return "JARVIS-PEER"
+        return "Cortana"
 
 
 def send_handoff(peer_ip: str, note: str = "", port: int = 11435,

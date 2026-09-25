@@ -7,7 +7,7 @@ enabled it changes *visibility only*:
 - per-request timing plus which provider/model served each LLM call
 - a clear DEV MODE banner at REPL startup
 - optional personal instructions appended to the system prompt, loaded from
-  ``~/.jarvis/dev_instructions.md`` — a file that lives outside the repo and
+  ``~/.cortana/dev_instructions.md`` — a file that lives outside the repo and
   is never committed
 
 It never changes tool-execution semantics: no new capabilities, no bypassed
@@ -23,7 +23,7 @@ from pathlib import Path
 
 from core.config import CONFIG_DIR, is_dev_mode
 
-logger = logging.getLogger("jarvis.devmode")
+logger = logging.getLogger("cortana.devmode")
 
 DEV_INSTRUCTIONS_PATH = CONFIG_DIR / "dev_instructions.md"
 

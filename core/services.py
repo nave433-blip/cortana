@@ -20,7 +20,9 @@ from rich.console import Console
 console = Console()
 
 API_KEYS_KEY = "api_keys"
-KEYRING_SERVICE_NAME = "jarvis_cli"
+KEYRING_SERVICE_NAME = "cortana_cli"
+# Pre-rename service name: read for compatibility, never written.
+_KEYRING_SERVICE_NAME_LEGACY = "jarvis_cli"
 DEFAULT_MODELS_KEY = "default_models"
 # Providers with real support in this codebase: either connection validation
 # in validate_provider_connection() or a key mapping in set_key_for_litellm().
@@ -73,6 +75,8 @@ def get_api_key(provider: str) -> Optional[str]:
     # First try keyring
     try:
         key = keyring.get_password(KEYRING_SERVICE_NAME, provider.lower())
+        if not key:
+            key = keyring.get_password(_KEYRING_SERVICE_NAME_LEGACY, provider.lower())
         if key: return key
     except Exception:
         pass
@@ -106,10 +110,11 @@ def set_key_for_litellm(provider: str):
     return key
 
 def unset_api_key(provider: str):
-    try:
-        keyring.delete_password(KEYRING_SERVICE_NAME, provider.lower())
-    except Exception:
-        pass
+    for service in (KEYRING_SERVICE_NAME, _KEYRING_SERVICE_NAME_LEGACY):
+        try:
+            keyring.delete_password(service, provider.lower())
+        except Exception:
+            pass
 
     keys = _load_keys()
     if provider.lower() in keys:

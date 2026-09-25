@@ -205,7 +205,7 @@ def get_bottom_toolbar():
     try:
         cwd = os.getcwd()
         config = load_config()
-        model = config.get("jarvis_model", "unknown")
+        model = config.get("cortana_model", "unknown")
         provider = config.get("provider", "ollama")
         return HTML(f'<style fg="cyan">📁 {cwd}</style> | <style fg="magenta">🧠 {provider.upper()} ({model})</style>')
     except Exception:
@@ -1003,7 +1003,7 @@ def models_command(name: Optional[str] = None):
             return
         
         # Support for -cloud suffix logic
-        config["jarvis_model"] = name
+        config["cortana_model"] = name
         save_config(config)
         
         if name.endswith("-cloud"):
@@ -1045,7 +1045,7 @@ def models_command(name: Optional[str] = None):
         choice = Prompt.ask("Choice", choices=[str(i+1) for i in range(len(options))] + ["b"], default="1")
         if choice != "b":
             selected = options[int(choice)-1]
-            config["jarvis_model"] = selected
+            config["cortana_model"] = selected
             save_config(config)
             console.print(f"[green]✅ Now using {selected}[/green]")
             

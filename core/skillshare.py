@@ -101,7 +101,7 @@ def pack_skill(skill_dir: str, out_path: Optional[str] = None) -> Tuple[str, Dic
     if len(pack_bytes) > MAX_PACK_BYTES:
         raise ValueError(f"pack is {len(pack_bytes)} bytes — over the {MAX_PACK_BYTES} cap")
     manifest["pack_sha256"] = _sha256_bytes(pack_bytes)
-    dest = Path(out_path).expanduser() if out_path else Path(f"{meta['name']}-{meta['version']}.jarvis-skill.zip")
+    dest = Path(out_path).expanduser() if out_path else Path(f"{meta['name']}-{meta['version']}.cortana-skill.zip")
     dest.write_bytes(pack_bytes)
     (dest.with_suffix(".json")).write_text(json.dumps(manifest, indent=2))
     return str(dest), manifest
@@ -311,7 +311,7 @@ def handle_skill_offer(peer_ip: str, payload: Dict[str, Any]) -> Tuple[int, str,
     if _sha256_bytes(data) != manifest.get("pack_sha256", ""):
         return 400, "text/plain", "pack hash mismatch - refused".encode()
     name = "".join(c for c in str(manifest.get("name", "skill")) if c.isalnum() or c in "-_") or "skill"
-    dest = _incoming_dir() / f"{name}-{int(time.time())}.jarvis-skill.zip"
+    dest = _incoming_dir() / f"{name}-{int(time.time())}.cortana-skill.zip"
     dest.write_bytes(data)
     (dest.with_suffix(".json")).write_text(json.dumps(manifest, indent=2))
     console.print(Panel(

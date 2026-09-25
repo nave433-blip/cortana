@@ -4,9 +4,10 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
+from core.config import CONFIG_DIR
 
 console = Console()
-PLANS_DIR = Path.home() / ".jarvis" / "plans"
+PLANS_DIR = CONFIG_DIR / "plans"
 
 def ensure_plans_dir():
     PLANS_DIR.mkdir(parents=True, exist_ok=True)

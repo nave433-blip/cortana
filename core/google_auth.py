@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.panel import Panel
 import keyring
 from core.utils import open_url
+from core.config import CONFIG_DIR
 
 console = Console()
 
@@ -18,7 +19,9 @@ SCOPES = [
     'https://www.googleapis.com/auth/generative-language' # Access to Gemini
 ]
 
-KEYRING_SERVICE = "jarvis_google_auth"
+KEYRING_SERVICE = "cortana_google_auth"
+# Pre-rename service name: read for compatibility, never written.
+_KEYRING_SERVICE_LEGACY = "jarvis_google_auth"
 TOKEN_KEY = "google_token"
 
 class GoogleAuth:
@@ -28,6 +31,8 @@ class GoogleAuth:
         creds = None
         try:
             token_json = keyring.get_password(KEYRING_SERVICE, TOKEN_KEY)
+            if not token_json:
+                token_json = keyring.get_password(_KEYRING_SERVICE_LEGACY, TOKEN_KEY)
             if token_json:
                 from google.oauth2.credentials import Credentials
                 creds_data = json.loads(token_json)
@@ -58,9 +63,9 @@ class GoogleAuth:
         console.print(Panel("🌐 [bold cyan]Initiating Google Login Flow[/bold cyan]\n\nA browser window will open. Please login with your Google account to link your AI services.", border_style="cyan"))
         
         # Look for client secrets at ~/.jarvis/google_client.json
-        client_secrets_path = os.path.expanduser("~/.jarvis/google_client.json")
+        client_secrets_path = str(CONFIG_DIR / "google_client.json")
         if not os.path.exists(client_secrets_path):
-            console.print("[yellow]⚠️ Warning: Google OAuth Client Secrets not found at ~/.jarvis/google_client.json[/yellow]")
+            console.print("[yellow]⚠️ Warning: Google OAuth Client Secrets not found at ~/.cortana/google_client.json[/yellow]")
             console.print("Please provide your Google Cloud Console Client ID and Secret.")
             client_id = console.input("Client ID: ").strip()
             client_secret = console.input("Client Secret: ").strip()

@@ -2,6 +2,7 @@ import copy
 import json
 import os
 import requests
+import shutil
 import threading
 import datetime
 import webbrowser
@@ -14,7 +15,26 @@ from rich.prompt import Prompt, Confirm
 
 console = Console()
 
-CONFIG_DIR = Path.home() / ".jarvis"
+def _resolve_config_dir():
+    """Return the config dir, migrating ``~/.jarvis`` -> ``~/.cortana`` once.
+
+    The old directory is copied (never moved or deleted); a notice is printed
+    to stderr so the user knows what happened.
+    """
+    new = Path.home() / ".cortana"
+    old = Path.home() / ".jarvis"
+    if not new.exists() and old.is_dir():
+        try:
+            shutil.copytree(old, new)
+            print("Migrated your Jarvis config (~/.jarvis) to ~/.cortana. "
+                  "The old directory was left untouched.", file=sys.stderr)
+        except Exception as e:
+            print(f"Could not migrate ~/.jarvis to ~/.cortana ({e}); "
+                  "using ~/.jarvis.", file=sys.stderr)
+            return old
+    return new
+
+CONFIG_DIR = _resolve_config_dir()
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 DEFAULT_CONFIG = {
@@ -26,7 +46,8 @@ DEFAULT_CONFIG = {
     "lm_studio_host": "http://localhost:1234",
     "llama_cpp_host": "http://localhost:8080",
     "gpt4all_host": "http://localhost:4891",
-    "jarvis_model": "llama3",
+    "cortana_model": "llama3",
+    "cortana_name": "Cortana",
     "gemini_api_key": "",
     "anthropic_api_key": "",
     "xai_api_key": "",
@@ -53,7 +74,8 @@ DEFAULT_CONFIG = {
     "shell_allowlist": [],
     # Dev mode: local-only diagnostics (debug logging, request timing,
     # DEV MODE banner) + optional personal instructions from
-    # ~/.jarvis/dev_instructions.md. Also enabled via JARVIS_DEV_MODE=1.
+    # ~/.cortana/dev_instructions.md. Also enabled via CORTANA_DEV_MODE=1
+    # (JARVIS_DEV_MODE still works as a deprecated alias).
     "dev_mode": False
 }
 
@@ -69,6 +91,11 @@ def load_config():
             merged = dict(DEFAULT_CONFIG)
     except Exception:
         merged = dict(DEFAULT_CONFIG)
+    # Migrate pre-rename keys so existing configs keep working.
+    for new_key, old_key in (("cortana_model", "jarvis_model"),
+                             ("cortana_name", "jarvis_name")):
+        if new_key not in merged and old_key in merged:
+            merged[new_key] = merged[old_key]
     return copy.deepcopy(merged)
 
 def save_config(config):
@@ -153,7 +180,7 @@ def setup_wizard():
 
     if config["provider"] == "ollama":
         config["ollama_host"] = smart_input("Ollama Host URL", config["ollama_host"], auto_detect_func=detect_ollama)
-        config["jarvis_model"] = Prompt.ask("Ollama Model Name", default=config["jarvis_model"])
+        config["cortana_model"] = Prompt.ask("Ollama Model Name", default=config["cortana_model"])
     else:
         # Credentials go through the secure /connect flow (keyring + validation),
         # never into the plaintext config file.
@@ -182,7 +209,7 @@ def quick_setup():
     if host:
         config["provider"] = "ollama"
         config["ollama_host"] = host
-        config["jarvis_model"] = "llama3"
+        config["cortana_model"] = "llama3"
         console.print(f"[green]✅ Local Ollama detected at {host}[/green]")
     else:
         # No silent Gemini default (that dead-ended: no key, no guidance).
@@ -220,16 +247,26 @@ def get_env_with_config(key):
     config = load_config()
     env_val = os.getenv(key.upper())
     if env_val: return env_val
-    return config.get(key.lower(), "")
+    val = config.get(key.lower(), "")
+    if not val and key.lower().startswith("cortana_"):
+        # Deprecated pre-rename fallbacks.
+        legacy_env = "JARVIS_" + key[len("cortana_"):].upper()
+        env_val = os.getenv(legacy_env)
+        if env_val: return env_val
+        val = config.get("jarvis_" + key[len("cortana_"):], "")
+    return val
 
 def is_dev_mode(config=None):
     """Dev-mode toggle for the developer's own machine.
 
-    JARVIS_DEV_MODE env var wins when set to a recognized value:
-    1/true/yes/on enables, 0/false/no/off disables. When the env var is
-    unset (or unrecognized), the `dev_mode` config key decides.
+    CORTANA_DEV_MODE env var wins when set to a recognized value:
+    1/true/yes/on enables, 0/false/no/off disables. JARVIS_DEV_MODE is
+    honored as a deprecated fallback. When no env var is set (or
+    unrecognized), the `dev_mode` config key decides.
     """
-    env = os.getenv("JARVIS_DEV_MODE", "").strip().lower()
+    env = os.getenv("CORTANA_DEV_MODE", "").strip().lower()
+    if not env:
+        env = os.getenv("JARVIS_DEV_MODE", "").strip().lower()
     if env in ("1", "true", "yes", "on"):
         return True
     if env in ("0", "false", "no", "off"):

@@ -33,11 +33,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from core.config import load_config
+from core.config import CONFIG_DIR, load_config
 
 console = Console()
 
-CACHE_FILE = Path(os.path.expanduser("~/.jarvis/hive_cache.json"))
+CACHE_FILE = CONFIG_DIR / "hive_cache.json"
 DEFAULT_TTL = 86400  # 24 hours
 MAX_CACHE_ENTRIES = 500
 
@@ -196,7 +196,7 @@ def local_capabilities() -> Dict:
     providers = [p for p in AuthManager.PROVIDERS.keys() if is_configured(p)]
     cfg = load_config()
     models = [m for m in cfg.get("detected_local_models", []) if isinstance(m, str)]
-    model = cfg.get("jarvis_model")
+    model = cfg.get("cortana_model")
     if model and model not in models:
         models.append(model)
     return {
@@ -325,7 +325,7 @@ def resolve_hive_model(provider: str) -> Optional[str]:
         pass
     if provider == "ollama":
         cfg = load_config()
-        model = cfg.get("jarvis_model", "llama3") or "llama3"
+        model = cfg.get("cortana_model", "llama3") or "llama3"
         return model if "/" in model else f"ollama/{model}"
     return _HIVE_FALLBACK_MODELS.get(provider)
 

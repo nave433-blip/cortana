@@ -22,7 +22,7 @@ from rich.table import Table
 console = Console()
 
 STORE_NAME = "briefs.json"
-DEFAULT_IGNORE = {".git", "__pycache__", ".venv", "node_modules", ".jarvis"}
+DEFAULT_IGNORE = {".git", "__pycache__", ".venv", "node_modules", ".cortana"}
 
 
 def _store_path() -> Path:

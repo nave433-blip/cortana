@@ -18,7 +18,7 @@ def config_menu():
         
         descriptions = {
             "provider": "The primary LLM engine. Options include local Ollama, or high-performance cloud providers like Gemini, OpenAI, and Claude.",
-            "jarvis_model": "The specific model identifier (e.g., 'gpt-4o' or 'llama3'). This string is passed directly to the active provider's API.",
+            "cortana_model": "The specific model identifier (e.g., 'gpt-4o' or 'llama3'). This string is passed directly to the active provider's API.",
             "personality": "Controls the assistant's tone, verbosity, and interaction style. Affects both chat and autonomous agent responses.",
             "active_prompt": "Your persistent system persona. This role is loaded from your Prompt Library and guides all high-level technical reasoning.",
             "github_token": "Enables JARVIS to autonomously push code, open Pull Requests, manage issues, and sync with your repositories.",
@@ -174,7 +174,7 @@ def models_menu():
     """Intelligent orchestration and manual selection of LLM providers."""
     config = load_config()
     current_p = config.get("provider", "ollama")
-    current_m = config.get("jarvis_model", "llama3")
+    current_m = config.get("cortana_model", "llama3")
     current_mode = config.get("model_mode", "manual")
     
     header = f"""
@@ -283,7 +283,7 @@ def models_menu():
         console.print(f"\n[bold white]Recommended Models for {provider.upper()}:[/bold white]")
         for m in models.get(provider, ["default"]): console.print(f"→ {m}")
         new_model = Prompt.ask("Enter exact model identifier", default=models.get(provider, ["default"])[0])
-        config["jarvis_model"] = new_model
+        config["cortana_model"] = new_model
         if provider == "gemini": config["gemini_model"] = new_model
         save_config(config)
         console.print(f"[green]✅ Manual Setup Complete: Brain switched to {provider.upper()} ({new_model})[/green]")

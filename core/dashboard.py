@@ -12,7 +12,7 @@ Security:
     a loud warning and requires explicit opt-in.
   - Every request needs the bearer token (``?token=`` or
     ``X-Jarvis-Token`` header), compared with :func:`hmac.compare_digest`.
-    The token is random per creation, stored at ``~/.jarvis/dashboard_token``
+    The token is random per creation, stored at ``~/.cortana/dashboard_token``
     (0600), and printed once at startup. It is never logged.
   - No credentials are ever rendered: provider/model NAMES only.
   - Every panel reads live state; on failure it shows "unavailable",
@@ -32,8 +32,8 @@ import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-TOKEN_FILE = Path(os.path.expanduser("~/.jarvis/dashboard_token"))
-LOG_DIR = Path(os.path.expanduser("~/.jarvis/logs"))
+TOKEN_FILE = CONFIG_DIR / "dashboard_token"
+LOG_DIR = CONFIG_DIR / "logs"
 
 # Read-only commands exposed to the dashboard command runner.
 # Each entry: (label, callable returning a short string).
@@ -78,7 +78,7 @@ def _providers() -> Dict[str, Any]:
 
 def _p2p() -> Dict[str, Any]:
     try:
-        from core.config import load_config
+        from core.config import CONFIG_DIR, load_config
         from core import p2p as p2p_mod
         cfg = load_config()
         enabled = bool(cfg.get("p2p_enabled", True))
@@ -182,9 +182,9 @@ def _register_readonly() -> None:
         return json.dumps(r, indent=1)[:2000]
 
     def _models() -> str:
-        from core.config import load_config
+        from core.config import CONFIG_DIR, load_config
         cfg = load_config()
-        return "model: " + str(cfg.get("jarvis_model", "unknown"))
+        return "model: " + str(cfg.get("cortana_model", "unknown"))
 
     def _sched_list() -> str:
         from core.scheduler import get_scheduler
@@ -273,7 +273,7 @@ button{background:#238636;border-color:#238636;cursor:pointer}button:hover{backg
 const T = new URLSearchParams(location.search).get("token") || "";
 async function api(path, opts){ const r = await fetch(path + (path.includes("?")?"&":"?") + "token=" + encodeURIComponent(T), opts); return r.json(); }
 async function refresh(){ const s = await api("/api/status"); document.getElementById("ver").textContent = "v" + (s.version||"?"); document.getElementById("status").textContent = JSON.stringify(s, null, 1); }
-async function sendChat(){ const el = document.getElementById("msg"); const m = el.value.trim(); if(!m) return; el.value=""; const log=document.getElementById("chatlog"); log.innerHTML += "<div><span class='u'>you:</span> "+m.replace(/</g,"&lt;")+"</div>"; const r = await api("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:m})}); log.innerHTML += "<div><span class='a'>jarvis:</span> "+String(r.reply).replace(/</g,"&lt;")+"</div>"; log.scrollTop=log.scrollHeight; }
+async function sendChat(){ const el = document.getElementById("msg"); const m = el.value.trim(); if(!m) return; el.value=""; const log=document.getElementById("chatlog"); log.innerHTML += "<div><span class='u'>you:</span> "+m.replace(/</g,"&lt;")+"</div>"; const r = await api("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:m})}); log.innerHTML += "<div><span class='a'>cortana:</span> "+String(r.reply).replace(/</g,"&lt;")+"</div>"; log.scrollTop=log.scrollHeight; }
 async function runCmd(){ const c=document.getElementById("cmd").value; const r = await api("/api/cmd",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({command:c})}); document.getElementById("cmdout").textContent = r.output; }
 async function loadLogs(){ const r = await api("/api/logs"); document.getElementById("logs").textContent = r.lines.join("\\n"); }
 (async function(){ const cmds = ["…"]; const r = await api("/api/commands"); const sel=document.getElementById("cmd"); sel.innerHTML=""; r.commands.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;sel.appendChild(o);}); refresh(); loadLogs(); })();
@@ -380,7 +380,7 @@ def run_dashboard(port: int = 0, bind_lan: bool = False,
     display_host = "127.0.0.1"
     url = f"http://{display_host}:{actual_port}/?token={token}"
     print(f"🖥️  Jarvis dashboard: http://{display_host}:{actual_port}/")
-    print("   Token: printed below (also in ~/.jarvis/dashboard_token, 0600).")
+    print("   Token: printed below (also in ~/.cortana/dashboard_token, 0600).")
     print(f"   {token}")
     if open_browser:
         try:
@@ -407,7 +407,7 @@ def start_dashboard_background(port: int = 0, bind_lan: bool = False) -> Dict[st
                 "stop": lambda: None, "error": err}
     actual_port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True,
-                              name="jarvis-dashboard")
+                              name="cortana-dashboard")
     thread.start()
     url = f"http://127.0.0.1:{actual_port}/?token={token}"
 

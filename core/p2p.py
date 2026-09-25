@@ -16,6 +16,7 @@ from rich.console import Console
 from rich.prompt import Confirm, Prompt
 from pathlib import Path
 from core.update import CURRENT_VERSION
+from core.config import CONFIG_DIR
 
 console = Console()
 
@@ -24,7 +25,7 @@ console = Console()
 # networks you trust, and use a strong p2p_token.
 #
 # TLS OPT-IN: to encrypt the P2P transport, set "p2p_use_tls": true in
-# ~/.jarvis/config.json and point "p2p_tls_certfile"/"p2p_tls_keyfile" at PEM
+# ~/.cortana/config.json and point "p2p_tls_certfile"/"p2p_tls_keyfile" at PEM
 # files. A self-signed certificate is fine on a trusted LAN; generate one with
 #   python3 -c "from core.p2p import generate_self_signed_cert; \
 #       generate_self_signed_cert('/path/to/p2p.crt', '/path/to/p2p.key')"
@@ -73,7 +74,7 @@ def is_p2p_compatible(remote_version: str, action: str = "status") -> bool:
     if action == "status": return True
     return action in supported_features
 
-PERMISSION_FILE = Path(os.path.expanduser("~/.jarvis/permissions.json"))
+PERMISSION_FILE = CONFIG_DIR / "permissions.json"
 
 def load_permissions():
     if not PERMISSION_FILE.exists():
@@ -169,9 +170,9 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
                 capabilities = {"providers": [], "models": [], "features": []}
             status_data = {
                 "status": "online",
-                "name": cfg.get("jarvis_name", "JARVIS-PEER"),
+                "name": cfg.get("cortana_name", "Cortana"),
                 "version": CURRENT_VERSION,
-                "model": cfg.get("jarvis_model", "unknown"),
+                "model": cfg.get("cortana_model", "unknown"),
                 "local_models": cfg.get("detected_local_models", []),
                 "p2p_enabled": cfg.get("p2p_enabled", True),
                 "hive_load": health,
@@ -386,7 +387,7 @@ def _make_p2p_server(port=0, use_tls=False, certfile=None, keyfile=None, bind="1
             raise ValueError(
                 "P2P TLS is enabled but no certificate is configured. "
                 "Set 'p2p_tls_certfile' (and 'p2p_tls_keyfile') in "
-                "~/.jarvis/config.json or pass certfile=/keyfile= explicitly."
+                "~/.cortana/config.json or pass certfile=/keyfile= explicitly."
             )
         httpd.socket = _build_ssl_context(certfile, keyfile).wrap_socket(
             httpd.socket, server_side=True
@@ -427,7 +428,7 @@ def run_udp_discovery_listener(http_port, discovery_port=11436):
             data, addr = sock.recvfrom(1024)
             if data == b"JARVIS_DISCOVERY_REQUEST":
                 from core.config import load_config
-                name = load_config().get("jarvis_name", "JARVIS-PEER")
+                name = load_config().get("cortana_name", "Cortana")
                 sock.sendto(f"JARVIS_DISCOVERY_RESPONSE|{name}|{http_port}".encode(), addr)
     except Exception as e: console.print(f"[dim]UDP Discovery Error: {e}[/dim]")
     finally: sock.close()

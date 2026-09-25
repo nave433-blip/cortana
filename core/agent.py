@@ -27,7 +27,7 @@ from core.ui import display_chat_message
 def _sandbox_enabled():
     """Opt-in Linux code sandbox for the SHELL tool.
 
-    Enabled with "code_sandbox": true in ~/.jarvis/config.json. Default off —
+    Enabled with "code_sandbox": true in ~/.cortana/config.json. Default off —
     plain execution stays the default; the sandbox only ever restricts.
     """
     try:
