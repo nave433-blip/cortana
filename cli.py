@@ -149,6 +149,7 @@ COMMANDS = [
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
     "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/refine", "/stress-test",
     "/hive", "/swarm", "/mcp", "/research",
+    "/council", "/code", "/suggest", "/explain", "/github", "/api",
     "/help", "/t", "/thin", "/clippy",
     "/rewind", "/branch", "/branches", "/diff", "/skill", "/brief", "/handoff",
     "/schedule",
@@ -429,6 +430,23 @@ def interactive():
                     elif cmd == "/research":
                         from core.research import run_research, display_research_result
                         display_research_result(run_research(args or Prompt.ask("Research topic")))
+                    elif cmd == "/council":
+                        from core.council import handle_council_command
+                        handle_council_command(args or Prompt.ask("Question for the council"))
+                    elif cmd == "/code":
+                        from core.codeops import handle_code_command
+                        handle_code_command(args or Prompt.ask("Coding task"))
+                    elif cmd == "/suggest":
+                        from core.codeops import handle_suggest_command
+                        handle_suggest_command(args or Prompt.ask("Task to suggest a command for"))
+                    elif cmd == "/explain":
+                        from core.codeops import handle_explain_command
+                        handle_explain_command(args or Prompt.ask("Command to explain"))
+                    elif cmd == "/github":
+                        from tools.github import handle_github_command
+                        handle_github_command(args)
+                    elif cmd == "/api":
+                        api_server()
                     elif cmd == "/scan-ollama": scan_ollama()
                     elif cmd == "/ollama": ollama_cli(args)
                     elif cmd in ("/rewind", "/branch", "/branches", "/diff"):
@@ -833,6 +851,22 @@ def dashboard(port: int = typer.Option(0, "--port", help="Port to serve (0 = ran
     """Local web dashboard: live status, chat, read-only commands, logs."""
     from core.dashboard import run_dashboard
     run_dashboard(port=port, bind_lan=lan, open_browser=open_browser)
+
+@app.command(name="api")
+def api_server(port: int = typer.Option(0, "--port", help="Port to serve (0 = random free port)"),
+               lan: bool = typer.Option(False, "--lan", help="Bind all interfaces (LAN). Prints a warning.")):
+    """OpenAI-compatible API server: point Copilot-style clients at Cortana."""
+    from core.apiserver import run_api_server
+    server, thread, url, token = run_api_server(port=port, bind_lan=lan)
+    console.print(f"[green]Serving OpenAI-compatible API at {url}[/green] — press Ctrl+C to stop.")
+    console.print("[dim]Endpoints: POST /v1/chat/completions, GET /v1/models (Bearer token required)[/dim]")
+    try:
+        thread.join()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.shutdown()
+        server.server_close()
 
 @app.command()
 def focus(path: str):

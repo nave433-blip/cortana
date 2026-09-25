@@ -90,7 +90,8 @@ def self_repair_hook(exctype, value, tb):
         ```
         """
         console.print("[bold cyan]Opening GitHub issue...[/bold cyan]")
-        res = github_tool.create_issue("nave433-blip/jarvis-dev", title, body)
+        # Consent already obtained by the confirm() above; skip the second prompt.
+        res = github_tool.create_issue("nave433-blip/jarvis-dev", title, body, _confirm=False)
         if "Error" not in str(res):
             console.print(f"[green]Issue successfully created: {res.get('html_url')}[/green]")
         else:

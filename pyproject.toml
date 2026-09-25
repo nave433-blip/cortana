@@ -64,5 +64,5 @@ py-modules = ["cli"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core", "tools", "watcher", "voice", "memory"]
+include = ["core", "tools", "watcher", "voice", "memory", "cortana_core"]
 

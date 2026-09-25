@@ -128,6 +128,10 @@ def get_menu_grid() -> Table:
         ("/hive", "Hive mind: ask all connected AIs, get one consensus"),
         ("/swarm", "Agent swarm: parallel planner → workers → reviewer"),
         ("/research", "Deep research: multi-query web research w/ citations"),
+        ("/council", "Council: providers propose, critique, converge (experimental)"),
+        ("/code", "Agentic coding: propose diff, confirm, apply, rewind"),
+        ("/suggest", "Suggest a shell command for a task (never auto-runs)"),
+        ("/explain", "Explain a shell command in plain language"),
         ("/schedule", "Task scheduler: cron/interval/one-shot jobs in-Cortana"),
         ("/rewind", "Conversation time-travel: rewind, branch, diff"),
     ])
@@ -140,6 +144,8 @@ def get_menu_grid() -> Table:
         ("/memory", "Search your persistent knowledge base"),
         ("/dashboard", "Local web dashboard: status, chat, logs"),
         ("/mcp", "External tool servers via MCP (stdio)"),
+        ("/github", "GitHub: repos, issues, PRs, Actions, code search"),
+        ("/api", "OpenAI-compatible API server for external clients"),
         ("/ollama", "Ollama fleet: prune, bench, stats, auto-pull"),
         ("/thin", "Thin client for low-resource nodes"),
     ])
