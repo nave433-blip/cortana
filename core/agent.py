@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from core.brain import think
+from core.brain import think_structured
 from tools.shell import run, run_simple
 from tools.search import grep, list_files, system_find
 from tools.editor import replace_in_file, read_section
@@ -145,8 +145,13 @@ def dispatch_tool(line, next_line):
     return "Unknown tool"
 
 def generate_plan(task, model=None):
-    """Generate a high-level engineering plan for a task."""
-    return think("", f"Create a step-by-step engineering plan for this task. Do not execute tools, just design the strategy: {task}", model=model, prompt_name="architect")
+    """Generate a high-level engineering plan for a task.
+
+    Returns the structured {"ok", "text", "error"} dict from
+    think_structured so callers (cli.plan -> process_think_res) get the
+    failure panel and setup-wizard offer instead of a bare string.
+    """
+    return think_structured("", f"Create a step-by-step engineering plan for this task. Do not execute tools, just design the strategy: {task}", model=model, prompt_name="architect")
 
 def debug_loop(issue, model=None, prompt=None, ui_hint=None):
     context = f"Original Issue: {issue}"
@@ -172,7 +177,10 @@ def debug_loop(issue, model=None, prompt=None, ui_hint=None):
         from rich.status import Status
         
         with Status(f"[bold cyan]Cycle {i+1}:[/bold cyan] JARVIS is reasoning...", spinner="dots"):
-            res = think(context, "Resolve the issue using tools if necessary. If previous tools failed, try a different approach.", model=model, prompt_name=prompt)
+            # think_structured returns {"ok", "text", "error"}; plain think()
+            # returns only the text str, which would fail the dict check below
+            # and abort the loop on the very first cycle.
+            res = think_structured(context, "Resolve the issue using tools if necessary. If previous tools failed, try a different approach.", model=model, prompt_name=prompt)
         
         if not isinstance(res, dict) or not res.get("ok"):
             # think() or NAVE-RL failed, let the CLI handle the setup prompt

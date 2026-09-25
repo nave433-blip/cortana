@@ -99,7 +99,8 @@ COMMANDS = [
 
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/connections", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
-    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/refine", "/stress-test"
+    "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/refine", "/stress-test",
+    "/help", "/t",
 ]
 
 # ... (omitted)
@@ -232,11 +233,16 @@ def process_think_res(res: Any, fallback_text: str = "") -> str:
 def interactive():
     """Launch the main interactive Gemini-style prompt."""
     from core.config import verify_and_fix_local_llm
+    # JARVIS_SKIP_STARTUP=1 (tests, CI, piped use) also skips interactive()'s
+    # own startup routines so piped stdin reaches the REPL instead of being
+    # eaten by setup prompts. Real interactive use is unchanged.
+    skip_startup = os.environ.get("JARVIS_SKIP_STARTUP") == "1"
     try:
         display_welcome()
-        verify_and_fix_local_llm()
-        auto_check_on_launch()
-        startup_check_and_login(auto=False)
+        if not skip_startup:
+            verify_and_fix_local_llm()
+            auto_check_on_launch()
+            startup_check_and_login(auto=False)
     except (EOFError, KeyboardInterrupt):
         # Startup prompts need a TTY. With piped/closed stdin (CI, `echo | jarvis`)
         # or Ctrl+C during startup, exit cleanly instead of tracebacking.
