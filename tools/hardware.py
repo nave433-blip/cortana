@@ -54,7 +54,12 @@ def get_hardware_summary():
     
     # Check USB
     usb = list_usb_devices()
-    usb_count = usb.count("Product ID:") if "Product ID:" in usb else 0
+    if sys.platform == "darwin":
+        usb_count = usb.count("Product ID:")
+    elif sys.platform == "linux":
+        usb_count = sum(1 for line in usb.splitlines() if line.strip().startswith("Bus "))
+    else:
+        usb_count = 0
     table.add_row("USB Devices", f"{usb_count} detected")
     
     # Other ports check could go here

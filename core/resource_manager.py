@@ -2,7 +2,7 @@ import psutil
 import time
 import os
 import sys
-from typing import Dict
+from typing import Dict, Any
 
 # User-defined caps
 RESOURCE_CAP = 0.35  # 35%

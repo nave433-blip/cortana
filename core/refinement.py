@@ -34,10 +34,12 @@ def refine_loop(target_file: str, test_cmd: str, max_retries=3):
         res = think_structured(f"File content:\n{open(target_file, 'r').read()}\n", prompt)
         
         if res.get("ok"):
-            # Apply fix (assuming LLM returns the full corrected file or patch)
-            # This is a simplified implementation placeholder
-            console.print(f"[green]Repair generated:[/green] {res.get('text', 'No fix text found')}")
-            # In a real implementation, you'd apply the patch here using replace/write_file
+            # NOTE: automatic patch application is not implemented — the
+            # suggested fix is shown for manual review instead of pretending
+            # the file was repaired.
+            console.print("[yellow]Suggested repair (NOT applied automatically — review manually):[/yellow]")
+            console.print(res.get('text', 'No fix text found'))
+            return False
         else:
             console.print("[red]❌ Autonomous repair failed.[/red]")
             return False

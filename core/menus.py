@@ -2,7 +2,7 @@ import os
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.prompt import Prompt
+from rich.prompt import Prompt, Confirm
 from rich.markdown import Markdown
 from core.config import load_config, save_config, setup_wizard
 

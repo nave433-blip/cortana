@@ -153,7 +153,7 @@ class ModelManager:
                     res = litellm.completion(
                         model=actual_model,
                         api_base=cloud_host,
-                        headers={"Authorization": f"Bearer {token}"},
+                        extra_headers={"Authorization": f"Bearer {token}"},
                         messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}]
                     )
                     return res.choices[0].message.content

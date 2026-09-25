@@ -16,7 +16,7 @@ from tools.hardware import list_usb_devices, probe_ports
 from tools.launcher import launch_tool
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Confirm
+from rich.prompt import Confirm, Prompt
 from rich.markdown import Markdown
 
 console = Console()
@@ -92,6 +92,7 @@ def dispatch_tool(line, next_line):
         elif tool_name == "LAUNCHER":
             return launch_tool(args.get("tool"))
         elif tool_name == "COPILOT":
+            from tools.copilot import copilot_suggest, copilot_explain
             action = args.get("action", "suggest")
             if action == "suggest": return copilot_suggest(args.get("query"))
             if action == "explain": return copilot_explain(args.get("command"))
@@ -120,7 +121,7 @@ def dispatch_tool(line, next_line):
         elif tool_name == "BOX_RUN":
             from core.gemini_box import session
             res = session.run_in_box(args['name'], args['command'])
-            return f"Box Run Result:\nSTDOUT: {res.get('stdout')}\nSTDERR: {res.get('stderr')}\nRC: {res.get('returncode')}"
+            return f"Box Run Result:\nSTDOUT: {res.get('stdout')}\nSTDERR: {res.get('stderr')}\nRC: {res.get('exit_code')}"
         elif tool_name == "BOX_TAIL":
             from core.gemini_box import session
             return session.tail_box(args['name'], args.get('lines', 50))

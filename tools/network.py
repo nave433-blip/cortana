@@ -68,7 +68,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 def scan_network_for_ollama():
     """Scan the local subnet for Ollama instances on port 11434."""
-    subnet = "192.168.1"
+    local_ip = get_local_ip()
+    subnet = ".".join(local_ip.split(".")[:-1]) or "192.168.1"
     targets = [f"{subnet}.{i}" for i in range(1, 255)]
     found_hosts = []
 

@@ -37,7 +37,7 @@ def web_search(query):
                 out.append(f"Title: {r['title']}\nLink: {r['href']}\nSnippet: {r['body']}\n")
             return "\n---\n".join(out)
     except ImportError:
-        return "Error: 'duckduckgo-search' package not installed. Please run 'pip install duckduckgo-search'."
+        return "Error: 'ddgs' package not installed. Please run 'pip install ddgs'."
     except Exception as e:
         return f"Web search error: {e}"
 

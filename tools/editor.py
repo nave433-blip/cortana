@@ -4,6 +4,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.prompt import Confirm, Prompt
+import subprocess
 import shutil
 
 console = Console()

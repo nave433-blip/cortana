@@ -53,20 +53,26 @@ def save_config(config):
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     with open(CONFIG_FILE, "w") as f: json.dump(config, f, indent=4)
 
-def detect_ollama():
+def detect_ollama(max_attempts: int = 3):
     hosts = ["http://localhost:11434", "http://127.0.0.1:11434"]
     for host in hosts:
         try:
             r = requests.get(f"{host}/api/tags", timeout=0.5)
             if r.status_code == 200: return host
         except: continue
-    
-    # Auto-Launch Attempt for macOS
-    if sys.platform == "darwin":
-        console.print("[dim]Ollama not detected. Attempting to launch Ollama.app...[/dim]")
-        os.system("open -a Ollama")
+
+    # Auto-Launch Attempt (bounded retries; previously unbounded recursion)
+    if max_attempts > 0:
+        if sys.platform == "darwin":
+            console.print("[dim]Ollama not detected. Attempting to launch Ollama.app...[/dim]")
+            os.system("open -a Ollama &")
+        elif sys.platform == "linux":
+            console.print("[dim]Ollama not detected. Attempting to start ollama serve...[/dim]")
+            os.system("ollama serve &")
+        else:
+            return None
         time.sleep(3) # Wait for startup
-        return detect_ollama() # Recursive check
+        return detect_ollama(max_attempts=max_attempts - 1)
     return None
 
 def verify_and_fix_local_llm():

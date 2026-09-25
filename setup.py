@@ -2,14 +2,19 @@ from setuptools import setup, find_packages
 
 setup(
     name="jarvis-dev",
-    version="0.1.7",
+    version="0.2.6",
     packages=find_packages(),
     py_modules=['cli'],
     install_requires=[
-        "typer", "rich", "requests", "watchdog", "sounddevice", "scipy", 
-        "numpy", "sentence-transformers", "faiss-cpu", "SpeechRecognition", 
-        "prompt_toolkit", "dropbox", "google-api-python-client", "google-auth-oauthlib",
-        "paramiko", "psutil", "Pillow", "keyring"
+        "typer>=0.25.1", "rich>=15.0.0", "requests>=2.34.2", "watchdog>=6.0.0",
+        "sounddevice>=0.5.5", "scipy>=1.17.1", "numpy>=2.4.6",
+        "sentence-transformers>=5.5.1", "faiss-cpu>=1.13.2",
+        "SpeechRecognition>=3.16.1", "prompt_toolkit>=3.0.52", "dropbox>=12.0.2",
+        "google-api-python-client>=2.196.0", "google-auth-oauthlib>=1.4.0",
+        "markdown>=3.10.2", "keyring>=25.7.0", "Pillow>=12.2.0", "paramiko>=5.0.0",
+        "psutil>=7.2.2", "ddgs>=9.14.4", "litellm>=1.85.1",
+        "typing-extensions>=4.15.0", "packaging>=24.0", "botocore>=1.43.12",
+        "boto3>=1.43.12",
     ],
     entry_points={
         'console_scripts': [

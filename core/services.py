@@ -8,6 +8,7 @@ from typing import Dict, Optional, List, Any
 import requests
 import json
 import os
+import sys
 import time
 import webbrowser
 import keyring
@@ -442,7 +443,7 @@ def repair_ollama(host: Optional[str] = None) -> Dict:
 
     # OS specific app launching
     if sys.platform == "darwin":
-        os.system("open -a Ollama")
+        os.system("open -a Ollama &")
         time.sleep(5)
     elif sys.platform == "linux":
         # Try launching ollama via systemd or desktop entry

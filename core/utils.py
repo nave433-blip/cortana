@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import subprocess
 import webbrowser
 from rich.console import Console
@@ -29,6 +30,14 @@ def open_url(url: str, *args, **kwargs):
                         return True
                 except:
                     continue
+
+            # Generic Linux opener
+            if shutil.which("xdg-open"):
+                try:
+                    subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    return True
+                except:
+                    pass
         
         # Fallback to default behavior
         webbrowser.open(url, *args, **kwargs)

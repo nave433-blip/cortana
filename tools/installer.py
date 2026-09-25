@@ -1,8 +1,30 @@
+import shutil
+import sys
 from tools.shell import run
 
+def _linux_install_cmd(package: str) -> str | None:
+    """Pick a native package-manager install command on Linux, or None."""
+    if shutil.which("apt-get"):
+        return f"sudo apt-get install -y {package}"
+    if shutil.which("dnf"):
+        return f"sudo dnf install -y {package}"
+    if shutil.which("pacman"):
+        return f"sudo pacman -S --noconfirm {package}"
+    if shutil.which("zypper"):
+        return f"sudo zypper install -y {package}"
+    return None
+
 def brew_install(package):
-    print(f"Installing {package} via Homebrew...")
-    return run(f"brew install {package}")
+    """Install a system package via Homebrew (macOS) or the native Linux package manager."""
+    if shutil.which("brew"):
+        print(f"Installing {package} via Homebrew...")
+        return run(f"brew install {package}")
+    if sys.platform == "linux":
+        cmd = _linux_install_cmd(package)
+        if cmd:
+            print(f"Installing {package} via system package manager...")
+            return run(cmd)
+    return {"ok": False, "error": f"No supported package manager found to install '{package}'."}
 
 def git_install(repo_url, dest="."):
     print(f"Cloning {repo_url}...")

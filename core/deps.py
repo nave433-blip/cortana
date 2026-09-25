@@ -32,7 +32,7 @@ PYTHON_DEPS: Dict[str, str] = {
     "google-auth-oauthlib": "google_auth_oauthlib",
     "paramiko": "paramiko",
     "psutil": "psutil",
-    "duckduckgo-search": "duckduckgo_search",
+    "ddgs": "ddgs",
     "markdown": "markdown",
     "keyring": "keyring",
     "litellm": "litellm",

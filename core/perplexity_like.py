@@ -78,11 +78,15 @@ Return output in two parts separated by "###": first the answer, then the source
     from core.brain import think
     res = think("Web Research Integrator", prompt, model=model)
     
-    if not isinstance(res, dict) or not res.get("ok"):
-        error_msg = res.get("error") if isinstance(res, dict) else str(res)
-        return {"ok": False, "error": error_msg}
-
-    out = res.get("text", "")
+    # think() returns a plain string (see core/brain.py)
+    if isinstance(res, dict):
+        if not res.get("ok"):
+            return {"ok": False, "error": res.get("error", "LLM call failed.")}
+        out = res.get("text", "")
+    elif isinstance(res, str) and res.strip():
+        out = res
+    else:
+        return {"ok": False, "error": "LLM returned no usable response."}
     
     # split by separator
     parts = out.split("###")

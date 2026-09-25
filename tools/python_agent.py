@@ -168,12 +168,11 @@ def suggest_patch_via_llm(path: str, instruction: str, model: Optional[str] = No
     if think is None:
         return {"ok": False, "error": "LLM wrapper 'think' not available at import time."}
     prompt = _prepare_prompt_for_patch(path, context_lines=max_context_chars, instruction=instruction)
-    # think() now returns a dict
-    res = think("", prompt)
-    if not res.get("ok"):
-        return {"ok": False, "error": res.get("error"), "raw_resp": res}
+    # think() returns a plain string (see core/brain.py)
+    resp = think("", prompt)
+    if not resp or not isinstance(resp, str):
+        return {"ok": False, "error": "LLM returned no usable response.", "raw_resp": resp}
 
-    resp = res.get("text", "")
     # Extract the code block (simple heuristics)
     suggested = _extract_first_python_block(resp)
     if not suggested:

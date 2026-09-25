@@ -7,7 +7,7 @@ from rich.prompt import Confirm
 console = Console()
 
 TOOL_REGISTRY = {
-    "claude-desktop": {"cmd": "ollama launch claude-desktop", "install": None},
+    "claude-desktop": {"cmd": None, "install": None, "gui_app": ("Claude", "claude-desktop")},
     "claude": {"cmd": "claude", "install": "npm install -g @anthropic-ai/claude-code@latest"},
     "openclaw": {"cmd": "openclaw", "install": "npm install -g openclaw@latest"},
     "hermes": {"cmd": "hermes", "install": "curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash"},
@@ -29,6 +29,25 @@ def is_tool_installed(cmd):
         return shutil.which(base) is not None
     return shutil.which(cmd) is not None
 
+def _launch_gui_app(darwin_app_name: str, linux_bin: str) -> str:
+    """Launch a GUI application via the platform's native mechanism."""
+    import sys
+    if sys.platform == "darwin":
+        try:
+            subprocess.Popen(["open", "-a", darwin_app_name],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return f"Launching {darwin_app_name}..."
+        except Exception as e:
+            return f"Error launching {darwin_app_name}: {e}"
+    elif sys.platform == "linux":
+        if shutil.which(linux_bin):
+            subprocess.Popen([linux_bin],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return f"Launching {linux_bin}..."
+        return (f"Error: '{linux_bin}' not found. "
+                f"Claude Desktop has no official Linux build.")
+    return f"Error: GUI launch is not supported on {sys.platform}."
+
 def launch_tool(tool_name):
     """
     Launch specialized AI tools via direct CLI or Ollama Cloud.
@@ -40,6 +59,11 @@ def launch_tool(tool_name):
     info = TOOL_REGISTRY[tool_name]
     cmd = info["cmd"]
     install_cmd = info["install"]
+
+    # GUI apps (e.g. Claude Desktop) have no CLI; use the native launcher
+    if info.get("gui_app"):
+        darwin_app, linux_bin = info["gui_app"]
+        return _launch_gui_app(darwin_app, linux_bin)
 
     if not is_tool_installed(cmd):
         console.print(f"[bold yellow]⚠️ {tool_name.title()} is not installed.[/bold yellow]")

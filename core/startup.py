@@ -6,6 +6,8 @@ import core.services as svc
 from core.config import load_config, save_config
 from tools.network import scan_network_for_ollama
 import os
+import sys
+import time
 
 console = Console()
 DEFAULT_PROVIDERS = ["ollama", "openai", "gemini", "anthropic", "mistral", "deepseek", "qwen", "kimi", "perplexity", "granite", "nemotron", "groq", "together"]
@@ -127,6 +129,11 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
 
     # 3. Check Cloud Ollama
     if not cfg.get("ollama_token"):
+        try:
+            from core.hardware_check import get_hardware_specs
+            specs = get_hardware_specs()
+        except Exception:
+            specs = {}
         prompt_text = "⚠️ [bold cyan]Ollama Cloud[/bold cyan] is not configured. Sign in to your account to enable cloud models?"
         if specs.get("is_low_end"):
             prompt_text = "⚠️ [yellow]Low-end hardware detected.[/yellow] Sign in to [bold cyan]Ollama Cloud[/bold cyan] for better performance?"
@@ -174,8 +181,6 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
                 from core.global_p2p import register_node
                 register_node()
                 
-            from tools.p2p_monitor import start_monitor
-            start_monitor()
                 
             console.print("[dim][green]✓ P2P Server Online[/green][/dim]")
         except Exception as e:
