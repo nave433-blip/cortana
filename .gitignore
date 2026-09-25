@@ -5,3 +5,4 @@ __pycache__/
 memory_store.pkl
 memory.index
 .DS_Store
+.install-test-venv/

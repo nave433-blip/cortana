@@ -5,6 +5,7 @@ setup(
     version="0.2.6",
     packages=find_packages(),
     py_modules=['cli'],
+    python_requires=">=3.12",
     install_requires=[
         "typer>=0.25.1", "rich>=15.0.0", "requests>=2.34.2", "watchdog>=6.0.0",
         "sounddevice>=0.5.5", "scipy>=1.17.1", "numpy>=2.4.6",
