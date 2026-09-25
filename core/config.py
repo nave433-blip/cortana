@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import requests
@@ -53,10 +54,18 @@ DEFAULT_CONFIG = {
 }
 
 def load_config():
-    if not CONFIG_FILE.exists(): return DEFAULT_CONFIG
+    """Load config merged over defaults. Always returns an isolated deep copy:
+    mutating the result (including nested lists) never affects DEFAULT_CONFIG
+    or any previously returned config."""
     try:
-        with open(CONFIG_FILE, "r") as f: return {**DEFAULT_CONFIG, **json.load(f)}
-    except Exception: return DEFAULT_CONFIG
+        if CONFIG_FILE.exists():
+            with open(CONFIG_FILE, "r") as f:
+                merged = {**DEFAULT_CONFIG, **json.load(f)}
+        else:
+            merged = dict(DEFAULT_CONFIG)
+    except Exception:
+        merged = dict(DEFAULT_CONFIG)
+    return copy.deepcopy(merged)
 
 def save_config(config):
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
