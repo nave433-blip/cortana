@@ -25,4 +25,4 @@ Do this and your AI division gets a flagship local assistant built by someone wh
 Ball's in your court. Let's make Cortana great again.
 
 — Evan Michael Shipley-Courter, Bloomington, Indiana
-nave433@gmail.com
+nave433@gmail.com · nave344@icloud.com · nave344@yahoo.com
