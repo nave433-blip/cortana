@@ -62,7 +62,8 @@ def _is_private_peer(peer_ip: str) -> bool:
 P2P_VERSION = CURRENT_VERSION
 P2P_FEATURES = {
     "0.1.7": ["status", "edit_file", "read_file"],
-    "0.2.6": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think", "handoff", "execute_chunk"]
+    "0.2.6": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think", "handoff", "execute_chunk",
+              "skill_offer", "session_handoff"]
 }
 
 def is_p2p_compatible(remote_version: str, action: str = "status") -> bool:
@@ -262,6 +263,22 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
             res = think_structured("P2P Swarm Chunk", data.get("task"))
             self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
             self.wfile.write(json.dumps(res).encode())
+
+        elif action == "skill_offer":
+            # P2P skill sharing: quarantine + verify + explicit local accept.
+            # Never auto-installs. Added by the ollama-edge round.
+            from core.skillshare import handle_skill_offer
+            status, ctype, body = handle_skill_offer(peer_ip, data)
+            self.send_response(status); self.send_header('Content-type', ctype); self.end_headers()
+            self.wfile.write(body)
+
+        elif action == "session_handoff":
+            # Cross-device session handoff: key-free payload, explicit accept.
+            # Added by the ollama-edge round.
+            from core.handoff import handle_session_handoff
+            status, ctype, body = handle_session_handoff(peer_ip, data.get("payload", {}))
+            self.send_response(status); self.send_header('Content-type', ctype); self.end_headers()
+            self.wfile.write(body)
 
 # ---------------------------------------------------------------------------
 # Optional TLS (stdlib ssl). All helpers are opt-in; defaults stay plaintext.

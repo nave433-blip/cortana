@@ -137,7 +137,8 @@ COMMANDS = [
     "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/connections", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
     "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/refine", "/stress-test",
-    "/help", "/t",
+    "/help", "/t", "/thin",
+    "/rewind", "/branch", "/branches", "/diff", "/skill", "/brief", "/handoff",
 ]
 
 # ... (omitted)
@@ -279,6 +280,13 @@ def interactive():
         console.print("\n[yellow]Startup input unavailable — exiting.[/yellow]")
         return
 
+    # Opt-in proactive briefs: silent unless there's something to show.
+    try:
+        from core.briefs import maybe_show_brief_on_startup
+        maybe_show_brief_on_startup()
+    except Exception:
+        pass
+
     completer = WordCompleter(COMMANDS, ignore_case=True)
     kb = KeyBindings()
     @kb.add('escape')
@@ -334,7 +342,7 @@ def interactive():
                 
                 if res.get("type") == "chat":
                     display_chat_message("User", res.get("args", text))
-                    debug_loop(res.get("args", text))
+                    debug_loop(res.get("args", text), on_turn=_timetravel_cb)
                     continue
 
                 if res.get("type") == "internal":
@@ -372,6 +380,21 @@ def interactive():
                     elif cmd == "/multibrain": multibrain(args or Prompt.ask("Task for multi-brain reasoning"))
                     elif cmd == "/scan-ollama": scan_ollama()
                     elif cmd == "/ollama": ollama_cli(args)
+                    elif cmd in ("/rewind", "/branch", "/branches", "/diff"):
+                        from core.timetravel import handle_timetravel
+                        handle_timetravel(cmd, args)
+                    elif cmd == "/skill":
+                        from core.skillshare import handle_skill_command
+                        handle_skill_command(args)
+                    elif cmd == "/brief":
+                        from core.briefs import handle_brief
+                        handle_brief(args)
+                    elif cmd == "/handoff":
+                        from core.handoff import handle_handoff_command
+                        handle_handoff_command(args)
+                    elif cmd == "/thin":
+                        from tools.ollama_thin import main as thin_main
+                        thin_main()
                     elif cmd == "/refine":
                         target = args.split()[0] if args else Prompt.ask("File to refine")
                         test = " ".join(args.split()[1:]) if len(args.split()) > 1 else Prompt.ask("Test command")
@@ -472,7 +495,7 @@ def interactive():
                 
                 else:
                     display_chat_message("User", res.get("args", text))
-                    debug_loop(res.get("args", text))
+                    debug_loop(res.get("args", text), on_turn=_timetravel_cb)
             except EOFError:
                 # Input stream closed in the middle of a command (piped stdin
                 # exhausted, terminal closed): exit the REPL the same clean way
@@ -500,13 +523,24 @@ def interactive():
 
 # (single callback defined above; duplicate removed)
 
+def _timetravel_cb(role, text):
+    """Record chat turns into the branchable conversation tree (best-effort)."""
+    try:
+        from core.timetravel import current_tree
+        current_tree().note_turn(role, text)
+    except Exception:
+        pass
+
+
 def ollama_cli(args: str):
-    """Pass-through CLI for Ollama."""
+    """Managed Ollama subcommands (/ollama ps|list|prune|stats|…) + raw passthrough."""
+    # Jarvis-managed subcommands first; anything else falls through to the
+    # raw `ollama` binary below. `handle_ollama_args("")` shows managed help.
+    from core.ollama_mgmt import handle_ollama_args
+    if handle_ollama_args(args or ""):
+        return
     import subprocess
     import os
-    if not args:
-        console.print("[yellow]Usage: /ollama [args][/yellow]")
-        return
     
     from core.config import load_config
     cfg = load_config()

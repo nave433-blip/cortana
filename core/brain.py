@@ -244,7 +244,14 @@ class OllamaProvider(LLMProvider):
             try:
                 r = requests.post(f"{host}/api/chat", json=payload, timeout=15)
                 r.raise_for_status()
-                return r.json()["message"]["content"]
+                data = r.json()
+                # Usage telemetry for `/ollama stats` — best-effort, never raises.
+                try:
+                    from core.ollama_mgmt import note_chat_usage
+                    note_chat_usage(self.model, host, data)
+                except Exception:
+                    pass
+                return data["message"]["content"]
             except Exception: continue
 
         # Try Cloud Fallback
