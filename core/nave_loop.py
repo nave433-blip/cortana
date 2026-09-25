@@ -24,6 +24,7 @@ import re
 # Internal Modules
 from core.brain import think, think_structured, get_provider
 from core.config import load_config, get_env_with_config
+from core.logger import ErrorLogger
 from core import services as svc
 
 console = Console()
@@ -250,7 +251,8 @@ Provide the final answer in a STRICT JSON object only:
                 if json_match:
                     try:
                         integrator_json = json.loads(json_match.group(1))
-                    except:
+                    except Exception as e:
+                        ErrorLogger.log_error(e, context="nave_loop.integrator_json_parse")
                         integrator_json = {"final_answer": final_raw}
                 else:
                     integrator_json = {"final_answer": final_raw}

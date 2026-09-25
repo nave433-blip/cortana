@@ -7,6 +7,7 @@ import os
 import sys
 from typing import Callable, Dict, List, Optional, Any
 from core.brain import get_provider
+from core.logger import ErrorLogger
 
 logger = logging.getLogger("jarvis.command_handler")
 
@@ -38,7 +39,8 @@ class CommandHandler:
     def _tokenize(self, text: str) -> List[str]:
         try:
             return shlex.split(text)
-        except:
+        except Exception as e:
+            ErrorLogger.log_error(e, context="command_handler._tokenize")
             return text.split()
 
     def _match_known(self, tokens: List[str]):
@@ -138,9 +140,9 @@ Assistant: {"type":"help","target":"","args":[],"confirm":false,"ui":{"title":"H
             obj = json.loads(res_clean)
             if all(k in obj for k in ["type", "target", "args", "confirm"]):
                 return obj
-        except:
-            pass
-            
+        except Exception as e:
+            ErrorLogger.log_error(e, context="command_handler._call_llm_parse")
+
         return {"type": "noop", "target": "", "args": [], "confirm": False, "ui": None}
 
     def handle(self, text: str) -> Dict[str, Any]:
