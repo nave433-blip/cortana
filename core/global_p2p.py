@@ -14,6 +14,10 @@ def _server_url(cfg) -> str | None:
     url = cfg.get("discovery_server_url") or DISCOVERY_SERVER_URL
     if "example.com" in url:
         return None  # placeholder was never replaced with a real server
+    if url.startswith("http://"):
+        # node_id/endpoint registrations would travel in plaintext
+        console.print("[yellow]Global P2P: discovery server URL uses plaintext "
+                      "HTTP — node registrations are unencrypted. Prefer https.[/yellow]")
     return url
 
 def register_node():

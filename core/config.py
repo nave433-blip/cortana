@@ -40,7 +40,16 @@ DEFAULT_CONFIG = {
     "personality": "professional",
     "active_prompt": "default",
     "model_mode": "manual",
-    "self_repair": True
+    "self_repair": True,
+    # P2P TLS opt-in (plaintext HTTP by default). When p2p_use_tls is true,
+    # the P2P server wraps its socket with an SSLContext using these PEM files.
+    "p2p_use_tls": False,
+    "p2p_tls_certfile": "",
+    "p2p_tls_keyfile": "",
+    # Shell allowlist mode: empty/missing = disabled (legacy blocklist only).
+    # When set to a list of command prefixes, tools.shell.run only executes
+    # commands starting with one of them.
+    "shell_allowlist": []
 }
 
 def load_config():

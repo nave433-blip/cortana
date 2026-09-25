@@ -4,6 +4,9 @@ import json
 import os
 import hmac
 import ipaddress
+import shutil
+import ssl
+import subprocess
 import threading
 import time
 import socket
@@ -19,6 +22,17 @@ console = Console()
 # SECURITY NOTICE: the P2P protocol is plaintext HTTP with a shared token.
 # API keys requested via "get_token" travel unencrypted. Only enable P2P on
 # networks you trust, and use a strong p2p_token.
+#
+# TLS OPT-IN: to encrypt the P2P transport, set "p2p_use_tls": true in
+# ~/.jarvis/config.json and point "p2p_tls_certfile"/"p2p_tls_keyfile" at PEM
+# files. A self-signed certificate is fine on a trusted LAN; generate one with
+#   python3 -c "from core.p2p import generate_self_signed_cert; \
+#       generate_self_signed_cert('/path/to/p2p.crt', '/path/to/p2p.key')"
+# (equivalently: openssl req -x509 -newkey rsa:2048 -keyout p2p.key -out p2p.crt
+#  -days 825 -nodes -subj "/CN=jarvis-p2p").
+# TLS clients skip certificate verification by default (verify_tls=False) so
+# self-signed certs work; pass verify_tls=True when you have a CA-signed cert
+# you want validated. Default behavior (plaintext HTTP) is unchanged.
 
 # Remote file operations are confined to the JARVIS workspace root.
 WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
@@ -249,10 +263,81 @@ class JarvisP2PHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
             self.wfile.write(json.dumps(res).encode())
 
-def run_p2p_server(port=11435):
+# ---------------------------------------------------------------------------
+# Optional TLS (stdlib ssl). All helpers are opt-in; defaults stay plaintext.
+# ---------------------------------------------------------------------------
+
+def generate_self_signed_cert(certfile, keyfile=None, hostname="jarvis-p2p"):
+    """Generate a self-signed cert/key pair using the openssl CLI.
+
+    Uses an argv list (no shell=True), so paths cannot inject commands.
+    Returns (certfile, keyfile) as strings.
+    """
+    openssl = shutil.which("openssl")
+    if not openssl:
+        raise RuntimeError(
+            "openssl CLI not found; install OpenSSL or supply your own PEM files."
+        )
+    certfile, keyfile = str(certfile), str(keyfile or certfile)
+    subprocess.run(
+        [openssl, "req", "-x509", "-newkey", "rsa:2048",
+         "-keyout", keyfile, "-out", certfile,
+         "-days", "825", "-nodes", "-subj", f"/CN={hostname}"],
+        check=True, capture_output=True, text=True,
+    )
+    return certfile, keyfile
+
+
+def _tls_enabled(use_tls, cfg):
+    """Resolve the effective TLS flag: explicit argument wins, else config."""
+    if use_tls is None:
+        use_tls = bool(cfg.get("p2p_use_tls", False))
+    return use_tls
+
+
+def _p2p_scheme(use_tls, cfg):
+    return "https" if _tls_enabled(use_tls, cfg) else "http"
+
+
+def _build_ssl_context(certfile, keyfile=None):
+    """Build a server-side SSLContext from PEM cert/key files."""
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(certfile=certfile, keyfile=keyfile or certfile)
+    return ctx
+
+
+def _quiet_insecure_warnings():
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+def run_p2p_server(port=11435, use_tls=None, certfile=None, keyfile=None):
+    """Start the P2P HTTP(S) server.
+
+    TLS is opt-in: pass use_tls=True, or set "p2p_use_tls": true in the config
+    together with "p2p_tls_certfile"/"p2p_tls_keyfile". With no flag and no
+    config, the server stays plaintext HTTP exactly as before.
+    """
+    from core.config import load_config
+    cfg = load_config()
+    use_tls = _tls_enabled(use_tls, cfg)
     threading.Thread(target=run_udp_discovery_listener, args=(port,), daemon=True).start()
     with ThreadedHTTPServer(("", port), JarvisP2PHandler) as httpd:
-        console.print(f"[green]🚀 JARVIS P2P Server listening on port {port}...[/green]")
+        scheme = "http"
+        if use_tls:
+            certfile = certfile or cfg.get("p2p_tls_certfile")
+            keyfile = keyfile or cfg.get("p2p_tls_keyfile") or certfile
+            if not certfile:
+                raise ValueError(
+                    "P2P TLS is enabled but no certificate is configured. "
+                    "Set 'p2p_tls_certfile' (and 'p2p_tls_keyfile') in "
+                    "~/.jarvis/config.json or pass certfile=/keyfile= explicitly."
+                )
+            httpd.socket = _build_ssl_context(certfile, keyfile).wrap_socket(
+                httpd.socket, server_side=True
+            )
+            scheme = "https"
+        console.print(f"[green]🚀 JARVIS P2P Server listening on port {port} ({scheme})...[/green]")
         httpd.serve_forever()
 
 def run_udp_discovery_listener(http_port, discovery_port=11436):
@@ -268,7 +353,12 @@ def run_udp_discovery_listener(http_port, discovery_port=11436):
     except Exception as e: console.print(f"[dim]UDP Discovery Error: {e}[/dim]")
     finally: sock.close()
 
-def scan_for_jarvis_peers(port=11435, timeout=1.5):
+def scan_for_jarvis_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False):
+    from core.config import load_config
+    cfg = load_config()
+    scheme = _p2p_scheme(use_tls, cfg)
+    if scheme == "https" and not verify_tls:
+        _quiet_insecure_warnings()
     found_peers = set()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1); sock.settimeout(timeout)
@@ -282,14 +372,15 @@ def scan_for_jarvis_peers(port=11435, timeout=1.5):
             except socket.timeout: break
     except: pass
     finally: sock.close()
-    
+
     # Subnet Fallback
     from tools.network import get_local_ip
     local_ip = get_local_ip()
     prefix = ".".join(local_ip.split(".")[:-1]) + "."
     def check_peer(ip):
         try:
-            r = requests.post(f"http://{ip}:{port}", json={"action": "status"}, timeout=0.3)
+            r = requests.post(f"{scheme}://{ip}:{port}", json={"action": "status"},
+                              timeout=0.3, verify=verify_tls)
             if r.status_code == 200: return ip
         except: pass
         return None
@@ -307,31 +398,46 @@ def scan_for_jarvis_peers(port=11435, timeout=1.5):
 
     return list(found_peers)
 
-def send_remote_command(peer_ip, action, params, port=11435):
+def send_remote_command(peer_ip, action, params, port=11435, use_tls=None, verify_tls=False):
+    """POST a command to a peer.
+
+    TLS is opt-in (use_tls=True or "p2p_use_tls": true in config); the scheme
+    then becomes https. verify_tls=False (default) skips certificate
+    verification so self-signed LAN certs work — set it True for CA-signed
+    certs you want validated.
+    """
     from core.config import load_config
     cfg = load_config()
-    url = f"http://{peer_ip}:{port}"
+    scheme = _p2p_scheme(use_tls, cfg)
+    if scheme == "https" and not verify_tls:
+        _quiet_insecure_warnings()
+    url = f"{scheme}://{peer_ip}:{port}"
     data = {"action": action, "version": CURRENT_VERSION, "token": cfg.get("p2p_token"), **params}
     stream = params.get("stream", False)
     try:
-        r = requests.post(url, json=data, timeout=30, stream=stream)
+        r = requests.post(url, json=data, timeout=30, stream=stream, verify=verify_tls)
         if r.status_code == 200:
             return {"ok": True, "stream": r.iter_content(chunk_size=None)} if stream else {"ok": True, "data": r.text}
         return {"ok": False, "error": f"Error {r.status_code}: {r.text}"}
     except Exception as e: return {"ok": False, "error": str(e)}
 
-def p2p_status_report():
+def p2p_status_report(use_tls=None, verify_tls=False):
     from rich.table import Table
     from rich.live import Live
+    from core.config import load_config
+    cfg = load_config()
+    scheme = _p2p_scheme(use_tls, cfg)
+    if scheme == "https" and not verify_tls:
+        _quiet_insecure_warnings()
     table = Table(title="JARVIS P2P Swarm Status", border_style="cyan")
     table.add_column("Peer IP"); table.add_column("Name"); table.add_column("Version"); table.add_column("Compatibility"); table.add_column("Model"); table.add_column("Latency")
     console.print("[bold cyan]📡 Discovering JARVIS instances...[/bold cyan]")
     with Live(table, refresh_per_second=4):
-        peers = scan_for_jarvis_peers()
+        peers = scan_for_jarvis_peers(use_tls=use_tls, verify_tls=verify_tls)
         for ip in peers:
             start = time.time()
             try:
-                r = requests.post(f"http://{ip}:11435", json={"action": "status"}, timeout=0.8)
+                r = requests.post(f"{scheme}://{ip}:11435", json={"action": "status"}, timeout=0.8, verify=verify_tls)
                 if r.status_code == 200:
                     data = r.json()
                     lat = f"{(time.time() - start)*1000:.1f}ms"
@@ -364,7 +470,10 @@ def p2p_token_menu():
             set_api_key(t_choice, res["data"])
             console.print("[green]✅ Token received![/green]")
 
-def start_server_background():
-    t = threading.Thread(target=run_p2p_server, daemon=True)
+def start_server_background(port=11435, use_tls=None, certfile=None, keyfile=None):
+    t = threading.Thread(target=run_p2p_server,
+                         kwargs={"port": port, "use_tls": use_tls,
+                                 "certfile": certfile, "keyfile": keyfile},
+                         daemon=True)
     t.start()
     return t
