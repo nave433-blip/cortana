@@ -167,8 +167,13 @@ def generate_plan(task, model=None):
     """
     return think_structured("", f"Create a step-by-step engineering plan for this task. Do not execute tools, just design the strategy: {task}", model=model, prompt_name="architect")
 
-def debug_loop(issue, model=None, prompt=None, ui_hint=None):
+def debug_loop(issue, model=None, prompt=None, ui_hint=None, on_turn=None):
+    """on_turn(role, text): optional callback fired for user/assistant turns
+    (used by conversation time-travel). Never required; never raises."""
     context = f"Original Issue: {issue}"
+    if on_turn:
+        try: on_turn("user", issue)
+        except Exception: pass
     
     # If a UI hint is provided, display it first
     if ui_hint:
@@ -218,6 +223,9 @@ def debug_loop(issue, model=None, prompt=None, ui_hint=None):
             # If there are no tool calls, this is a final answer
             if not tool_lines:
                 display_chat_message("JARVIS", thoughts)
+                if on_turn:
+                    try: on_turn("assistant", thoughts)
+                    except Exception: pass
             else:
                 console.print(Panel(Markdown(thoughts), title=f"💭 THOUGHTS: Cycle {i+1}", border_style="blue", subtitle="[dim]Gemini-Style Reasoning[/dim]"))
         

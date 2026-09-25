@@ -19,6 +19,7 @@ setup(
     entry_points={
         'console_scripts': [
             'jarvis=cli:app',
+            'jarvis-thin=tools.ollama_thin:main',
         ],
     },
 )
