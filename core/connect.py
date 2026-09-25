@@ -189,19 +189,11 @@ def get_provider_host(provider: str) -> Optional[str]:
 
 
 def _env_var_for(provider: str) -> Optional[str]:
-    env_keys = {
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "gemini": "GEMINI_API_KEY",
-        "mistral": "MISTRAL_API_KEY",
-        "deepseek": "DEEPSEEK_API_KEY",
-        "groq": "GROQ_API_KEY",
-        "together": "TOGETHER_API_KEY",
-        "cohere": "COHERE_API_KEY",
-        "perplexity": "PERPLEXITY_API_KEY",
-    }
-    var = env_keys.get(provider.lower())
-    return var if var and os.getenv(var) else None
+    from core.services import ENV_KEY_VARS
+    for var in ENV_KEY_VARS.get(provider.lower(), ()):
+        if os.getenv(var):
+            return var
+    return None
 
 
 def is_configured(provider: str) -> bool:
@@ -229,12 +221,14 @@ def connection_status(test: bool = False) -> List[Dict]:
         reachable: Optional[bool] = None
         needs_attention = False
         reason = ""
+        hint = ""
         if not configured:
             needs_attention = True
             reason = "not configured"
         elif test:
             result = test_connection(name)
             reachable = bool(result.get("ok"))
+            hint = str(result.get("hint", ""))
             if not reachable:
                 needs_attention = True
                 reason = str(result.get("error", "validation failed"))
@@ -247,6 +241,7 @@ def connection_status(test: bool = False) -> List[Dict]:
                 "reachable": reachable,
                 "needs_attention": needs_attention,
                 "reason": reason,
+                "hint": hint,
             }
         )
     return rows
@@ -268,15 +263,22 @@ def render_next_steps(rows: List[Dict]) -> Optional[Panel]:
         name = r["provider"]
         display = r.get("display", name)
         reason = r.get("reason", "")
+        hint = r.get("hint", "")
+        free = AuthManager.PROVIDERS.get(name, {}).get("free", "")
         if r.get("configured") and r.get("reachable") is False:
-            steps.append(
+            step = (
                 f"{display}: key/host saved but unreachable ({reason}). "
                 f"Run `/connect`, pick {display}, and re-enter the key or host."
             )
         else:
-            steps.append(
+            step = (
                 f"{display}: {reason}. Run `/connect` and choose {display} to set it up."
             )
+        if hint:
+            step += f" {hint}"
+        if free and not r.get("configured"):
+            step += f" Free tier: {free}."
+        steps.append(step)
     return next_steps_panel(steps, title="Needs attention")
 
 
@@ -429,11 +431,13 @@ def run_connect_wizard() -> None:
     table.add_column("Status", justify="center")
     table.add_column("Provider", style="cyan")
     table.add_column("How it connects", style="dim")
+    table.add_column("Free tier", style="green")
 
     for i, (name, info) in enumerate(providers, start=1):
         dot = "[green]●[/green]" if is_configured(name) else "[dim]○[/dim]"
         method = "local host" if info.get("host_only") else "API key"
-        table.add_row(str(i), dot, info.get("display", name), method)
+        free = info.get("free", "—")
+        table.add_row(str(i), dot, info.get("display", name), method, free)
 
     console.print(table)
     console.print("[dim]● connected   ○ not connected   — type [bold]b[/bold] or Ctrl+C to go back[/dim]\n")

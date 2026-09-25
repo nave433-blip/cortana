@@ -28,9 +28,25 @@ DEFAULT_MODELS_KEY = "default_models"
 # advertised but had no working integration.
 KNOWN_PROVIDERS = [
     "openai", "anthropic", "gemini", "ollama", "mistral", "deepseek", "groq",
-    "together", "cohere", "perplexity",
+    "together", "cohere", "perplexity", "github",
     "gpt4all", "llama_cpp", "vllm", "sglang", "nemotron", "qwen", "local",
 ]
+
+# Environment variable fallbacks for API keys. Providers with a widely used
+# alternate variable name list it second.
+ENV_KEY_VARS = {
+    "openai": ("OPENAI_API_KEY",),
+    "anthropic": ("ANTHROPIC_API_KEY",),
+    "gemini": ("GEMINI_API_KEY",),
+    "mistral": ("MISTRAL_API_KEY",),
+    "deepseek": ("DEEPSEEK_API_KEY",),
+    "groq": ("GROQ_API_KEY",),
+    "together": ("TOGETHER_API_KEY",),
+    "cohere": ("COHERE_API_KEY",),
+    "perplexity": ("PERPLEXITY_API_KEY",),
+    "qwen": ("DASHSCOPE_API_KEY", "QWEN_API_KEY"),
+    "github": ("GITHUB_TOKEN", "GH_TOKEN"),
+}
 
 # Key/model utilities
 def _load_keys() -> Dict[str, str]:
@@ -67,20 +83,10 @@ def get_api_key(provider: str) -> Optional[str]:
         return key
 
     # Fallback to environment variables
-    env_keys = {
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "gemini": "GEMINI_API_KEY",
-        "mistral": "MISTRAL_API_KEY",
-        "deepseek": "DEEPSEEK_API_KEY",
-        "groq": "GROQ_API_KEY",
-        "together": "TOGETHER_API_KEY",
-        "cohere": "COHERE_API_KEY",
-        "perplexity": "PERPLEXITY_API_KEY",
-    }
-    env_var = env_keys.get(provider.lower())
-    if env_var:
-        return os.getenv(env_var)
+    for var in ENV_KEY_VARS.get(provider.lower(), ()):
+        val = os.getenv(var)
+        if val:
+            return val
     return None
 
 def set_key_for_litellm(provider: str):
@@ -130,21 +136,10 @@ def list_available_keys() -> List[str]:
             available.append(p)
             
     # Check environment (common ones)
-    env_keys = {
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "gemini": "GEMINI_API_KEY",
-        "mistral": "MISTRAL_API_KEY",
-        "deepseek": "DEEPSEEK_API_KEY",
-        "groq": "GROQ_API_KEY",
-        "together": "TOGETHER_API_KEY",
-        "cohere": "COHERE_API_KEY",
-        "perplexity": "PERPLEXITY_API_KEY",
-    }
-    for p, var in env_keys.items():
-        if os.getenv(var) and p not in available:
+    for p, var in ENV_KEY_VARS.items():
+        if p not in available and any(os.getenv(v) for v in var):
             available.append(p)
-            
+
     return sorted(list(set(available)))
 
 def _load_default_models() -> Dict[str, str]:
@@ -237,38 +232,257 @@ def validate_ollama(host: str, timeout: float = 2.0) -> Dict:
             continue
     return {"ok": False, "error": f"Could not reach Ollama at {host}. Error: {last_exc}", "error_type": "unreachable"}
 
+# --------------------
+# Provider validation metadata (audited 2026-09-25).
+#
+# Every key provider below is validated against a real, documented endpoint —
+# no fake "key present" checks. "free" labels describe legitimate free/public
+# tiers verified against provider documentation; providers without a verified
+# free tier have free=None (paid API) rather than a guessed claim.
+# --------------------
+PROVIDER_VALIDATION = {
+    "openai": {
+        "auth": "bearer",
+        "validate_url": "https://api.openai.com/v1/models",
+        "key_url": "https://platform.openai.com/api-keys",
+        "docs": "https://platform.openai.com/docs/api-reference/models/list",
+        "free": None,
+    },
+    "gemini": {
+        "auth": "query_param",
+        "validate_url": "https://generativelanguage.googleapis.com/v1beta/models",
+        "key_url": "https://aistudio.google.com/app/apikey",
+        "docs": "https://ai.google.dev/gemini-api/docs/models",
+        "free": "Free tier via Google AI Studio (no credit card required)",
+    },
+    "anthropic": {
+        "auth": "x-api-key",
+        "validate_url": "https://api.anthropic.com/v1/models",
+        "extra_headers": {"anthropic-version": "2023-06-01"},
+        "key_url": "https://console.anthropic.com/settings/keys",
+        "docs": "https://docs.anthropic.com/en/api/models-list",
+        "free": None,
+    },
+    "cohere": {
+        "auth": "bearer",
+        "validate_url": "https://api.cohere.com/v1/models",
+        "key_url": "https://dashboard.cohere.com/api-keys",
+        "docs": "https://docs.cohere.com/reference/list-models",
+        "free": "Free developer trial keys (rate-limited)",
+    },
+    "mistral": {
+        "auth": "bearer",
+        "validate_url": "https://api.mistral.ai/v1/models",
+        "key_url": "https://console.mistral.ai/api-keys/",
+        "docs": "https://docs.mistral.ai/api/",
+        "free": "Free experimentation tier on La Plateforme",
+    },
+    "deepseek": {
+        "auth": "bearer",
+        "validate_url": "https://api.deepseek.com/models",
+        "key_url": "https://platform.deepseek.com/api_keys",
+        "docs": "https://api-docs.deepseek.com/api/list-models",
+        "free": None,
+    },
+    "groq": {
+        "auth": "bearer",
+        "validate_url": "https://api.groq.com/openai/v1/models",
+        "key_url": "https://console.groq.com/keys",
+        "docs": "https://console.groq.com/docs/models",
+        "free": "Always-free tier (no credit card, rate-limited)",
+    },
+    "together": {
+        "auth": "bearer",
+        "validate_url": "https://api.together.xyz/v1/models",
+        "key_url": "https://api.together.xyz/settings/api-keys",
+        "docs": "https://docs.together.ai/reference/get-models",
+        "free": "$5 in free credits on new signups",
+    },
+    "qwen": {
+        "auth": "bearer",
+        "validate_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/models",
+        "key_url": "https://bailian.console.aliyun.com/?apiKey=1#/api-key",
+        "docs": "https://www.alibabacloud.com/help/en/model-studio/",
+        "free": None,
+        "note": "International endpoint; China-region accounts may need their regional endpoint.",
+    },
+    "github": {
+        "auth": "bearer",
+        "validate_url": "https://api.github.com/user",
+        "key_url": "https://github.com/settings/tokens",
+        "docs": "https://docs.github.com/en/rest/users/users#get-the-authenticated-user",
+        "free": "Free — personal access tokens cost nothing",
+    },
+    # Perplexity publishes no free key-validation endpoint; validation uses a
+    # minimal 1-token chat completion (documented endpoint, negligible cost).
+    "perplexity": {
+        "auth": "bearer",
+        "validate_url": "https://api.perplexity.ai/chat/completions",
+        "validate_method": "POST",
+        "key_url": "https://www.perplexity.ai/settings/api",
+        "docs": "https://docs.perplexity.ai/api-reference/chat-completions",
+        "free": None,
+    },
+}
+
+# Providers whose validation is key-based (not host-based).
+KEY_PROVIDERS = tuple(PROVIDER_VALIDATION.keys())
+
+
+def _validation_hint(provider: str, error_type: Optional[str],
+                     status_code: Optional[int] = None) -> str:
+    """One actionable next step for a failed validation."""
+    meta = PROVIDER_VALIDATION.get(provider, {})
+    key_url = meta.get("key_url") or "the provider dashboard"
+    if error_type == "unauthorized":
+        code = f" (HTTP {status_code})" if status_code else ""
+        return (f"Key rejected{code}. Create a fresh key at {key_url} "
+                f"and run `/connect {provider}` again.")
+    if error_type == "unreachable":
+        return ("Could not reach the provider API. Check your network/VPN "
+                "connection and try again in a moment.")
+    if error_type == "http_error":
+        docs = meta.get("docs") or key_url
+        return (f"Server reachable but returned HTTP {status_code}. The "
+                f"validation endpoint may have moved — check {docs}")
+    return ""
+
+
+def _enrich_validation(provider: str, result: Dict) -> Dict:
+    """Attach key_url, free-tier label, and an actionable hint to a result.
+
+    Never changes ok/error — only adds context fields.
+    """
+    meta = PROVIDER_VALIDATION.get(provider, {})
+    result = dict(result)
+    if meta.get("key_url"):
+        result.setdefault("key_url", meta["key_url"])
+    if meta.get("free"):
+        result.setdefault("free", meta["free"])
+    if not result.get("ok") and not result.get("hint"):
+        hint = _validation_hint(provider, result.get("error_type"),
+                                result.get("status_code"))
+        if hint:
+            result["hint"] = hint
+    return result
+
+
+def validate_key_provider(provider: str, key: str, timeout: float = 8.0) -> Dict:
+    """Validate a key provider against its real, documented endpoint.
+
+    Returns {"ok", "provider", "note"?/"models_count"?, "error"?, "error_type"?}.
+    """
+    provider = provider.lower()
+    meta = PROVIDER_VALIDATION.get(provider)
+    if meta is None:
+        return {"ok": False, "provider": provider,
+                "error": f"Provider '{provider}' not supported for validation.",
+                "error_type": "other"}
+    url = meta["validate_url"]
+    headers = dict(meta.get("extra_headers") or {})
+    if meta.get("auth") == "x-api-key":
+        headers["x-api-key"] = key
+    else:
+        headers["Authorization"] = f"Bearer {key}"
+    try:
+        if meta.get("validate_method") == "POST":
+            # Perplexity: minimal 1-token completion on the cheapest model.
+            r = requests.post(
+                url, headers={**headers, "Content-Type": "application/json"},
+                json={"model": "sonar", "max_tokens": 1,
+                      "messages": [{"role": "user", "content": "Reply with: ok"}]},
+                timeout=timeout)
+        else:
+            r = requests.get(url, headers=headers, timeout=timeout)
+    except requests.exceptions.RequestException as e:
+        return {"ok": False, "provider": provider,
+                "error": f"Could not reach {provider}: {e}",
+                "error_type": "unreachable"}
+    if r.status_code == 200:
+        try:
+            data = r.json()
+        except Exception:
+            data = None
+        result: Dict[str, Any] = {"ok": True, "provider": provider}
+        if provider == "github" and isinstance(data, dict) and data.get("login"):
+            result["note"] = f"Token valid (GitHub user: {data['login']})"
+        elif isinstance(data, dict) and isinstance(data.get("data"), list):
+            count = len(data["data"])
+            result["models_count"] = count
+            result["note"] = f"{provider} key validated ({count} models visible)"
+        else:
+            result["note"] = f"{provider} key validated"
+        if provider == "perplexity":
+            result["note"] += " (validation used a minimal 1-token completion)"
+        return result
+    if r.status_code in (401, 403):
+        return {"ok": False, "provider": provider,
+                "error": f"{provider} key rejected (HTTP {r.status_code})",
+                "error_type": "unauthorized", "status_code": r.status_code}
+    return {"ok": False, "provider": provider,
+            "error": f"{provider} returned HTTP {r.status_code}: {r.text[:200]}",
+            "error_type": "http_error", "status_code": r.status_code}
+
+
 def validate_generic_host(host: str, timeout: float = 2.0) -> Dict:
+    """Probe a host-based provider. Only 2xx counts as reachable — a 4xx/5xx
+    means the server answered but the endpoint is wrong, which is actionable."""
     try:
         r = requests.get(host, timeout=timeout)
-        return {"ok": True, "status": r.status_code}
     except Exception as e:
-        return {"ok": False, "error": str(e), "error_type": "unreachable"}
+        return {"ok": False, "error": str(e), "error_type": "unreachable",
+                "hint": "Host unreachable — check the URL and that the server is running."}
+    if 200 <= r.status_code < 300:
+        return {"ok": True, "status": r.status_code}
+    return {"ok": False, "error": f"Host reachable but returned HTTP {r.status_code}",
+            "error_type": "http_error", "status_code": r.status_code,
+            "hint": f"Server answered with HTTP {r.status_code} — check the base URL/path."}
+
+def _missing_key_result(provider: str) -> Dict:
+    meta = PROVIDER_VALIDATION.get(provider, {})
+    key_url = meta.get("key_url") or "the provider dashboard"
+    result: Dict[str, Any] = {
+        "ok": False, "provider": provider,
+        "error": f"{provider} key not configured",
+        "error_type": "unauthorized",
+        "hint": f"Get a key at {key_url} then run `/connect {provider}`.",
+    }
+    return _enrich_validation(provider, result)
+
 
 def validate_provider_connection(provider: str, extra: Optional[Dict[str, Any]] = None) -> Dict:
     provider = provider.lower()
     extra = extra or {}
-    if provider == "openai":
-        key = extra.get("key") or get_api_key("openai")
-        if not key: return {"ok": False, "error": "OpenAI key not configured", "error_type": "unauthorized"}
-        return validate_openai(key)
+    if provider in ("openai", "gemini"):
+        # These two keep their dedicated validators (real endpoint checks).
+        key = extra.get("key") or get_api_key(provider)
+        if not key:
+            return _missing_key_result(provider)
+        res = validate_openai(key) if provider == "openai" else validate_gemini(key)
+        return _enrich_validation(provider, res)
+    if provider in KEY_PROVIDERS:
+        key = extra.get("key") or get_api_key(provider)
+        if not key:
+            if provider == "qwen":
+                # Graceful fallback: qwen was historically host-configured.
+                cfg = load_config()
+                host = extra.get("host") or cfg.get("qwen_host")
+                if host:
+                    res = validate_generic_host(host)
+                    res["note"] = "No API key set; validated saved host only."
+                    return res
+            return _missing_key_result(provider)
+        return _enrich_validation(provider, validate_key_provider(provider, key))
     if provider == "ollama":
         cfg = load_config()
         host = extra.get("host") or cfg.get("ollama_host")
         if not host: return {"ok": False, "error": "Ollama host not configured", "error_type": "unreachable"}
         return validate_ollama(host)
-    if provider == "gemini":
-        key = extra.get("key") or get_api_key("gemini")
-        if not key: return {"ok": False, "error": "Gemini key not configured", "error_type": "unauthorized"}
-        return validate_gemini(key)
-    if provider in ("gpt4all", "llama_cpp", "vllm", "sglang", "nemotron", "qwen", "local"):
+    if provider in ("gpt4all", "llama_cpp", "vllm", "sglang", "nemotron", "local"):
         cfg = load_config()
         host = extra.get("host") or cfg.get(f"{provider}_host")
         if not host: return {"ok": False, "error": f"No host configured for {provider}", "error_type": "unreachable"}
         return validate_generic_host(host)
-    if provider == "anthropic":
-        key = extra.get("key") or get_api_key("anthropic")
-        if not key: return {"ok": False, "error": "Anthropic key not configured", "error_type": "unauthorized"}
-        return {"ok": True, "provider": "anthropic", "note": "Key present (no network check)"}
     return {"ok": False, "error": f"Provider '{provider}' not supported for validation.", "error_type": "other"}
 
 # --------------------

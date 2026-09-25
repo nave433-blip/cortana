@@ -14,25 +14,42 @@ class AuthManager:
 
     # Providers with real support in core.services (validation and/or key
     # handling). Fabricated entries were removed.
+    #
+    # "free" labels describe legitimate free/public tiers verified against
+    # provider documentation (audited 2026-09-25). Providers without a
+    # verified free tier omit the label (paid API) rather than guessing.
     PROVIDERS = {
         "openai": {"display": "OpenAI", "url": "https://platform.openai.com/api-keys"},
-        "gemini": {"display": "Google Gemini", "url": "https://aistudio.google.com/app/apikey"},
+        "gemini": {"display": "Google Gemini", "url": "https://aistudio.google.com/app/apikey",
+                   "free": "Free tier via Google AI Studio (no credit card required)"},
         "anthropic": {"display": "Anthropic", "url": "https://console.anthropic.com/settings/keys"},
-        "cohere": {"display": "Cohere", "url": "https://dashboard.cohere.com/api-keys"},
-        "mistral": {"display": "Mistral AI", "url": "https://console.mistral.ai/api-keys/"},
+        "cohere": {"display": "Cohere", "url": "https://dashboard.cohere.com/api-keys",
+                   "free": "Free developer trial keys (rate-limited)"},
+        "mistral": {"display": "Mistral AI", "url": "https://console.mistral.ai/api-keys/",
+                    "free": "Free experimentation tier on La Plateforme"},
         "deepseek": {"display": "DeepSeek", "url": "https://platform.deepseek.com/api_keys"},
-        "groq": {"display": "Groq", "url": "https://console.groq.com/keys"},
-        "together": {"display": "Together AI", "url": "https://api.together.xyz/settings/api-keys"},
+        "groq": {"display": "Groq", "url": "https://console.groq.com/keys",
+                 "free": "Always-free tier (no credit card, rate-limited)"},
+        "together": {"display": "Together AI", "url": "https://api.together.xyz/settings/api-keys",
+                     "free": "$5 in free credits on new signups"},
         "perplexity": {"display": "Perplexity", "url": "https://www.perplexity.ai/settings/api"},
-        "qwen": {"display": "Alibaba Qwen", "url": "https://dashscope.console.aliyun.com/apiKey"},
-        "github": {"display": "GitHub", "url": "https://github.com/settings/tokens"},
-        "ollama": {"display": "Ollama", "host_only": True},
-        "vllm": {"display": "vLLM", "host_only": True},
-        "sglang": {"display": "SGLang", "host_only": True},
-        "gpt4all": {"display": "GPT4All", "host_only": True},
-        "llama_cpp": {"display": "llama.cpp", "host_only": True},
-        "nemotron": {"display": "NVIDIA NeMo", "host_only": True},
-        "local": {"display": "Local server", "host_only": True},
+        "qwen": {"display": "Alibaba Qwen", "url": "https://bailian.console.aliyun.com/?apiKey=1#/api-key"},
+        "github": {"display": "GitHub", "url": "https://github.com/settings/tokens",
+                   "free": "Free — personal access tokens cost nothing"},
+        "ollama": {"display": "Ollama", "host_only": True,
+                   "free": "Free — runs on your own hardware"},
+        "vllm": {"display": "vLLM", "host_only": True,
+                 "free": "Free — runs on your own hardware"},
+        "sglang": {"display": "SGLang", "host_only": True,
+                   "free": "Free — runs on your own hardware"},
+        "gpt4all": {"display": "GPT4All", "host_only": True,
+                    "free": "Free — runs on your own hardware"},
+        "llama_cpp": {"display": "llama.cpp", "host_only": True,
+                      "free": "Free — runs on your own hardware"},
+        "nemotron": {"display": "NVIDIA NeMo", "host_only": True,
+                     "free": "Free — runs on your own hardware"},
+        "local": {"display": "Local server", "host_only": True,
+                  "free": "Free — runs on your own hardware"},
     }
 
     @staticmethod
