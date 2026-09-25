@@ -17,6 +17,15 @@ Homebrew formula (`cortana.rb`), AUR package (`cortana`), PyPI distribution
 nodes stay interoperable. A few tasteful easter eggs: a `/clippy` command, a
 Halo-flavored boot line, and a classic-Windows sign-off on `/exit`.
 
+New dev toggle: **auto-approve**. `cortana --yes` / `-y`,
+`CORTANA_AUTO_APPROVE=1`, or `"auto_approve": true` in config answers routine
+confirmation prompts yes automatically (never on by default). Startup warns
+clearly, every auto-approved action is logged to
+`~/.cortana/logs/auto_approve.log` (0600), credential/trust prompts still ask,
+and the sandbox is unaffected. Migration notes: `~/.jarvis` is copied to
+`~/.cortana` (old dir left untouched, also when only cache dirs exist);
+`get_env_with_config("cortana_*")` honors legacy `JARVIS_*` env spellings.
+
 
 All notable changes, newest first. Dates are when the work landed on the
 `audit/fix` branch. `JARVIS.md` (the user's own instructions file) is never

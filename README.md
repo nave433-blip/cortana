@@ -268,5 +268,23 @@ When enabled: DEBUG logging, per-request timing with the serving provider/model 
 
 Optional personal instructions: create `~/.cortana/dev_instructions.md` with your own notes — they're appended to the system prompt in dev mode. The file lives **outside the repo** (in your home directory) and is never committed; dev mode works fine without it.
 
+### ⚠️ Auto-approve (development toggle)
+
+For the developer's own machine only — answers routine confirmation prompts
+`yes` automatically so stacked confirmations don't interrupt a dev session.
+**Never enabled by default.** Opt in any of three ways:
+
+```bash
+cortana --yes ...              # or -y, for one CLI session
+export CORTANA_AUTO_APPROVE=1  # for the shell session
+# or set "auto_approve": true in ~/.cortana/config.json
+```
+
+Startup prints a clear warning: **AUTO-APPROVE ON — all routine prompts will be
+answered yes**. Every auto-approved action is logged to
+`~/.cortana/logs/auto_approve.log` (mode `0600`). Credential and trust
+prompts (provider keys, P2P key/filesystem sharing, unverified hosts) always
+ask, and the sandbox is never weakened by this toggle.
+
 ## 👨‍💻 Created By
 **Nave433 (Evan Shipley)**

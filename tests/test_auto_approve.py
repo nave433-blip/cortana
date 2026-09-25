@@ -137,7 +137,7 @@ def test_confirm_passes_default_through(isolated, monkeypatch):
 def test_startup_banner_shown_when_on(isolated, monkeypatch, capsys):
     monkeypatch.setenv("CORTANA_AUTO_APPROVE", "1")
     assert approvals.startup_banner() is True
-    assert "AUTO-APPROVE IS ON" in capsys.readouterr().out
+    assert "AUTO-APPROVE ON" in capsys.readouterr().out
 
 
 def test_startup_banner_hidden_when_off(isolated, capsys):

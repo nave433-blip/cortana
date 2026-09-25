@@ -109,8 +109,7 @@ def startup_banner() -> bool:
     if not is_auto_approve():
         return False
     console.print(Panel(
-        "[bold yellow]⚠️ AUTO-APPROVE IS ON[/bold yellow]\n"
-        "Confirmation prompts will be answered [bold]yes[/bold] automatically.\n"
+        "[bold yellow]⚠️ AUTO-APPROVE ON — all routine prompts will be answered yes[/bold yellow]\n"
         "[dim]Credential and trust prompts still ask. "
         "Every auto-approved action is logged.[/dim]",
         title="Dev toggle", border_style="yellow", expand=False,

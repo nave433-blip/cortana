@@ -105,8 +105,8 @@ def main(ctx: typer.Context,
         os.environ["CORTANA_SKIP_STARTUP"] = "1"
     if yes:
         approvals.set_session_yes(True)
-    run_startup_checks()
     approvals.startup_banner()
+    run_startup_checks()
     if debug:
         import logging
         logging.basicConfig(level=logging.DEBUG)
