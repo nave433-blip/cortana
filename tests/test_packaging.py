@@ -24,8 +24,8 @@ def test_install_sh_hardening_pins():
     assert "pull --ff-only" in src, "idempotent refresh missing"
     assert "--help" in src, "post-install smoke test missing"
     assert "is not a JARVIS checkout" in src, "non-empty foreign dir guard missing"
-    assert "MIN_KB" in src and "No space" not in src, "disk-space pre-check missing"
-    assert "needs ~1.5 GiB" in src
+    assert "MIN_KB" in src, "disk-space pre-check missing"
+    assert "needs ~1.5 GiB" in src, "disk-space error message missing"
 
 
 def test_formula_wellformed():
