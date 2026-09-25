@@ -46,6 +46,8 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 from rich.table import Table
 from rich.prompt import Prompt, Confirm
+from core import approvals
+from core.approvals import confirm
 
 # Internal Modules
 from core.brain import think, think_structured, get_provider
@@ -96,11 +98,15 @@ console = Console()
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context,
          debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
-         skip_startup: bool = typer.Option(False, "--skip-startup", help="Skip dependency/update startup checks")):
+         skip_startup: bool = typer.Option(False, "--skip-startup", help="Skip dependency/update startup checks"),
+         yes: bool = typer.Option(False, "--yes", "-y", help="Auto-approve confirmation prompts (dev only; credential/trust prompts still ask)")):
     """CORTANA: Your local AI engineer."""
     if skip_startup:
         os.environ["CORTANA_SKIP_STARTUP"] = "1"
+    if yes:
+        approvals.set_session_yes(True)
     run_startup_checks()
+    approvals.startup_banner()
     if debug:
         import logging
         logging.basicConfig(level=logging.DEBUG)
@@ -178,7 +184,7 @@ def scan_ollama():
         return
         
     console.print(f"[green]Found: {', '.join(hosts)}[/green]")
-    if Confirm.ask("Add these to your configuration?"):
+    if confirm("Add these to your configuration?"):
         cfg = load_config()
         cfg["ollama_hosts"] = list(set(cfg.get("ollama_hosts", []) + hosts))
         save_config(cfg)
@@ -283,7 +289,7 @@ def process_think_res(res: Any, fallback_text: str = "") -> str:
                 console.print(Panel("\n".join(summary[-6:]), title="Recent Attempts (debug)", border_style="magenta"))
 
     # Offer the secure connect flow (not the legacy plaintext setup wizard)
-    if Confirm.ask("Would you like to set up a provider now?"):
+    if confirm("Would you like to set up a provider now?"):
         from core.connect import run_connect_wizard
         run_connect_wizard()
         return "[yellow]Setup complete. Please try your request again.[/yellow]"
@@ -351,7 +357,7 @@ def interactive():
                     # Guard dangerous commands
                     if first_word in DANGEROUS_PLAIN_CMDS:
                         console.print(Panel(f"[bold yellow]⚠️ DANGEROUS COMMAND DETECTED[/bold yellow]\n\nYou invoked '{first_word}' without a leading '/'.", border_style="yellow"))
-                        if not Confirm.ask(f"Are you sure you want to execute '{first_word}'?"):
+                        if not confirm(f"Are you sure you want to execute '{first_word}'?"):
                             console.print("[yellow]Cancelled.[/yellow]")
                             continue
                     
@@ -523,7 +529,7 @@ def interactive():
                         res = run_nave_loop(args or Prompt.ask("Task for NAVE"))
                         if res.get("ok"):
                             console.print(Markdown(res.get("final_answer", "")))
-                            if Confirm.ask("Show reasoning summary?"):
+                            if confirm("Show reasoning summary?"):
                                 console.print(Panel(res.get("integrator_json", {}).get("reasoning_summary", "No summary available."), title="Reasoning", border_style="dim"))
                         else:
                             pass # run_nave_loop handled the panel
@@ -535,7 +541,7 @@ def interactive():
                     cmd = res["command"]
                     if res.get("confirm", True):
                         console.print(Panel(f"[bold red]⚠️ EXECUTE SHELL COMMAND?[/bold red]\n\n[white]{cmd}[/white]", border_style="red"))
-                        if Confirm.ask("Authorize?"):
+                        if confirm("Authorize?"):
                             from tools.shell import run_simple
                             console.print(run_simple(cmd))
                     else:
@@ -558,7 +564,7 @@ def interactive():
             except Exception as e:
                 entry = ErrorLogger.log_error(e, context=f"Command: {text}")
                 console.print(f"[bold red]❌ System Error:[/bold red] {e}")
-                if Confirm.ask("Initiate autonomous debug analysis?"):
+                if confirm("Initiate autonomous debug analysis?"):
                     ErrorLogger.auto_debug(f"Error: {e}\nStack: {entry['stack_trace']}")
 
         except KeyboardInterrupt:
@@ -702,7 +708,7 @@ def restart():
 @app.command()
 def reinstall():
     """Perform a clean sovereign reinstallation of the CORTANA ecosystem."""
-    if Confirm.ask("[bold red]⚠️ DANGER: This will wipe your local installation and start fresh. Proceed?[/bold red]"):
+    if confirm("[bold red]⚠️ DANGER: This will wipe your local installation and start fresh. Proceed?[/bold red]"):
         console.print("[bold yellow]🚀 Initiating Sovereign Reinstallation...[/bold yellow]")
         base_dir = os.path.dirname(os.path.abspath(__file__))
         os.system(f"cd {base_dir} && bash install.sh")
@@ -736,7 +742,7 @@ def plan(task: str, model: Annotated[Optional[str], typer.Option("--model", "-m"
         plan_path = save_plan("active_plan", txt)
         display_plan("active_plan")
         
-        if Confirm.ask("[bold yellow]Accept this plan and transition to Execution Mode?[/bold yellow]"):
+        if confirm("[bold yellow]Accept this plan and transition to Execution Mode?[/bold yellow]"):
             console.print("[green]✅ Plan approved. Execution initiated.[/green]")
             # Proceed to execution (forge loop or similar)
         else:
@@ -951,7 +957,7 @@ def patch_py(path: str, instruction: str = ""):
     if not res["ok"]:
         console.print(f"[red]Patch Error: {res.get('error')}[/red]"); return
     console.print(Panel(res["unified_diff"], title="Suggested Patch (Unified Diff)", border_style="yellow"))
-    if Confirm.ask("Apply this patch?"):
+    if confirm("Apply this patch?"):
         ok, msg = safe_apply_new_content(path, res["suggested"])
         if ok: console.print(f"[bold green]{msg}[/bold green]")
         else: console.print(f"[bold red]Failed to apply: {msg}[/bold red]")

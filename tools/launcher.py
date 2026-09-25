@@ -3,6 +3,7 @@ import shutil
 import os
 from rich.console import Console
 from rich.prompt import Confirm
+from core.approvals import confirm
 
 console = Console()
 
@@ -64,7 +65,7 @@ def launch_tool(tool_name):
 
     if not is_tool_installed(cmd):
         console.print(f"[bold yellow]⚠️ {tool_name.title()} is not installed.[/bold yellow]")
-        if install_cmd and Confirm.ask(f"Would you like to install {tool_name} now?"):
+        if install_cmd and confirm(f"Would you like to install {tool_name} now?"):
             console.print(f"[bold cyan]Executing:[/bold cyan] {install_cmd}")
             os.system(install_cmd)
             # Re-check after install

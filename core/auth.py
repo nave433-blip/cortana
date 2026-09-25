@@ -3,6 +3,7 @@ import webbrowser
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
+from core.approvals import confirm
 from core.config import load_config, save_config, get_env_with_config
 from core.services import get_api_key, set_api_key, validate_provider_connection, repair_ollama
 from core.utils import open_url
@@ -66,10 +67,10 @@ class AuthManager:
             console.print(Panel(f"[bold yellow]⚠️ Primary Provider ({primary.upper()}) Disconnected[/bold yellow]\n{status.get('error')}", border_style="yellow"))
             
             if primary == "ollama":
-                if Confirm.ask("Attempt to repair/reconnect Ollama?"):
+                if confirm("Attempt to repair/reconnect Ollama?"):
                     repair_ollama()
             else:
-                if Confirm.ask(f"Link or configure your {primary.upper()} backend now?"):
+                if confirm(f"Link or configure your {primary.upper()} backend now?"):
                     AuthManager.link_account(primary)
 
         # 2. Check for missing critical cloud fallbacks
@@ -80,9 +81,9 @@ class AuthManager:
 
         if missing_fallbacks:
             console.print(f"\n[dim]Note: Missing cloud fallback keys for: {', '.join(missing_fallbacks)}[/dim]")
-            if Confirm.ask("Would you like to link a fallback cloud account for higher reliability?"):
+            if confirm("Would you like to link a fallback cloud account for higher reliability?"):
                 for p in missing_fallbacks:
-                    if Confirm.ask(f"Link {p.upper()}?"):
+                    if confirm(f"Link {p.upper()}?"):
                         AuthManager.link_account(p)
 
     @staticmethod

@@ -17,6 +17,7 @@ from tools.launcher import launch_tool
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
+from core.approvals import confirm
 from rich.markdown import Markdown
 
 console = Console()
@@ -65,7 +66,7 @@ def dispatch_tool(line, next_line):
             res = run(args["command"], sandbox=use_sandbox)
             if isinstance(res, dict) and res.get("status") == "needs_confirmation":
                 console.print(Panel(f"[bold red]⚠️ POTENTIALLY UNSAFE COMMAND DETECTED[/bold red]\n\n[white]{res['command']}[/white]", border_style="red"))
-                if Confirm.ask("Do you want to authorize this command?"):
+                if confirm("Do you want to authorize this command?"):
                     return run_simple(res['command'], confirm=True, sandbox=use_sandbox)
                 else:
                     return "ABORTED: Command authorization denied by user."
@@ -148,7 +149,7 @@ def dispatch_tool(line, next_line):
             res = suggest_patch_via_llm(args["path"], args["instruction"])
             if res["ok"]:
                 console.print(Panel(res["unified_diff"], title="Suggested Patch", border_style="yellow"))
-                if Confirm.ask("Apply this patch?"):
+                if confirm("Apply this patch?"):
                     ok, msg = safe_apply_new_content(args["path"], res["suggested"])
                     return msg
                 return "Patch rejected by user."

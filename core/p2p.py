@@ -14,6 +14,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
+from core.approvals import confirm
 from pathlib import Path
 from core.update import CURRENT_VERSION
 from core.config import CONFIG_DIR
@@ -291,10 +292,10 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
             keys = payload.get("keys", {})
             fs_edits = payload.get("fs_edits", [])
             console.print(f"\n[bold magenta]🚀 INCOMING HANDOFF FROM {peer_ip}[/bold magenta]")
-            if Confirm.ask("Accept this handoff?"):
+            if confirm("Accept this handoff?"):
                 from core.services import set_api_key
                 for provider, key in keys.items():
-                    if Confirm.ask(f"Accept {provider} key?"): set_api_key(provider, key)
+                    if confirm(f"Accept {provider} key?", sensitive=True): set_api_key(provider, key)
                 self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
                 self.wfile.write(json.dumps({"ok": True}).encode())
             else:
@@ -611,3 +612,18 @@ def start_server_background(port=11435, use_tls=None, certfile=None, keyfile=Non
                          daemon=True)
     t.start()
     return t
+
+
+# Deprecated pre-rename aliases (the wire protocol is unchanged, so these
+# only matter for Python callers importing the old names).
+JarvisP2PHandler = CortanaP2PHandler
+
+
+def scan_for_jarvis_peers(*args, **kwargs):
+    """Deprecated alias of :func:`scan_for_cortana_peers`."""
+    return scan_for_cortana_peers(*args, **kwargs)
+
+
+def scan_for_jarvis_peer_endpoints(*args, **kwargs):
+    """Deprecated alias of :func:`scan_for_cortana_peer_endpoints`."""
+    return scan_for_cortana_peer_endpoints(*args, **kwargs)

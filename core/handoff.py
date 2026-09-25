@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
+from core.approvals import confirm
 
 console = Console()
 
@@ -89,7 +90,7 @@ def send_handoff(peer_ip: str, note: str = "", port: int = 11435,
         "[green]No keys or credentials are included — verified.[/green]\n"
         "[dim]The peer must explicitly accept.[/dim]",
         border_style="cyan"))
-    if not Confirm.ask(f"Send handoff to {peer_ip}?"):
+    if not confirm(f"Send handoff to {peer_ip}?"):
         return {"ok": False, "error": "cancelled"}
     from core.p2p import send_remote_command
     res = send_remote_command(peer_ip, "session_handoff", {"payload": payload},
@@ -127,7 +128,7 @@ def handle_session_handoff(peer_ip: str, payload: Dict[str, Any]):
         "\n".join(f"  • {t}" for t in tasks[:10]),
         border_style="magenta"))
     console.print("[green]Verified: payload contains no keys or credentials.[/green]")
-    if Confirm.ask("Accept this session handoff? (saves it locally for review)"):
+    if confirm("Accept this session handoff? (saves it locally for review)"):
         dest = _handoffs_dir() / f"handoff-{int(time.time())}.json"
         dest.write_text(json.dumps(payload, indent=2))
         body = json.dumps({"ok": True, "saved": str(dest),

@@ -79,7 +79,7 @@ def _repl_env(tmp_path):
         {"provider": "ollama", "jarvis_model": "llama3"}))
     env = dict(os.environ)
     env["HOME"] = str(home)
-    env["JARVIS_SKIP_STARTUP"] = "1"
+    env["CORTANA_SKIP_STARTUP"] = "1"
     return env
 
 

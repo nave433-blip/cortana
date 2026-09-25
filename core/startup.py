@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
+from core.approvals import confirm
 import core.services as svc
 from core.config import load_config, save_config
 from tools.network import scan_network_for_ollama
@@ -60,7 +61,7 @@ def check_provider(provider: str, auto: bool = False) -> Dict[str, Any]:
         
     if not status["ok"] and not auto:
         # Prompt for all defined providers
-        if Confirm.ask(f"⚠️ Provider [bold cyan]'{provider.upper()}'[/bold cyan] is not ready. Configure it now?"):
+        if confirm(f"⚠️ Provider [bold cyan]'{provider.upper()}'[/bold cyan] is not ready. Configure it now?"):
             conn = _interactive_connect(provider)
             if conn.get("connected"):
                 status["ok"] = True
@@ -110,7 +111,7 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
                     console.print(f"[yellow]⚠️ Required model '{model}' missing.[/yellow]")
                     if auto:
                         console.print("[dim]Skipping model download in non-interactive mode.[/dim]")
-                    elif Confirm.ask(f"Download Ollama model '{model}' now?"):
+                    elif confirm(f"Download Ollama model '{model}' now?"):
                         svc.install_ollama_model(model)
         
         # 3. Proactive Cloud Authentication Check (interactive only; the login
@@ -166,7 +167,7 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
         if specs.get("is_low_end"):
             prompt_text = "⚠️ [yellow]Low-end hardware detected.[/yellow] Sign in to [bold cyan]Ollama Cloud[/bold cyan] for better performance?"
             
-        if not auto and Confirm.ask(prompt_text):
+        if not auto and confirm(prompt_text):
             from core.utils import open_url
             console.print("[dim]Opening Ollama website. Please log in and find your API token in your account settings/dashboard.[/dim]")
             open_url("https://ollama.com")
@@ -183,11 +184,11 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
 
     # 4. Check P2P Connectivity
     if not cfg.get("p2p_enabled"):
-        if not auto and Confirm.ask("⚠️ [bold cyan]P2P Features[/bold cyan] (Local Network Peer-to-Peer) are not configured. Enable them now?"):
+        if not auto and confirm("⚠️ [bold cyan]P2P Features[/bold cyan] (Local Network Peer-to-Peer) are not configured. Enable them now?"):
             cfg["p2p_enabled"] = True
-            cfg["p2p_share_keys"] = Confirm.ask("Do you want to enable sharing API keys across P2P?")
-            cfg["p2p_share_fs"] = Confirm.ask("Do you want to enable file system edits via P2P?")
-            cfg["p2p_share_tokens"] = Confirm.ask("Do you want to enable sharing login tokens across P2P?")
+            cfg["p2p_share_keys"] = confirm("Do you want to enable sharing API keys across P2P?", sensitive=True)
+            cfg["p2p_share_fs"] = confirm("Do you want to enable file system edits via P2P?", sensitive=True)
+            cfg["p2p_share_tokens"] = confirm("Do you want to enable sharing login tokens across P2P?", sensitive=True)
             save_config(cfg)
             console.print("[green]✅ P2P Features enabled.[/green]")
         else:

@@ -60,7 +60,8 @@ def run_hardware_check_on_startup():
     
     if tier == "low" and cfg.get("provider") == "ollama":
         from rich.prompt import Confirm
-        if Confirm.ask("Your machine might struggle with local LLMs. Switch to cloud-first mode (Gemini/OpenAI)?"):
+        from core.approvals import confirm
+        if confirm("Your machine might struggle with local LLMs. Switch to cloud-first mode (Gemini/OpenAI)?"):
             cfg["provider"] = "gemini"
             save_config(cfg)
             console.print("[green]✓ Switched to Gemini as primary provider.[/green]")

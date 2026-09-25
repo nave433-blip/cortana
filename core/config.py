@@ -12,11 +12,12 @@ from typing import Callable
 from pathlib import Path
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
+from core.approvals import confirm
 
 console = Console()
 
 def _resolve_config_dir():
-    """Return the config dir, migrating ``~/.cortana`` -> ``~/.cortana`` once.
+    """Return the config dir, migrating ``~/.jarvis`` -> ``~/.cortana`` once.
 
     The old directory is copied (never moved or deleted); a notice is printed
     to stderr so the user knows what happened.
@@ -26,7 +27,7 @@ def _resolve_config_dir():
     if not new.exists() and old.is_dir():
         try:
             shutil.copytree(old, new)
-            print("Migrated your Jarvis config (~/.cortana) to ~/.cortana. "
+            print("Migrated your Jarvis config (~/.jarvis) to ~/.cortana. "
                   "The old directory was left untouched.", file=sys.stderr)
         except Exception as e:
             print(f"Could not migrate ~/.jarvis to ~/.cortana ({e}); "
@@ -48,6 +49,7 @@ DEFAULT_CONFIG = {
     "gpt4all_host": "http://localhost:4891",
     "cortana_model": "llama3",
     "cortana_name": "Cortana",
+    "auto_approve": False,  # dev toggle: auto-answer routine confirmations (never on by default)
     "gemini_api_key": "",
     "anthropic_api_key": "",
     "xai_api_key": "",
@@ -146,7 +148,7 @@ def verify_and_fix_local_llm():
     return True
 
 def smart_input(label, default_val, auto_detect_func=None):
-    if Confirm.ask(f"Do you have the specific {label} details (e.g. URL or Key)?"):
+    if confirm(f"Do you have the specific {label} details (e.g. URL or Key)?"):
         return Prompt.ask(f"Enter {label}", default=default_val)
     if auto_detect_func:
         console.print(f"[dim]Attempting to auto-configure {label}...[/dim]")
@@ -173,7 +175,7 @@ def setup_wizard():
     console.print("[dim]Takes about a minute. API keys are validated, then stored in your "
                   "OS keyring — never in plain text.[/dim]\n")
 
-    if Confirm.ask("Use [bold green]Automation Mode[/bold green]? (Auto-detects everything)", default=True):
+    if confirm("Use [bold green]Automation Mode[/bold green]? (Auto-detects everything)", default=True):
         quick_setup()
         return
 
@@ -192,12 +194,12 @@ def setup_wizard():
         connect_provider_cli(config["provider"])
 
     console.print("\n[dim]Step 3 of 3 — finishing touches[/dim]")
-    if Confirm.ask("Configure external integrations (GitHub, Cloud Storage)?"):
+    if confirm("Configure external integrations (GitHub, Cloud Storage)?"):
         config["github_token"] = Prompt.ask("GitHub Personal Access Token", default=config.get("github_token", ""), password=True)
         config["dropbox_token"] = Prompt.ask("Dropbox API Token", default=config.get("dropbox_token", ""), password=True)
         config["gdrive_token"] = Prompt.ask("Google Drive API Token", default=config.get("gdrive_token", ""), password=True)
 
-    config["self_repair"] = Confirm.ask("Enable autonomous self-repair?", default=config.get("self_repair", True))
+    config["self_repair"] = confirm("Enable autonomous self-repair?", default=config.get("self_repair", True))
     save_config(config)
     console.print("\n[green]Configuration saved successfully.[/green]")
     _print_first_use()

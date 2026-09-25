@@ -16,7 +16,7 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-os.environ.setdefault("JARVIS_SKIP_STARTUP", "1")
+os.environ.setdefault("CORTANA_SKIP_STARTUP", "1")
 
 import keyring
 from keyring.backends import fail
@@ -44,8 +44,8 @@ def home(tmp_path, monkeypatch):
     # pathlib.Path.home() is resolved at call time; redirect it for the test.
     monkeypatch.setattr("pathlib.Path.home", classmethod(lambda cls: tmp_path))
     # core.config captured CONFIG_DIR/CONFIG_FILE at import time; re-point them.
-    monkeypatch.setattr(cfg_mod, "CONFIG_DIR", tmp_path / ".jarvis")
-    monkeypatch.setattr(cfg_mod, "CONFIG_FILE", tmp_path / ".jarvis" / "config.json")
+    monkeypatch.setattr(cfg_mod, "CONFIG_DIR", tmp_path / ".cortana")
+    monkeypatch.setattr(cfg_mod, "CONFIG_FILE", tmp_path / ".cortana" / "config.json")
     # reset the once-per-process fallback warning so each test can observe it
     connect._fallback_warned = False
     yield tmp_path

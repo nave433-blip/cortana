@@ -24,10 +24,11 @@ import keyring
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
+from core.approvals import confirm
 from rich.table import Table
 
 from core.auth import AuthManager
-from core.config import CONFIG_DIR, load_config, save_config
+from core.config import load_config, save_config
 from core.services import validate_provider_connection
 from core.ui import next_steps_panel
 
@@ -57,8 +58,9 @@ def _keyring_backend_ok() -> bool:
 
 
 def _fallback_keys_path() -> Path:
-    """Resolved at call time so tests can redirect $HOME."""
-    return CONFIG_DIR / "keys.json"
+    """Resolved at call time (via the config module) so tests can redirect it."""
+    import core.config as cfg_mod
+    return cfg_mod.CONFIG_DIR / "keys.json"
 
 
 _fallback_warned = False
@@ -355,14 +357,14 @@ def _setup_host_provider(name: str, info: Dict) -> None:
         detected = _detect_ollama()
         if detected:
             console.print(f"[green]✅ Ollama detected at {detected}[/green]")
-            if Confirm.ask(f"Use Ollama at {detected}?", default=True):
+            if confirm(f"Use Ollama at {detected}?", default=True):
                 _save_host(name, detected)
                 console.print(f"[green]✅ {display} connected.[/green]")
                 return
         # Not detected: offer auto-repair (opt-in; may launch the Ollama app)
         from core.services import repair_ollama
 
-        if Confirm.ask("Ollama not detected. Attempt auto-repair (may launch Ollama)?", default=False):
+        if confirm("Ollama not detected. Attempt auto-repair (may launch Ollama)?", default=False):
             report = repair_ollama(open_app_if_mac=True, prompt_for_host=False)
             if report.get("fixed"):
                 console.print(f"[green]✅ Ollama repaired at {report.get('host')}.[/green]")
@@ -381,7 +383,7 @@ def _setup_host_provider(name: str, info: Dict) -> None:
         console.print(f"[green]✅ {display} connected at {host}.[/green]")
     else:
         console.print(f"[red]Could not reach {display} at {host}: {result.get('error')}[/red]")
-        if Confirm.ask("Save the host anyway?", default=False):
+        if confirm("Save the host anyway?", default=False, sensitive=True):
             _save_host(name, host)
             console.print(f"[yellow]Saved {display} host (unverified).[/yellow]")
         else:
@@ -395,7 +397,7 @@ def _setup_key_provider(name: str, info: Dict) -> None:
 
     if url:
         console.print(f"Get your API key here: [link={url}]{url}[/link]")
-        if Confirm.ask(f"Open {display} key page in your browser?", default=False):
+        if confirm(f"Open {display} key page in your browser?", default=False):
             from core.utils import open_url
 
             open_url(url)
@@ -423,7 +425,7 @@ def _setup_key_provider(name: str, info: Dict) -> None:
 
         console.print(f"[red]❌ Validation failed: {result.get('error')}[/red]")
         console.print("[dim]The key was NOT saved.[/dim]")
-        if not Confirm.ask("Try again?", default=True):
+        if not confirm("Try again?", default=True):
             console.print("[yellow]Aborted.[/yellow]")
             return
 

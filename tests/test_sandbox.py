@@ -31,7 +31,7 @@ def test_fallback_runs_command_with_limits():
 def test_fresh_workdir_each_run_and_cleaned_up():
     r = run_sandboxed("pwd", backend="subprocess", keep_workdir=True)
     try:
-        assert "jarvis-sandbox-" in r.stdout
+        assert "cortana-sandbox-" in r.stdout
         assert os.path.isdir(r.workdir)
     finally:
         shutil.rmtree(r.workdir, ignore_errors=True)

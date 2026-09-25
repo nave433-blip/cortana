@@ -3,6 +3,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt, Confirm
+from core.approvals import confirm
 from core.config import load_config, save_config, setup_wizard
 
 console = Console()
@@ -144,7 +145,7 @@ def memory_menu():
             input("\nPress Enter to continue...")
         elif choice == "2":
             console.print("[dim italic]Don't make a girl a promise you can't keep.[/dim italic]")
-            if Confirm.ask("[bold red]DANGER: Are you sure you want to permanently erase all CORTANA memories?[/bold red]"):
+            if confirm("[bold red]DANGER: Are you sure you want to permanently erase all CORTANA memories?[/bold red]"):
                 console.print(f"[green]✅ {clear()}[/green]")
         else: break
 
@@ -293,7 +294,7 @@ def models_menu():
             from core.ui import ui_warning
             from core.connect import connect_provider_cli
             ui_warning(f"{provider.upper()} isn't connected yet — it won't answer until you link it.")
-            if Confirm.ask(f"Set up {provider.upper()} now?", default=True):
+            if confirm(f"Set up {provider.upper()} now?", default=True):
                 connect_provider_cli(provider)
 
 def prompts_menu():

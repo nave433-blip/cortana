@@ -24,6 +24,7 @@ import requests
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
+from core.approvals import confirm
 from rich.table import Table
 
 console = Console()
@@ -410,7 +411,7 @@ class OllamaManager:
         if dry_run:
             console.print("[dim]Dry run — nothing deleted. Re-run with --yes to delete.[/dim]")
             return [c["name"] for c in candidates]
-        if not auto_yes and not Confirm.ask(f"Delete these {len(candidates)} models?"):
+        if not auto_yes and not confirm(f"Delete these {len(candidates)} models?"):
             console.print("[yellow]Cancelled.[/yellow]")
             return []
         deleted = []

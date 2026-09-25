@@ -25,6 +25,7 @@ from typing import Dict, List, Optional
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
+from core.approvals import confirm
 from rich.table import Table
 
 from core.config import load_config, save_config
@@ -279,7 +280,8 @@ def cmd_call(server: str, tool: str, args_json: str = "",
         return
 
     # Untrusted-server guard: show the exact call, require confirmation
-    # unless the user passed --yes or allow-listed the tool.
+    # unless the user passed --yes, allow-listed the tool, or enabled the
+    # global auto-approve toggle (honored inside confirm()).
     allowed = (servers[server].get("allow") or []) if isinstance(servers.get(server), dict) else []
     console.print(Panel(
         f"[bold]server:[/bold] {server}\n"
@@ -288,7 +290,7 @@ def cmd_call(server: str, tool: str, args_json: str = "",
         title="[yellow]🔌 MCP tool call[/yellow]", border_style="yellow"))
     if not auto_yes and tool not in allowed:
         console.print("[dim]The server is untrusted code — confirm before it runs.[/dim]")
-        if not Confirm.ask("Execute this tool call?"):
+        if not confirm("Execute this tool call?"):
             console.print("[yellow]Cancelled.[/yellow]")
             return
 

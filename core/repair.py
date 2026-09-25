@@ -4,6 +4,7 @@ import os
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
+from core.approvals import confirm
 
 console = Console()
 
@@ -28,7 +29,7 @@ def self_repair_hook(exctype, value, tb):
     
     console.print(f"\n[bold yellow]Failing Component:[/bold yellow] {failing_file} (Line {line_no})")
     
-    should_repair = auto_repair_enabled or Confirm.ask("\nWould you like CORTANA to attempt an autonomous self-repair?")
+    should_repair = auto_repair_enabled or confirm("\nWould you like CORTANA to attempt an autonomous self-repair?")
     
     if should_repair:
         from core.brain import think
@@ -72,7 +73,7 @@ def self_repair_hook(exctype, value, tb):
         else:
             console.print("[red]Could not determine an automated fix.[/red]")
 
-    if not auto_repair_enabled and Confirm.ask("\nWould you like to report this error log to the GitHub repository?"):
+    if not auto_repair_enabled and confirm("\nWould you like to report this error log to the GitHub repository?"):
         from tools.github import github_tool
         from core.update import CURRENT_VERSION
         
@@ -124,7 +125,7 @@ def auto_check_on_launch():
     console.print("[bold yellow]Proposed repairs:[/bold yellow]")
     for name, cmd in planned:
         console.print(f"  • {name}: [dim]{cmd}[/dim]")
-    if Confirm.ask("Run these repair commands now?"):
+    if confirm("Run these repair commands now?"):
         auto_repair_workspace(health_results)
     else:
         console.print("[dim]Skipping repairs.[/dim]")

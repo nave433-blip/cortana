@@ -17,6 +17,7 @@ from typing import Any, Dict, List
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
+from core.approvals import confirm
 from rich.table import Table
 
 console = Console()
@@ -195,7 +196,7 @@ def handle_brief(args: str) -> None:
             "• Nothing leaves this machine. Ever.\n"
             "• Turn off anytime with `/brief off`.",
             border_style="cyan"))
-        if not Confirm.ask("Enable proactive briefs?"):
+        if not confirm("Enable proactive briefs?"):
             console.print("[yellow]Not enabled.[/yellow]")
             return
         s["enabled"] = True

@@ -34,6 +34,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
+from core.approvals import confirm
 from rich.table import Table
 
 console = Console()
@@ -194,12 +195,12 @@ def install_skill(zip_path: str, auto_yes: bool = False) -> Dict[str, Any]:
                                     border_style="yellow"))
         except Exception:
             pass
-    if not auto_yes and not Confirm.ask("Install this skill?"):
+    if not auto_yes and not confirm("Install this skill?"):
         console.print("[yellow]Cancelled.[/yellow]")
         return {"ok": False, "error": "cancelled"}
     dest = _skills_dir() / manifest["name"]
     if dest.exists():
-        if not auto_yes and not Confirm.ask(f"{dest} exists — overwrite?"):
+        if not auto_yes and not confirm(f"{dest} exists — overwrite?"):
             return {"ok": False, "error": "cancelled"}
         shutil.rmtree(dest)
     dest.mkdir(parents=True, exist_ok=True)
@@ -319,7 +320,7 @@ def handle_skill_offer(peer_ip: str, payload: Dict[str, Any]) -> Tuple[int, str,
         f"Quarantined at: {dest}\n",
         border_style="magenta"))
     print_pack_info(manifest, str(dest))
-    if Confirm.ask("Keep this skill pack for review? (it is NOT installed)"):
+    if confirm("Keep this skill pack for review? (it is NOT installed)"):
         body = json.dumps({"ok": True, "kept": str(dest),
                            "note": "quarantined — run /skill install to review & install"}).encode()
         return 200, "application/json", body
