@@ -42,7 +42,7 @@ from rich.prompt import Prompt, Confirm
 from core.brain import think, think_structured, get_provider
 from core.agent import debug_loop, troubleshoot_loop, forge_loop
 from core.config import setup_wizard, get_env_with_config, CONFIG_FILE, load_config, save_config
-from core.services import repair_ollama, set_api_key
+from core.services import repair_ollama
 from core.config import start_periodic_config_maintenance, auto_config_maintenance_once
 from core.logger import ErrorLogger
 from core.auth import AuthManager
@@ -97,7 +97,7 @@ COMMANDS = [
     "/cloud", "/network", "/ssh", "/server", "/troubleshoot", "/free", "/model", "/brain", "/doctor", "/box",
     "/examine-py", "/patch-py", "/ollama",
 
-    "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
+    "/git", "/nave", "/sync", "/upgrade", "/update", "/connect", "/connections", "/launch", "/plan", "/restart", "/reinstall", "/menu", "/exit",
     "/prompts", "/search", "/clear", "/health", "/google-login", "/google-sync", "/google-register",
     "/google-connect", "/webask", "/multibrain", "/scan-ollama", "/ollama-login", "/p2p-scan", "/p2p-status", "/p2p-edit", "/p2p-read", "/p2p-server", "/p2p-tokens", "/p2p-set-token", "/optimize", "/refine", "/stress-test"
 ]
@@ -186,7 +186,7 @@ def menu():
     grid.add_row(core_table, dev_table)
     console.print(grid)
 
-    footer = Panel("[bold white]Settings:[/bold white] /config | [bold white]Accounts:[/bold white] /connect | [bold yellow]RESTART[/bold yellow] | [bold red]REINSTALL[/bold red]", border_style="dim")
+    footer = Panel("[bold white]Settings:[/bold white] /config | [bold white]Accounts:[/bold white] /connect /connections | [bold yellow]RESTART[/bold yellow] | [bold red]REINSTALL[/bold red]", border_style="dim")
     console.print(footer)
     console.print("\n[dim]*Type any command or natural language request below.*[/dim]")
 
@@ -353,6 +353,7 @@ def interactive():
                     elif cmd == "/prompts": menus.prompts_menu()
                     elif cmd == "/cloud": menus.cloud_menu()
                     elif cmd == "/connect": menus.connect_menu()
+                    elif cmd == "/connections": connections()
                     elif cmd == "/google-login":
                         from core.google_auth import GoogleAuth
                         GoogleAuth.get_credentials()
@@ -997,30 +998,16 @@ def start_config_maintenance(interval_hours: int = 24):
 
 @app.command()
 def connect_provider(provider: str, host: Optional[str] = None, key: Optional[str] = None):
-    """Connect and configure a provider."""
-    provider = provider.lower()
-    from core.services import KNOWN_PROVIDERS
-    if provider not in KNOWN_PROVIDERS:
-        console.print(f"[red]Unknown provider '{provider}'. Supported: {', '.join(KNOWN_PROVIDERS)}[/red]")
-        return
-    if provider in ("nemotron", "qwen", "gpt4all", "llama_cpp", "vllm", "sglang", "ollama", "local"):
-        if not host: host = Prompt.ask(f"Enter host URL for {provider}", default="")
-        if host:
-            cfg = load_config(); cfg[f"{provider}_host"] = host; save_config(cfg)
-            console.print(f"[green]Saved {provider}_host = {host}[/green]")
-        else: console.print("[yellow]No host provided; aborting.[/yellow]")
-        return
-    if not key:
-        from core.utils import open_url
-        urls = {"gemini": "https://aistudio.google.com/app/apikey", "openai": "https://platform.openai.com/api-keys", "anthropic": "https://console.anthropic.com/settings/keys", "mistral": "https://console.mistral.ai/api-keys/", "qwen": "https://dashscope.console.aliyun.com/apiKey", "perplexity": "https://www.perplexity.ai/settings/api", "groq": "https://console.groq.com/keys", "together": "https://api.together.xyz/settings/api-keys", "cohere": "https://dashboard.cohere.com/api-keys", "deepseek": "https://platform.deepseek.com/api_keys"}
-        if provider in urls:
-            console.print(f"[bold cyan]Opening login page for {provider}...[/bold cyan]")
-            open_url(urls[provider])
-        key = Prompt.ask(f"Enter API key for {provider}", default="", password=True)
-    if key:
-        set_api_key(provider, key)
-        console.print(f"[green]Saved API key for {provider} securely.[/green]")
-    else: console.print("[yellow]No key entered; aborting.[/yellow]")
+    """Connect and configure a provider (delegates to the easy-connect module)."""
+    from core.connect import connect_provider_cli
+    connect_provider_cli(provider, host=host, key=key)
+
+@app.command()
+def connections(test: bool = typer.Option(False, "--test", help="Probe reachability of each configured provider")):
+    """Show a connection-status table for all AI providers. Keys are never printed."""
+    from core.connect import connection_status, render_status_table
+    rows = connection_status(test=test)
+    console.print(render_status_table(rows))
 
 @app.command()
 def webask(query: str, provider: Optional[str] = None):

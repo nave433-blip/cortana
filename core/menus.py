@@ -379,61 +379,9 @@ def ssh_command(args):
     console.print(Panel(str(res), title=f"Remote Execution Result: {host}", border_style="cyan"))
 
 def connect_menu():
-    """Streamlined interface to link AI accounts and save API keys."""
-    from core.services import set_api_key
-    console.print(Panel("🌐 [bold cyan]Account Connection Center[/bold cyan]", border_style="cyan"))
-    console.print("Select a provider to get your key and save it to JARVIS:")
-    console.print("\n[1] Gemini     | [2] OpenAI      | [3] Anthropic   | [4] Groq")
-    console.print("[5] Together   | [6] Mistral     | [7] DeepSeek    | [8] Perplexity")
-    console.print("[9] Cohere     | [0] Qwen        | [o] Ollama      | [b] Back")
-    console.print("[v] vLLM       | [y] SGLang      | [g] GPT4All     | [l] llama.cpp")
-    
-    choice = Prompt.ask("Choice", choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "o", "v", "y", "g", "l", "b"], default="b")
-    
-    mapping = {
-        "1": {"name": "gemini", "display": "Google Gemini", "url": "https://aistudio.google.com/app/apikey"},
-        "2": {"name": "openai", "display": "OpenAI", "url": "https://platform.openai.com/api-keys"},
-        "3": {"name": "anthropic", "display": "Anthropic", "url": "https://console.anthropic.com/settings/keys"},
-        "4": {"name": "groq", "display": "Groq", "url": "https://console.groq.com/keys"},
-        "5": {"name": "together", "display": "Together.ai", "url": "https://api.together.xyz/settings/api-keys"},
-        "6": {"name": "mistral", "display": "Mistral AI", "url": "https://console.mistral.ai/api-keys/"},
-        "7": {"name": "deepseek", "display": "DeepSeek", "url": "https://platform.deepseek.com/api_keys"},
-        "8": {"name": "perplexity", "display": "Perplexity", "url": "https://www.perplexity.ai/settings/api"},
-        "9": {"name": "cohere", "display": "Cohere", "url": "https://dashboard.cohere.com/api-keys"},
-        "0": {"name": "qwen", "display": "Alibaba Qwen", "url": "https://dashscope.console.aliyun.com/apiKey"},
-        "o": {"name": "ollama", "display": "Ollama", "host_only": True},
-        "v": {"name": "vllm", "display": "vLLM", "host_only": True},
-        "y": {"name": "sglang", "display": "SGLang", "host_only": True},
-        "g": {"name": "gpt4all", "display": "GPT4All", "host_only": True},
-        "l": {"name": "llama_cpp", "display": "llama.cpp", "host_only": True},
-    }
-
-    if choice in mapping:
-        info = mapping[choice]
-        
-        if info.get("host_only"):
-            host = Prompt.ask(f"Enter host URL for {info['display']} (e.g. http://localhost:8000)")
-            if host:
-                config = load_config()
-                config[f"{info['name']}_host"] = host
-                save_config(config)
-                console.print(f"[green]✅ {info['display']} host saved successfully![/green]")
-            return
-
-        from core.utils import open_url
-        console.print(f"\n[bold]1. Opening login page for {info['display']}:[/bold] {info['url']}")
-        open_url(info['url'])
-            
-        if Confirm.ask(f"Do you want to save your {info['display']} key now?"):
-            key_val = Prompt.ask(f"Paste your {info['display']} key", password=True)
-            if key_val:
-                res = set_api_key(info['name'], key_val)
-                if res.get("ok"):
-                    console.print(f"[green]✅ {info['display']} key saved securely to keychain![/green]")
-                else:
-                    console.print(f"[red]❌ Failed to save {info['display']} key.[/red]")
-            else:
-                console.print("[yellow]Aborted: No key entered.[/yellow]")
+    """Account Connection Center — delegates to the easy-connect wizard."""
+    from core.connect import run_connect_wizard
+    run_connect_wizard()
 
 def robust_help():
     """Universal Command Reference & Technical Documentation."""
