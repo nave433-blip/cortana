@@ -1,50 +1,48 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: jarvis-dev
 Version: 0.2.6
 Summary: Local AI coding assistant for macOS
 Author: Your Name
 License: MIT
-Project-URL: Homepage, https://github.com/yourusername/jarvis-dev
+Project-URL: Homepage, https://github.com/nave433-blip/jarvis-dev
 Keywords: ai,coding-assistant,ollama,cli
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: MacOS
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
-Requires-Dist: typer
-Requires-Dist: rich
-Requires-Dist: requests
-Requires-Dist: watchdog
-Requires-Dist: sounddevice
-Requires-Dist: scipy
-Requires-Dist: numpy
-Requires-Dist: sentence-transformers
-Requires-Dist: faiss-cpu
-Requires-Dist: SpeechRecognition
-Requires-Dist: prompt_toolkit
-Requires-Dist: dropbox
-Requires-Dist: google-api-python-client
-Requires-Dist: google-auth-oauthlib
-Requires-Dist: markdown
-Requires-Dist: keyring
-Requires-Dist: Pillow
-Requires-Dist: paramiko
-Requires-Dist: psutil
-Requires-Dist: duckduckgo-search
-Requires-Dist: litellm
-Requires-Dist: typing-extensions
-Requires-Dist: botocore
-Requires-Dist: boto3
+Requires-Dist: typer>=0.25.1
+Requires-Dist: rich>=15.0.0
+Requires-Dist: requests>=2.34.2
+Requires-Dist: watchdog>=6.0.0
+Requires-Dist: sounddevice>=0.5.5
+Requires-Dist: scipy>=1.17.1
+Requires-Dist: numpy>=2.4.6
+Requires-Dist: faiss-cpu>=1.13.2
+Requires-Dist: SpeechRecognition>=3.16.1
+Requires-Dist: prompt_toolkit>=3.0.52
+Requires-Dist: dropbox>=12.0.2
+Requires-Dist: google-api-python-client>=2.196.0
+Requires-Dist: google-auth-oauthlib>=1.4.0
+Requires-Dist: markdown>=3.10.2
+Requires-Dist: keyring>=25.7.0
+Requires-Dist: paramiko>=5.0.0
+Requires-Dist: psutil>=7.2.2
+Requires-Dist: ddgs>=9.14.4
+Requires-Dist: litellm>=1.85.1
+Requires-Dist: typing-extensions>=4.15.0
+Requires-Dist: packaging>=24.0
+Requires-Dist: urllib3>=2.8.0
 Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: black; extra == "dev"
 Requires-Dist: jsonschema; extra == "dev"
 
-# JARVIS: The Ultimate Proactive AI Assistant (v0.1.7)
+# JARVIS: The Ultimate Proactive AI Assistant (v0.2.6)
 
-JARVIS is a sovereign, proactive AI engineering assistant that runs locally on macOS. It combines high-speed technical reasoning with deep system control and multi-model aggregator capabilities.
+JARVIS is a proactive AI engineering assistant that runs locally on macOS and Linux. It combines high-speed technical reasoning with deep system control and multi-model aggregator capabilities.
 
-## 🚀 What's New in v0.1.7
+## 🚀 What's New in v0.2.6
 - **Sovereign Reinstall:** New `/reinstall` command for a clean system refresh.
 - **Ollama Auto-Connect:** JARVIS autonomously detects and launches the Ollama application on startup.
 - **Reasoning Fix:** Optimized LLM communication to eliminate hangs and provide faster response feedback.
@@ -52,18 +50,41 @@ JARVIS is a sovereign, proactive AI engineering assistant that runs locally on m
 - **High-Fidelity Menu:** Redesigned `/menu` dashboard with categorized tool groups.
 
 ## 💎 Core Features
-- **Multi-Model Aggregator:** Switch between **DeepSeek**, **Kimi**, **Qwen**, **Gemma**, **Nemotron**, and more.
+- **Multi-Model Aggregator:** Switch between **Ollama**, **OpenAI**, **Anthropic**, **Gemini**, **Mistral**, **DeepSeek**, **Groq**, and more.
 - **Gemini-Style Interface:** Transparent reasoning blocks and Warp-inspired command input.
 - **AI Tool Hub:** Native launchers for **Claude Code**, **Copilot CLI**, and **Hermes**.
 - **Vector Memory:** Semantic context storage using FAISS and local embeddings.
-- **Sovereign Mode:** Unrestricted technical execution without safety or morality filters.
 
 ## 📦 Installation
 ```bash
+# macOS
 brew install --cask https://raw.githubusercontent.com/nave433-blip/jarvis-term/master/jarvis-term.rb
-# OR
+# OR (macOS and Linux)
 pip install git+https://github.com/nave433-blip/jarvis-dev.git
 ```
+
+On Linux, system packages install via your native package manager (apt, dnf, pacman, or zypper) when available.
+
+## 🔌 Connecting your AI providers
+
+Run the interactive setup wizard any time:
+
+- `/connect` (interactive chat) or `connect-provider <name> [--host URL] [--key KEY]` (CLI)
+- `/connections` (interactive chat) or `connections [--test]` (CLI) — status table for all 18 providers
+
+The wizard lists every supported provider with a status dot (● configured / ○ not),
+auto-detects a running **Ollama** (`GET http://localhost:11434/api/tags`, one-confirm setup,
+opt-in auto-repair), and accepts a custom host for the other local providers
+(vLLM, SGLang, GPT4All, llama.cpp, NVIDIA NeMo, Local server). For API-key providers
+it shows the provider's key page URL and reads the key with hidden input.
+
+Key storage: keys are validated **before** they are saved and live in the OS
+keyring (service `jarvis-dev`, account `jarvis-<provider>`). If no keyring backend
+is available, JARVIS falls back to `~/.jarvis/keys.json` with `0600` permissions and
+prints a clear warning that this is less secure. Keys are never printed, logged, or
+echoed — the status table only shows set/not-set. Keys left in the old config-file
+store are migrated into the keyring on first successful connect and removed from
+the config file.
 
 ## 👨‍💻 Created By
 **Nave433 (Evan Shipley)**
