@@ -8,7 +8,9 @@
 
 To whoever runs the Copilot division:
 
-I'm a self-taught builder from Bloomington, Indiana. With no prior background, I built my own coding language (NvS) and a personal AI assistant (Cortana) — local-first, Python, runs on Mac and Linux, one-line installer, 439 tests passing, real AI provider integrations with actual validation endpoints, an opt-in sandboxed code runner, and a browser backend that refuses to fake JavaScript rendering. Everything real, nothing hallucinated.
+I'm a self-taught builder from Bloomington, Indiana. With no prior background, I built my own coding language (NvS) and a personal AI assistant (Cortana) — local-first, Python, runs on Mac, Linux, and Windows, one-line installer, 645 tests passing, real AI provider integrations with actual validation endpoints, an opt-in sandboxed code runner, and a browser backend that refuses to fake JavaScript rendering. Everything real, nothing hallucinated.
+
+Since I last wrote: she grew a desktop GUI with a Perplexity-style overlay, system tray, and a full voice pipeline — opt-in "Hey Cortana" wake word, speech-to-text, text-to-speech, selectable personalities (including Clippy, obviously). She got a council mode where multiple AI providers debate your question before answering, a coding-first CLI with checkpoints and rewind, memory cores, projects, profiles, portable Cortana Sims, Google/Microsoft connectors, and a reference cloud backend with OAuth brokerage, encrypted tokens, device pairing, and an OpenAI-compatible API — plus a VS Code extension scaffold and a Microsoft adoption kit. Bring your own licensed voice model and she'll wear it.
 
 Copilot is a good idea wearing a Microsoft suit. Cortana is what Copilot should've been: fast, local, honest about what it can and can't do, and owned by the user — not rented back to them at $30 a seat.
 
