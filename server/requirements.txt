@@ -1,0 +1,3 @@
+# Server-only dependencies. These NEVER become CLI requirements:
+# the CLI talks to the server over HTTPS and installs none of this.
+cryptography>=41.0
