@@ -108,10 +108,14 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
             for model in required_models:
                 if model not in "".join(models).lower():
                     console.print(f"[yellow]⚠️ Required model '{model}' missing.[/yellow]")
-                    svc.install_ollama_model(model)
+                    if auto:
+                        console.print("[dim]Skipping model download in non-interactive mode.[/dim]")
+                    elif Confirm.ask(f"Download Ollama model '{model}' now?"):
+                        svc.install_ollama_model(model)
         
-        # 3. Proactive Cloud Authentication Check
-        if not cfg.get("ollama_token"):
+        # 3. Proactive Cloud Authentication Check (interactive only; the login
+        # itself still prompts for the token, so no credentials move silently)
+        if not cfg.get("ollama_token") and not auto:
             console.print("[yellow]⚠️ Ollama Cloud not configured. Initiating login...[/yellow]")
             from cli import ollama_login
             ollama_login()
@@ -119,13 +123,37 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
     except Exception as e:
         console.print(f"[dim]Auto-detect models failed: {e}[/dim]")
 
-    # 4. Proactive Agent Ecosystem Setup
+    # 4. Proactive Agent Ecosystem Setup — detection only. Installs are
+    # strictly opt-in (per-item prompt with "never ask again" persistence);
+    # nothing is ever installed automatically, and non-interactive mode
+    # skips installs entirely.
     try:
         console.print("[dim]Checking AI Agent ecosystem...[/dim]")
-        from core.agent_manager import check_and_install_agents
-        check_and_install_agents()
+        from core.agent_manager import check_agents, prompt_and_install_agents
+        statuses = check_agents()
+        missing = [s for s in statuses if not s["installed"]]
+        if not missing:
+            console.print("[dim][green]✓ All registered agent CLIs detected.[/green][/dim]")
+        elif auto:
+            console.print(
+                "[dim]Skipping agent installs in non-interactive mode. Missing: "
+                + ", ".join(s["name"] for s in missing)
+                + "[/dim]"
+            )
+        else:
+            report = prompt_and_install_agents(
+                statuses, config=cfg, save_config_fn=save_config
+            )
+            if report["installed"]:
+                console.print(
+                    f"[green]✅ Installed: {', '.join(report['installed'])}[/green]"
+                )
+            if report["failed"]:
+                console.print(
+                    f"[red]❌ Failed: {', '.join(report['failed'])}[/red]"
+                )
     except Exception as e:
-        console.print(f"[dim]Auto-detect agents failed: {e}[/dim]")
+        console.print(f"[dim]Agent ecosystem check failed: {e}[/dim]")
 
     # 3. Check Cloud Ollama
     if not cfg.get("ollama_token"):
