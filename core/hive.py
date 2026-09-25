@@ -27,7 +27,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -203,7 +203,29 @@ def local_capabilities() -> Dict:
         "providers": sorted(providers),
         "models": sorted(set(models)),
         "features": list(P2P_FEATURES.get(CURRENT_VERSION, P2P_FEATURES.get("0.2.6", []))),
+        # Local services — separate from the action feature map so this never
+        # affects is_p2p_compatible() action gating. Names/states only.
+        "local_services": _local_services(),
     }
+
+
+def _local_services() -> Dict[str, Any]:
+    """Honest advertisement of optional local services (scheduler/dashboard)."""
+    services: Dict[str, Any] = {}
+    try:
+        from core.scheduler import scheduler_status
+        st = scheduler_status()
+        services["scheduler"] = {
+            "available": True,
+            "running": bool(st.get("running")),
+            "jobs": int(st.get("jobs", 0)),
+        }
+    except Exception as e:
+        services["scheduler"] = {"available": False, "error": str(e)}
+    # The dashboard is stdlib-only (http.server) — always available,
+    # loopback-bound by default. It is not running until /dashboard starts it.
+    services["dashboard"] = {"available": True, "default_bind": "loopback"}
+    return services
 
 
 def cache_lookup_peers(question: str, use_tls=None,

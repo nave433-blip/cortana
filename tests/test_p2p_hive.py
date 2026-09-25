@@ -116,8 +116,9 @@ def test_status_advertises_capabilities_without_keys(isolated_config,
     data = r.json()
     caps = data.get("capabilities")
     assert isinstance(caps, dict)
-    assert set(caps.keys()) == {"providers", "models", "features"}
+    assert set(caps.keys()) == {"providers", "models", "features", "local_services"}
     assert "hive_cache_get" in caps["features"]
+    assert set(caps["local_services"]) == {"scheduler", "dashboard"}
     blob = json.dumps(data).lower()
     for needle in ("sk-", "api_key", "secret"):
         assert needle not in blob

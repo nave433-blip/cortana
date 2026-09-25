@@ -177,7 +177,22 @@ def test_local_capabilities_never_carry_key_material(isolated, monkeypatch):
     assert "sk-" not in blob
     for needle in ("api_key", "apikey", "secret", "bearer", "private_key"):
         assert needle not in blob, f"key-like material leaked: {needle}"
-    assert set(caps.keys()) == {"providers", "models", "features"}
+    assert set(caps.keys()) == {"providers", "models", "features", "local_services"}
     # Every advertised value must be a known identifier, not a secret value.
     from core.connect import AuthManager
     assert all(p in AuthManager.PROVIDERS for p in caps["providers"])
+
+
+def test_local_services_advertised_honestly(isolated):
+    caps = hive.local_capabilities()
+    services = caps["local_services"]
+    assert set(services) == {"scheduler", "dashboard"}
+    sched = services["scheduler"]
+    assert sched["available"] is True
+    assert isinstance(sched["running"], bool)
+    assert isinstance(sched["jobs"], int)
+    assert services["dashboard"] == {"available": True, "default_bind": "loopback"}
+    # local_services must not affect P2P action gating.
+    from core.p2p import is_p2p_compatible, CURRENT_VERSION
+    assert not is_p2p_compatible(CURRENT_VERSION, "scheduler")
+    assert not is_p2p_compatible(CURRENT_VERSION, "dashboard")
