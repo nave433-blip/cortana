@@ -120,8 +120,8 @@ class GoogleAuth:
         
         # Comprehensive list of Google-login compatible AI services
         target_services = {
-            "openai": {"url": "https://platform.openai.com/signup", "display": "OpenAI"},
-            "anthropic": {"url": "https://console.anthropic.com/login", "display": "Anthropic"},
+            "openai": {"url": "https://platform.openai.com/api-keys", "display": "OpenAI"},
+            "anthropic": {"url": "https://console.anthropic.com/settings/keys", "display": "Anthropic"},
             "perplexity": {"url": "https://www.perplexity.ai/settings/api", "display": "Perplexity"},
             "gemini": {"url": "https://aistudio.google.com/app/apikey", "display": "Google Gemini"},
             "mistral": {"url": "https://console.mistral.ai/api-keys/", "display": "Mistral AI"},
@@ -129,11 +129,6 @@ class GoogleAuth:
             "deepseek": {"url": "https://platform.deepseek.com/api_keys", "display": "DeepSeek"},
             "qwen": {"url": "https://dashscope.console.aliyun.com/apiKey", "display": "Alibaba Qwen"},
             "together": {"url": "https://api.together.xyz/settings/api-keys", "display": "Together AI"},
-            "replicate": {"url": "https://replicate.com/account/api-tokens", "display": "Replicate (FLUX/SD)"},
-            "midjourney": {"url": "https://www.midjourney.com/account/", "display": "Midjourney"},
-            "stability": {"url": "https://key.stability.ai/", "display": "Stability AI"},
-            "openrouter": {"url": "https://openrouter.ai/keys", "display": "OpenRouter"},
-            "replit": {"url": "https://replit.com/teams/join", "display": "Replit Agent"},
         }
 
         for name, info in target_services.items():

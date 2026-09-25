@@ -383,14 +383,12 @@ def connect_menu():
     from core.services import set_api_key
     console.print(Panel("🌐 [bold cyan]Account Connection Center[/bold cyan]", border_style="cyan"))
     console.print("Select a provider to get your key and save it to JARVIS:")
-    console.print("\n[1] Gemini     | [2] OpenAI      | [3] Anthropic   | [4] Groq (Fast Free)")
+    console.print("\n[1] Gemini     | [2] OpenAI      | [3] Anthropic   | [4] Groq")
     console.print("[5] Together   | [6] Mistral     | [7] DeepSeek    | [8] Perplexity")
-    console.print("[9] NVIDIA     | [0] Qwen        | [k] Kimi        | [g] Grok (xAI)")
-    console.print("[r] Granite    | [s] Stability   | [u] Upstage     | [c] Cohere")
-    console.print("[v] vLLM       | [y] SGLang      | [f] Liquid      | [e] Essential")
-    console.print("[l] Laguna XS  | [p] Replit      | [b] Back")
+    console.print("[9] Cohere     | [0] Qwen        | [o] Ollama      | [b] Back")
+    console.print("[v] vLLM       | [y] SGLang      | [g] GPT4All     | [l] llama.cpp")
     
-    choice = Prompt.ask("Choice", choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "k", "g", "r", "s", "u", "c", "v", "y", "f", "e", "l", "p", "b"], default="b")
+    choice = Prompt.ask("Choice", choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "o", "v", "y", "g", "l", "b"], default="b")
     
     mapping = {
         "1": {"name": "gemini", "display": "Google Gemini", "url": "https://aistudio.google.com/app/apikey"},
@@ -401,22 +399,15 @@ def connect_menu():
         "6": {"name": "mistral", "display": "Mistral AI", "url": "https://console.mistral.ai/api-keys/"},
         "7": {"name": "deepseek", "display": "DeepSeek", "url": "https://platform.deepseek.com/api_keys"},
         "8": {"name": "perplexity", "display": "Perplexity", "url": "https://www.perplexity.ai/settings/api"},
-        "9": {"name": "nvidia", "display": "NVIDIA NIM", "url": "https://build.nvidia.com/"},
+        "9": {"name": "cohere", "display": "Cohere", "url": "https://dashboard.cohere.com/api-keys"},
         "0": {"name": "qwen", "display": "Alibaba Qwen", "url": "https://dashscope.console.aliyun.com/apiKey"},
-        "k": {"name": "kimi", "display": "Moonshot Kimi", "url": "https://platform.moonshot.cn/console/api-keys"},
-        "g": {"name": "grok", "display": "xAI Grok", "url": "https://console.x.ai/"},
-        "r": {"name": "granite", "display": "IBM Granite", "url": "https://cloud.ibm.com/watsonx"},
-        "s": {"name": "stability", "display": "Stability AI", "url": "https://key.stability.ai/"},
-        "u": {"name": "upstage", "display": "Upstage Solar", "url": "https://console.upstage.ai/"},
-        "c": {"name": "cohere", "display": "Cohere", "url": "https://dashboard.cohere.com/api-keys"},
+        "o": {"name": "ollama", "display": "Ollama", "host_only": True},
         "v": {"name": "vllm", "display": "vLLM", "host_only": True},
         "y": {"name": "sglang", "display": "SGLang", "host_only": True},
-        "f": {"name": "lfm", "display": "Liquid AI", "host_only": True},
-        "e": {"name": "essential", "display": "Essential AI", "url": "https://essential.ai/"},
-        "l": {"name": "laguna", "display": "Laguna XS.2", "host_only": True},
-        "p": {"name": "replit", "display": "Replit API", "url": "https://replit.com/teams/join"}
+        "g": {"name": "gpt4all", "display": "GPT4All", "host_only": True},
+        "l": {"name": "llama_cpp", "display": "llama.cpp", "host_only": True},
     }
-    
+
     if choice in mapping:
         info = mapping[choice]
         

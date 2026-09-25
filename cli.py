@@ -365,7 +365,8 @@ def interactive():
                     elif cmd == "/model": models_command()
                     elif cmd == "/brain": menus.models_menu()
                     elif cmd == "/launch":
-                        t = args or Prompt.ask("AI tool", choices=["claude-desktop", "replit-agent", "claude", "aider", "agent-zero", "gumloop", "space-agent", "crew-ai", "auto-gen", "hermes", "opencode", "codex", "copilot", "droid", "pi"])
+                        from tools.launcher import TOOL_REGISTRY
+                        t = args or Prompt.ask("AI tool", choices=list(TOOL_REGISTRY.keys()))
                         launch(tool=t)
                     elif cmd == "/focus": focus(args or Prompt.ask("Path"))
                     elif cmd in ["/troubleshoot", "/t"]: troubleshoot(args or Prompt.ask("Command"), prompt=prompt_name)

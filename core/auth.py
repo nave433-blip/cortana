@@ -12,44 +12,27 @@ console = Console()
 class AuthManager:
     """Manages the startup login sequence and account linking for JARVIS."""
 
+    # Providers with real support in core.services (validation and/or key
+    # handling). Fabricated entries were removed.
     PROVIDERS = {
         "openai": {"display": "OpenAI", "url": "https://platform.openai.com/api-keys"},
         "gemini": {"display": "Google Gemini", "url": "https://aistudio.google.com/app/apikey"},
         "anthropic": {"display": "Anthropic", "url": "https://console.anthropic.com/settings/keys"},
-        "gemma": {"display": "Gemma 4", "url": "https://aistudio.google.com/app/apikey"},
         "cohere": {"display": "Cohere", "url": "https://dashboard.cohere.com/api-keys"},
         "mistral": {"display": "Mistral AI", "url": "https://console.mistral.ai/api-keys/"},
-        "nvidia": {"display": "NVIDIA NIM", "url": "https://build.nvidia.com/"},
-        "glm": {"display": "Z.ai GLM", "url": "https://open.bigmodel.cn/usercenter/apikeys"},
-        "github": {"display": "GitHub", "url": "https://github.com/settings/tokens"},
         "deepseek": {"display": "DeepSeek", "url": "https://platform.deepseek.com/api_keys"},
-        "qwen": {"display": "Alibaba Qwen", "url": "https://dashscope.console.aliyun.com/apiKey"},
-        "kimi": {"display": "Moonshot Kimi", "url": "https://platform.moonshot.cn/console/api-keys"},
-        "perplexity": {"display": "Perplexity", "url": "https://www.perplexity.ai/settings/api"},
-        "granite": {"display": "IBM Granite", "url": "https://cloud.ibm.com/watsonx"},
-        "stability": {"display": "Stability AI", "url": "https://key.stability.ai/"},
-        "upstage": {"display": "Upstage Solar", "url": "https://console.upstage.ai/"},
         "groq": {"display": "Groq", "url": "https://console.groq.com/keys"},
-        "gumloop": {"display": "Gumloop", "url": "https://www.gumloop.com/account"},
-        "wolfram": {"display": "Wolfram Alpha", "url": "https://developer.wolframalpha.com/"},
-        "polly": {"display": "Amazon Polly", "url": "https://console.aws.amazon.com/polly/"},
-        "heygen": {"display": "HeyGen", "url": "https://app.heygen.com/settings?nav=API"},
-        "veo": {"display": "Google VEO", "url": "https://aistudio.google.com/"},
-        "mindsdb": {"display": "MindsDB", "url": "https://cloud.mindsdb.com/"},
-        "midjourney": {"display": "Midjourney", "url": "https://www.midjourney.com/account/"},
-        "flux": {"display": "FLUX AI", "url": "https://replicate.com/black-forest-labs"},
-        "sora": {"display": "OpenAI Sora", "url": "https://platform.openai.com/"},
-        "kling": {"display": "Kling AI", "url": "https://klingai.com/"},
-        "whisper": {"display": "OpenAI Whisper", "url": "https://platform.openai.com/"},
+        "together": {"display": "Together AI", "url": "https://api.together.xyz/settings/api-keys"},
+        "perplexity": {"display": "Perplexity", "url": "https://www.perplexity.ai/settings/api"},
+        "qwen": {"display": "Alibaba Qwen", "url": "https://dashscope.console.aliyun.com/apiKey"},
+        "github": {"display": "GitHub", "url": "https://github.com/settings/tokens"},
+        "ollama": {"display": "Ollama", "host_only": True},
         "vllm": {"display": "vLLM", "host_only": True},
         "sglang": {"display": "SGLang", "host_only": True},
-        "lfm": {"display": "Liquid AI", "host_only": True},
-        "essential": {"display": "Essential AI", "url": "https://essential.ai/"},
-        "xiaomi": {"display": "Xiaomi MiMo", "url": "https://ai.mi.com/"},
-        "tencent": {"display": "Tencent Hy3", "url": "https://cloud.tencent.com/product/hunyuan"},
-        "kwaipilot": {"display": "Kwaipilot", "url": "https://kwaipilot.com/"},
-        "replit": {"display": "Replit", "url": "https://replit.com/teams/join"},
-        "laguna": {"display": "Laguna XS.2", "host_only": True}
+        "gpt4all": {"display": "GPT4All", "host_only": True},
+        "llama_cpp": {"display": "llama.cpp", "host_only": True},
+        "nemotron": {"display": "NVIDIA NeMo", "host_only": True},
+        "local": {"display": "Local server", "host_only": True},
     }
 
     @staticmethod
