@@ -63,6 +63,32 @@ class CommandHandler:
             return close[0], tokens[1:]
         return None, None
 
+    def suggest(self, text: str, n: int = 3, cutoff: float = 0.55) -> List[str]:
+        """Closest registered commands for a mistyped slash command.
+
+        Pure difflib — no LLM call. Returns up to n command names the user
+        can actually type.
+        """
+        candidate = text.strip().split()[0] if text.strip() else ""
+        if not candidate.startswith("/"):
+            candidate = "/" + candidate
+        keys = list(self._registry.keys())
+        close = difflib.get_close_matches(candidate, keys, n=n * 2, cutoff=cutoff)
+        seen: set = set()
+        out: List[str] = []
+        for k in close:
+            if k not in seen:
+                seen.add(k)
+                out.append(k)
+            if len(out) >= n:
+                break
+        return out
+
+    def resolve(self, text: str):
+        """Public wrapper around _match_known: returns (command, args) or
+        (None, None). Pure local matching — no LLM call."""
+        return self._match_known(self._tokenize(text))
+
     def _call_llm_parse(self, text: str) -> Dict[str, Any]:
         """
         Deterministic intent parser using strict JSON schema, few-shot examples, and UI hints.

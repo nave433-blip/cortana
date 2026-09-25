@@ -29,6 +29,7 @@ from rich.table import Table
 from core.auth import AuthManager
 from core.config import load_config, save_config
 from core.services import validate_provider_connection
+from core.ui import next_steps_panel
 
 console = Console()
 
@@ -203,6 +204,16 @@ def _env_var_for(provider: str) -> Optional[str]:
     return var if var and os.getenv(var) else None
 
 
+def is_configured(provider: str) -> bool:
+    """Single definition of 'connected' used by status tables, the models
+    menu, and post-switch warnings. Never exposes key material."""
+    provider = provider.lower()
+    info = AuthManager.PROVIDERS.get(provider, {})
+    if info.get("host_only"):
+        return bool(get_provider_host(provider))
+    return get_key_secure(provider) is not None or _env_var_for(provider) is not None
+
+
 def connection_status(test: bool = False) -> List[Dict]:
     """Provider connection overview.
 
@@ -213,11 +224,7 @@ def connection_status(test: bool = False) -> List[Dict]:
     rows: List[Dict] = []
     for name, info in AuthManager.PROVIDERS.items():
         display = info.get("display", name)
-        host_only = bool(info.get("host_only"))
-        if host_only:
-            configured = bool(get_provider_host(name))
-        else:
-            configured = get_key_secure(name) is not None or _env_var_for(name) is not None
+        configured = is_configured(name)
 
         reachable: Optional[bool] = None
         needs_attention = False
@@ -243,6 +250,34 @@ def connection_status(test: bool = False) -> List[Dict]:
             }
         )
     return rows
+
+
+def render_next_steps(rows: List[Dict]) -> Optional[Panel]:
+    """Actionable advice for every provider needing attention.
+
+    Each line answers: what's wrong and the one command that fixes it.
+    Returns None when everything is fine.
+    """
+    from core.ui import next_steps_panel
+
+    attention = [r for r in rows if r.get("needs_attention")]
+    if not attention:
+        return None
+    steps = []
+    for r in attention:
+        name = r["provider"]
+        display = r.get("display", name)
+        reason = r.get("reason", "")
+        if r.get("configured") and r.get("reachable") is False:
+            steps.append(
+                f"{display}: key/host saved but unreachable ({reason}). "
+                f"Run `/connect`, pick {display}, and re-enter the key or host."
+            )
+        else:
+            steps.append(
+                f"{display}: {reason}. Run `/connect` and choose {display} to set it up."
+            )
+    return next_steps_panel(steps, title="Needs attention")
 
 
 def render_status_table(rows: List[Dict]) -> Table:
@@ -382,7 +417,11 @@ def _setup_key_provider(name: str, info: Dict) -> None:
 
 def run_connect_wizard() -> None:
     """Interactive provider setup: numbered list with status dots, per-provider flow."""
-    console.print(Panel("🌐 [bold cyan]Account Connection Center[/bold cyan]", border_style="cyan"))
+    console.print(Panel(
+        "🌐 [bold cyan]Account Connection Center[/bold cyan]\n"
+        "[dim]Link an AI provider so JARVIS has a brain. Nothing is saved until it validates.[/dim]",
+        border_style="cyan",
+    ))
 
     providers = list(AuthManager.PROVIDERS.items())
     table = Table(show_header=True, header_style="bold")
@@ -392,29 +431,33 @@ def run_connect_wizard() -> None:
     table.add_column("How it connects", style="dim")
 
     for i, (name, info) in enumerate(providers, start=1):
-        host_only = bool(info.get("host_only"))
-        if host_only:
-            configured = bool(get_provider_host(name))
-        else:
-            configured = get_key_secure(name) is not None
-        dot = "[green]●[/green]" if configured else "[dim]○[/dim]"
-        method = "local host" if host_only else "API key"
+        dot = "[green]●[/green]" if is_configured(name) else "[dim]○[/dim]"
+        method = "local host" if info.get("host_only") else "API key"
         table.add_row(str(i), dot, info.get("display", name), method)
 
     console.print(table)
-    console.print("[dim]● configured   ○ not configured[/dim]\n")
+    console.print("[dim]● connected   ○ not connected   — type [bold]b[/bold] or Ctrl+C to go back[/dim]\n")
 
     choices = [str(i) for i in range(1, len(providers) + 1)] + ["b"]
-    choice = Prompt.ask("Choose a provider", choices=choices, default="b")
+    choice = Prompt.ask("Step 1 of 2 — choose a provider", choices=choices, default="b")
     if choice == "b":
         console.print("[dim]Back.[/dim]")
         return
 
     name, info = providers[int(choice) - 1]
+    console.print(f"[dim]Step 2 of 2 — setting up [bold cyan]{info.get('display', name)}[/bold cyan][/dim]")
     if info.get("host_only"):
         _setup_host_provider(name, info)
     else:
         _setup_key_provider(name, info)
+
+    if is_configured(name):
+        console.print(next_steps_panel(
+            [f"Run `/connections` to verify all providers",
+             f"Switch to it any time with `/models`",
+             f"Then just ask: `/chat hello`"],
+            title=f"{info.get('display', name)} is ready — what next?",
+        ))
 
 
 def connect_provider_cli(provider: str, host: Optional[str] = None,

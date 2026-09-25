@@ -51,9 +51,9 @@ def _clean(result):
 
 
 def test_repl_help_then_exit(tmp_path):
-    """Regression: /help was unregistered and fell into the agent loop."""
+    """/help renders the grouped command reference (not the agent loop)."""
     out = _clean(_run_repl(tmp_path, "/help\n/exit\n"))
-    assert "System Documentation" in out
+    assert "JARVIS Command Reference" in out
     assert "Brain Loop Interrupted" not in out
     assert "Goodbye" in out
 

@@ -127,26 +127,41 @@ def smart_input(label, default_val, auto_detect_func=None):
     console.print(f"[yellow]⚠️ No specific {label} details provided. Using default/empty.[/yellow]")
     return default_val
 
+def _print_first_use():
+    """Concrete first-use instruction shown at the end of every setup path."""
+    from core.ui import next_steps_panel
+    from rich.console import Console
+    Console().print(next_steps_panel(
+        ["`/connections --test` — verify your providers are reachable",
+         "`/chat hello` — have your first conversation",
+         "`/fix .` — let JARVIS audit this directory"],
+        title="You're set up — try these",
+    ))
+
 def setup_wizard():
-    console.print("[bold cyan]Welcome to JARVIS Setup Wizard[/bold cyan]\n")
-    
-    if Confirm.ask("Use [bold green]Automation Mode[/bold green]? (Auto-detects everything)"):
+    console.print("[bold cyan]Welcome to JARVIS Setup[/bold cyan]\n")
+    console.print("[dim]Takes about a minute. API keys are validated, then stored in your "
+                  "OS keyring — never in plain text.[/dim]\n")
+
+    if Confirm.ask("Use [bold green]Automation Mode[/bold green]? (Auto-detects everything)", default=True):
         quick_setup()
         return
 
     config = load_config()
+    console.print("[dim]Step 1 of 3 — choose your brain[/dim]")
     config["provider"] = Prompt.ask("Select your primary LLM provider", choices=["ollama", "openai", "anthropic", "gemini", "mistral", "deepseek", "groq", "together", "cohere", "perplexity"], default=config["provider"])
-    
+
     if config["provider"] == "ollama":
         config["ollama_host"] = smart_input("Ollama Host URL", config["ollama_host"], auto_detect_func=detect_ollama)
         config["jarvis_model"] = Prompt.ask("Ollama Model Name", default=config["jarvis_model"])
-    
-    if Confirm.ask("Would you like to configure Cloud API Keys now?"):
-        for key in ["gemini_api_key", "openai_api_key", "anthropic_api_key", "mistral_api_key", "deepseek_api_key", "groq_api_key", "ollama_token"]:
-            name = key.replace("_", " ").title()
-            if Confirm.ask(f"Configure {name}?"):
-                config[key] = Prompt.ask(f"Enter {name}", default=config.get(key, ""), password=True)
+    else:
+        # Credentials go through the secure /connect flow (keyring + validation),
+        # never into the plaintext config file.
+        from core.connect import connect_provider_cli
+        console.print("\n[dim]Step 2 of 3 — connect your provider[/dim]")
+        connect_provider_cli(config["provider"])
 
+    console.print("\n[dim]Step 3 of 3 — finishing touches[/dim]")
     if Confirm.ask("Configure external integrations (GitHub, Cloud Storage)?"):
         config["github_token"] = Prompt.ask("GitHub Personal Access Token", default=config.get("github_token", ""), password=True)
         config["dropbox_token"] = Prompt.ask("Dropbox API Token", default=config.get("dropbox_token", ""), password=True)
@@ -155,12 +170,13 @@ def setup_wizard():
     config["self_repair"] = Confirm.ask("Enable autonomous self-repair?", default=config.get("self_repair", True))
     save_config(config)
     console.print("\n[green]Configuration saved successfully.[/green]")
+    _print_first_use()
 
 def quick_setup():
     """Hyper-automated setup for JARVIS."""
     console.print("[bold cyan]🚀 Initializing JARVIS Automation Setup...[/bold cyan]")
     config = load_config()
-    
+
     # 1. Detect Ollama
     host = detect_ollama()
     if host:
@@ -169,9 +185,23 @@ def quick_setup():
         config["jarvis_model"] = "llama3"
         console.print(f"[green]✅ Local Ollama detected at {host}[/green]")
     else:
-        console.print("[yellow]⚠️ No local Ollama found. Defaulting to Gemini Cloud (requires key).[/yellow]")
-        config["provider"] = "gemini"
-    
+        # No silent Gemini default (that dead-ended: no key, no guidance).
+        # Take the user straight to the connection center instead.
+        console.print("[yellow]⚠️ No local Ollama found.[/yellow]")
+        console.print("[dim]JARVIS needs an AI provider to think. Let's link one now — "
+                      "your key is validated, then stored in the OS keyring.[/dim]\n")
+        from core.auth import AuthManager
+        from core.connect import is_configured, run_connect_wizard
+        run_connect_wizard()
+        for name in AuthManager.PROVIDERS:
+            if is_configured(name):
+                config["provider"] = name
+                console.print(f"[green]✅ Using {name.upper()} as your provider.[/green]")
+                break
+        else:
+            config["provider"] = "ollama"
+            console.print("[yellow]No provider was linked yet. Run /connect any time to set one up.[/yellow]")
+
     # 2. Cloud Configuration
     if os.getenv("OLLAMA_TOKEN"):
         config["ollama_token"] = os.getenv("OLLAMA_TOKEN")
@@ -181,9 +211,10 @@ def quick_setup():
     # 3. Set defaults for everything else
     config["self_repair"] = True
     config["model_mode"] = "auto-mixed"
-    
+
     save_config(config)
-    console.print("[bold green]✅ Automation Complete! JARVIS is ready to engineering.[/bold green]")
+    console.print("[bold green]✅ Automation Complete![/bold green]")
+    _print_first_use()
 
 def get_env_with_config(key):
     config = load_config()

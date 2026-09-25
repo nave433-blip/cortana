@@ -43,22 +43,138 @@ def display_chat_message(role: str, text: str):
     console.print(panel)
 
 def display_welcome():
-    splash_text = f"""
-    [bold cyan]JARVIS[/bold cyan] [white]v{CURRENT_VERSION}[/white]
-    [dim]The Advanced AI Engineering Suite[/dim]
-    
-    [bold white]Created by Nave433 (Evan Shipley)[/bold white]
-    
-    *Type [bold cyan]/[/bold cyan] to see commands | [bold yellow]Ctrl+C[/bold yellow] twice to exit*
-    """
-    
     console.print(Align.center(Panel(
         Markdown(f"# JARVIS\nCreated by **Nave433 (Evan Shipley)**\n\nVersion: `{CURRENT_VERSION}`"),
         style="bold blue",
         border_style="cyan",
-        subtitle="Initializing Systems...",
-        expand=False
+        subtitle="Type /help to see what I can do",
+        expand=False,
     )))
+    console.print(Align.center(
+        "[dim]Tip: run [bold cyan]/connect[/bold cyan] to link your AI providers, "
+        "[bold cyan]/menu[/bold cyan] for the dashboard[/dim]\n"
+    ))
+
+
+# ---------------------------------------------------------------------------
+# Shared UI helpers — one visual language for menus, tables, banners,
+# error panels and help output.
+# ---------------------------------------------------------------------------
+
+def ui_error(title: str, what: str, why: str = "", next_steps: str = "") -> Panel:
+    """Consistent error panel. Every error answers: what happened, why,
+    and what to do next."""
+    body = f"[bold red]{what}[/bold red]"
+    if why:
+        body += f"\n\n[white]Why:[/white] [dim]{why}[/dim]"
+    if next_steps:
+        body += f"\n\n[white]What to do next:[/white]\n[green]{next_steps}[/green]"
+    return Panel(body, title=f"[bold red]❌ {title}[/bold red]", border_style="red")
+
+
+def ui_success(message: str) -> None:
+    console.print(f"[bold green]✅ {message}[/bold green]")
+
+
+def ui_info(message: str) -> None:
+    console.print(f"[cyan]ℹ️  {message}[/cyan]")
+
+
+def ui_warning(message: str) -> None:
+    console.print(f"[yellow]⚠️  {message}[/yellow]")
+
+
+def unknown_command_panel(text: str, suggestions: list) -> Panel:
+    """'Did you mean …?' panel for mistyped slash commands."""
+    body = f"[white]Unknown command:[/white] [bold yellow]{text}[/bold yellow]"
+    if suggestions:
+        lines = "\n".join(f"  [bold cyan]{s}[/bold cyan]" for s in suggestions)
+        body += f"\n\n[white]Did you mean:[/white]\n{lines}"
+    body += "\n\n[dim]Type [bold]/help[/bold] to see all commands.[/dim]"
+    return Panel(body, title="[bold yellow]Unknown command[/bold yellow]", border_style="yellow")
+
+
+def next_steps_panel(steps: list, title: str = "What next?") -> Panel:
+    """Numbered next-step guidance (onboarding, post-connect, post-setup)."""
+    lines = "\n".join(f"  [bold cyan]{i}.[/bold cyan] {s}" for i, s in enumerate(steps, 1))
+    return Panel(lines, title=f"[bold green]🎯 {title}[/bold green]", border_style="green")
+
+
+def _menu_group(title: str, border: str, rows: list) -> Table:
+    table = Table(title=f"[bold]{title}[/bold]", show_header=True,
+                  header_style=f"bold {border}", border_style=border)
+    table.add_column("Command", style="white")
+    table.add_column("What it does", style="dim")
+    for cmd, desc in rows:
+        table.add_row(cmd, desc)
+    return table
+
+
+def get_menu_grid() -> Table:
+    """Grouped dashboard tables shared by /menu and /help."""
+    grid = Table.grid(expand=True)
+    grid.add_column(justify="center")
+    grid.add_column(justify="center")
+
+    agents = _menu_group("🤖 Core AI Agents", "magenta", [
+        ("/chat", "Consult JARVIS — technical advice, explanations"),
+        ("/fix", "Autonomous research & repair loop for bugs"),
+        ("/forge", "Code synthesis & creation"),
+        ("/plan", "Strategic engineering roadmaps"),
+        ("/troubleshoot", "Run a command, auto-fix errors"),
+        ("/analyze", "Project health audit: lines, complexity, hotspots"),
+        ("/nave", "Multi-model reasoning & refinement"),
+    ])
+    devops = _menu_group("🛠️ DevOps & Utilities", "green", [
+        ("/doctor", "System health check & self-repair"),
+        ("/network", "Local network discovery & port scanning"),
+        ("/server", "Monitor ports, processes, services"),
+        ("/hardware", "USB & physical port probing"),
+        ("/ssh", "Run commands on remote servers"),
+        ("/memory", "Search your persistent knowledge base"),
+        ("/dashboard", "Live system monitoring interface"),
+    ])
+    accounts = _menu_group("🔌 Accounts & Setup", "cyan", [
+        ("/connect", "Link AI providers (API keys, Ollama, …)"),
+        ("/connections", "See what's connected & reachable"),
+        ("/models", "Switch provider / model"),
+        ("/config", "Settings & configuration"),
+        ("/personality", "Assistant tone: Professional, Mentor, …"),
+        ("/prompts", "Saved system-prompt roles"),
+        ("/help", "Full command reference"),
+        ("/exit", "Shut down cleanly"),
+    ])
+    grid.add_row(agents, devops)
+    grid.add_row(accounts, _menu_group("⚡ Quick Starts", "yellow", [
+        ("/connect", "First run? Start here to link an AI"),
+        ("/chat hello", "Talk to your active provider"),
+        ("/fix .", "Let JARVIS audit this directory"),
+        ("/doctor", "Check everything is healthy"),
+    ]))
+    return grid
+
+
+def build_provider_status_table(entries: list) -> Table:
+    """Two-column provider status table shared by /models views.
+
+    entries: list of (label, is_linked_bool) tuples.
+    """
+    table = Table(title="Intelligence Provider Status", border_style="dim")
+    table.add_column("Provider", style="cyan")
+    table.add_column("Status", justify="center")
+    table.add_column("Provider", style="cyan")
+    table.add_column("Status", justify="center")
+    for i in range(0, len(entries), 2):
+        row = []
+        for j in range(2):
+            if i + j < len(entries):
+                label, linked = entries[i + j]
+                status = "[bold green]✓ connected[/bold green]" if linked else "[dim]○ not linked[/dim]"
+                row.extend([label, status])
+            else:
+                row.extend(["", ""])
+        table.add_row(*row)
+    return table
 
 def get_main_menu_table():
     table = Table(show_header=False, box=None)

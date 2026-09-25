@@ -3,7 +3,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt, Confirm
-from rich.markdown import Markdown
 from core.config import load_config, save_config, setup_wizard
 
 console = Console()
@@ -173,7 +172,6 @@ def personality_menu():
 
 def models_menu():
     """Intelligent orchestration and manual selection of LLM providers."""
-    from core.services import get_api_key, validate_provider_connection
     config = load_config()
     current_p = config.get("provider", "ollama")
     current_m = config.get("jarvis_model", "llama3")
@@ -217,50 +215,12 @@ def models_menu():
         "n": "nemotron", "q": "qwen", "o": "local",
     }
 
-    # Providers that connect via a configured host rather than an API key
-    HOST_PROVIDERS = ["ollama", "vllm", "sglang", "llama_cpp", "gpt4all",
-                      "nemotron", "qwen", "local"]
-
-    # Generate Status Table
-    status_table = Table(title="Intelligence Provider Status", border_style="dim")
-    status_table.add_column("Key", style="cyan", justify="center")
-    status_table.add_column("Provider", style="white")
-    status_table.add_column("Status", justify="center")
-    status_table.add_column("Key", style="cyan", justify="center")
-    status_table.add_column("Provider", style="white")
-    status_table.add_column("Status", justify="center")
-
+    # Generate Status Table (shared builder — same as the /model command view)
+    from core.connect import is_configured
+    from core.ui import build_provider_status_table
     keys = list(p_mapping.keys())
-    for i in range(0, len(keys), 2):
-        row = []
-        # Col 1
-        k1 = keys[i]
-        p1 = p_mapping[k1]
-        is_linked1 = False
-        if p1 in HOST_PROVIDERS:
-            is_linked1 = config.get(f"{p1}_host") is not None
-        else:
-            is_linked1 = get_api_key(p1) is not None
-        status1 = "[bold green]✓[/bold green]" if is_linked1 else "[bold red]✘[/bold red]"
-        row.extend([k1, p1.upper(), status1])
-
-        # Col 2
-        if i + 1 < len(keys):
-            k2 = keys[i+1]
-            p2 = p_mapping[k2]
-            is_linked2 = False
-            if p2 in HOST_PROVIDERS:
-                is_linked2 = config.get(f"{p2}_host") is not None
-            else:
-                is_linked2 = get_api_key(p2) is not None
-            status2 = "[bold green]✓[/bold green]" if is_linked2 else "[bold red]✘[/bold red]"
-            row.extend([k2, p2.upper(), status2])
-        else:
-            row.extend(["", "", ""])
-        
-        status_table.add_row(*row)
-
-    console.print(status_table)
+    entries = [(p_mapping[k].upper(), is_configured(p_mapping[k])) for k in keys]
+    console.print(build_provider_status_table(entries))
     
     choice = Prompt.ask("Select mode or provider", choices=["a", "s", "x", "m", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "g", "l", "v", "y", "n", "q", "o", "b"], default="b")
     
@@ -327,6 +287,13 @@ def models_menu():
         if provider == "gemini": config["gemini_model"] = new_model
         save_config(config)
         console.print(f"[green]✅ Manual Setup Complete: Brain switched to {provider.upper()} ({new_model})[/green]")
+        if not is_configured(provider):
+            from rich.prompt import Confirm
+            from core.ui import ui_warning
+            from core.connect import connect_provider_cli
+            ui_warning(f"{provider.upper()} isn't connected yet — it won't answer until you link it.")
+            if Confirm.ask(f"Set up {provider.upper()} now?", default=True):
+                connect_provider_cli(provider)
 
 def prompts_menu():
     """Custom prompt library management and system instruction control."""
@@ -384,43 +351,21 @@ def connect_menu():
     run_connect_wizard()
 
 def robust_help():
-    """Universal Command Reference & Technical Documentation."""
-    from rich.markdown import Markdown
-    from core.ui import get_main_menu_table
-    help_md = """
-    # JARVIS Engineering Suite: Core Command Reference
-    
-    ### 💬 [bold white]/chat [query][/bold white]
-    Direct interface with your active LLM. Accesses your project instructions, memories, and current context to provide high-level engineering advice.
-    
-    ### 🔧 [bold white]/fix [issue/path][/bold white]
-    The autonomous agent engine. JARVIS initiates a Research-Strategy-Execution cycle to automatically debug and repair your code. 
-    *Tip: Type 'fix project_name' to have JARVIS find it on your system.*
-    
-    ### 🧪 [bold white]/analyze-file [path][/bold white]
-    Specialized security and performance audit. JARVIS performs a deep, microscopic scan of a specific file to identify vulnerabilities, hotspots, and style inconsistencies.
-
-    ### 🩺 [bold white]/doctor[/bold white]
-    Complete system self-diagnosis. JARVIS checks its own dependencies, health status of engineering repos, and availability of updates in one unified sweep.
-
-    ### 🧠 [bold white]/memory[/bold white]
-    Manage your FAISS vector database. JARVIS uses this to maintain long-term semantic context of all your past projects.
-
-    ### 🎭 [bold white]/personality[/bold white]
-    Modify the behavioral DNA of your assistant. Choose from Professional, Sarcastic, Concise, Mentor, or the high-precision Nave-AI.
-
-    ### 📝 [bold white]/prompts[/bold white]
-    Access your Persona Library. Apply specialized roles like '@bug_hunter' or '@architect' to any chat or fix request for tailored reasoning.
-    
-    ### ☁️ [bold white]/cloud[/bold white]
-    Cross-platform data bridge. Native integration with Google Drive, Dropbox, and iCloud for remote file management.
-
-    ### 🌐 [bold white]/network[/bold white]
-    Networking toolkit. Scan your subnet for other nodes or probe specific targets for open service ports.
-    """
-    console.print(Panel(Markdown(help_md), title="[bold green]System Documentation & Guide[/bold green]", border_style="green"))
-    from rich.align import Align
-    console.print(Align.center(get_main_menu_table()))
+    """Grouped, scannable command reference."""
+    from core.ui import get_menu_grid, next_steps_panel
+    console.print(Panel(
+        "[bold green]JARVIS Command Reference[/bold green]\n"
+        "[dim]Everything you can type. Natural language works too — "
+        "just describe what you want.[/dim]",
+        title="[bold green]Help[/bold green]", border_style="green",
+    ))
+    console.print(get_menu_grid())
+    console.print(next_steps_panel(
+        ["`/connect` — link an AI provider (first run)",
+         "`/chat hello` — talk to your active provider",
+         "`/fix .` — autonomous audit & repair of this directory"],
+        title="New here? Start with these",
+    ))
 
 def cloud_menu():
     """Interactive management for cloud storage platforms."""

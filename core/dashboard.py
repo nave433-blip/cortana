@@ -40,7 +40,7 @@ class Dashboard:
 
     def update_header(self):
         provider = get_env_with_config("provider") or "ollama"
-        self.layout["header"].update(Panel(f"JARVIS SOVEREIGN DASHBOARD | Provider: [bold cyan]{provider.upper()}[/bold cyan] | Target: [bold yellow]{os.path.abspath(self.focus_path)}[/bold yellow]", border_style="cyan"))
+        self.layout["header"].update(Panel(f"JARVIS DASHBOARD | Provider: [bold cyan]{provider.upper()}[/bold cyan] | Target: [bold yellow]{os.path.abspath(self.focus_path)}[/bold yellow]", border_style="cyan"))
 
     def update_stats(self):
         summary = project_summary(self.focus_path)

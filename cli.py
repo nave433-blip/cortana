@@ -3,6 +3,15 @@ import sys
 import time
 import json
 import subprocess
+import logging as _logging
+
+# 0. Silence third-party chatter (LiteLLM cost-map fetch, httpx, …) for normal
+#    users. Must run before any other import: litellm can warn at import/first
+#    use. --debug and dev mode restore full logging in main().
+for _noisy in ("LiteLLM", "litellm", "httpx", "httpcore"):
+    _logging.getLogger(_noisy).setLevel(_logging.ERROR)
+os.environ.setdefault("LITELLM_LOG", "ERROR")
+del _noisy
 from typing import Optional, Dict, Any
 from typing_extensions import Annotated
 
@@ -48,7 +57,9 @@ from core.config import start_periodic_config_maintenance, auto_config_maintenan
 from core.logger import ErrorLogger
 from core.auth import AuthManager
 from core.startup import startup_check_and_login
-from core.ui import display_welcome, get_main_menu_table, display_chat_message
+from core.ui import (display_welcome, display_chat_message,
+                     get_menu_grid, unknown_command_panel, next_steps_panel,
+                     ui_error, ui_success, ui_info, ui_warning)
 from core.health import check_system_health, display_health_report, auto_repair_workspace, update_all_repos
 from core.repair import auto_check_on_launch
 from core.nave_loop import run_nave_loop
@@ -62,8 +73,22 @@ from prompt_toolkit.styles import Style
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.formatted_text import HTML
 
+import logging
 import warnings
 warnings.simplefilter("ignore", SyntaxWarning)
+
+_welcome_shown = False
+
+
+def _show_welcome_once() -> None:
+    """Welcome-first startup: splash and dev banner print exactly once,
+    before any setup wizard, so first-run users see JARVIS before questions."""
+    global _welcome_shown
+    if not _welcome_shown:
+        display_welcome()
+        print_dev_banner()
+        _welcome_shown = True
+
 
 app = typer.Typer(help="🚀 JARVIS: The Ultimate Local AI Coding Assistant", add_completion=False)
 console = Console()
@@ -80,15 +105,21 @@ def main(ctx: typer.Context,
         import logging
         logging.basicConfig(level=logging.DEBUG)
         os.environ["LITELLM_LOG"] = "DEBUG"
+        for name in ("LiteLLM", "litellm", "httpx", "httpcore"):
+            logging.getLogger(name).setLevel(logging.DEBUG)
         console.print("[dim]Debug mode enabled.[/dim]")
     elif is_dev_mode():
         import logging
         logging.basicConfig(level=logging.DEBUG)
         os.environ["LITELLM_LOG"] = "DEBUG"
+        for name in ("LiteLLM", "litellm", "httpx", "httpcore"):
+            logging.getLogger(name).setLevel(logging.DEBUG)
         console.print("[dim]\U0001f6e0 Dev mode: debug logging enabled.[/dim]")
     if ctx.invoked_subcommand is None:
         if not CONFIG_FILE.exists():
-            console.print("[yellow]No configuration found. Starting setup...[/yellow]")
+            # Welcome first, then environment detection + /connect flow.
+            _show_welcome_once()
+            console.print("[yellow]No configuration found. Let's get you set up.[/yellow]")
             setup_wizard()
         interactive()
 
@@ -176,24 +207,10 @@ def get_bottom_toolbar():
 def menu():
     """Launch the high-fidelity JARVIS Dashboard Menu."""
     console.clear()
-    header = Panel(Markdown(f"# JARVIS SYSTEM INTERFACE\nVersion: `{CURRENT_VERSION}` | Role: `Engineering Sovereign`"), style="bold cyan", border_style="cyan")
+    header = Panel(Markdown(f"# JARVIS SYSTEM INTERFACE\nVersion: `{CURRENT_VERSION}`"), style="bold cyan", border_style="cyan")
     console.print(header)
-
-    grid = Table.grid(expand=True)
-    grid.add_column(justify="center"); grid.add_column(justify="center")
-    
-    core_table = Table(title="[bold magenta]Core AI Agents[/bold magenta]", show_header=True, header_style="bold magenta", border_style="magenta")
-    core_table.add_column("Command", style="white"); core_table.add_column("Function", style="dim")
-    core_table.add_row("/fix", "Autonomous repair & debugging"); core_table.add_row("/forge", "Hardcore code synthesis & creation"); core_table.add_row("/plan", "Strategic engineering roadmaps"); core_table.add_row("/nave", "Multi-model reasoning & refinement"); core_table.add_row("/copilot", "GitHub Copilot technical advice"); core_table.add_row("/chat", "Direct technical consultation")
-
-    dev_table = Table(title="[bold green]DevOps & Utilities[/bold green]", show_header=True, header_style="bold green", border_style="green")
-    dev_table.add_column("Command", style="white"); dev_table.add_column("Function", style="dim")
-    dev_table.add_row("/doctor", "System health & self-repair"); dev_table.add_row("/cloud", "Bridge to G-Drive/Dropbox"); dev_table.add_row("/network", "Network discovery & security"); dev_table.add_row("/hardware", "USB & Physical port probing"); dev_table.add_row("/server", "Process & service management")
-    
-    grid.add_row(core_table, dev_table)
-    console.print(grid)
-
-    footer = Panel("[bold white]Settings:[/bold white] /config | [bold white]Accounts:[/bold white] /connect /connections | [bold yellow]RESTART[/bold yellow] | [bold red]REINSTALL[/bold red]", border_style="dim")
+    console.print(get_menu_grid())
+    footer = Panel("[bold white]Settings:[/bold white] /config  [bold white]Accounts:[/bold white] /connect /connections", border_style="dim")
     console.print(footer)
     console.print("\n[dim]*Type any command or natural language request below.*[/dim]")
 
@@ -210,29 +227,35 @@ def process_think_res(res: Any, fallback_text: str = "") -> str:
             console.print(f"[dim]{prov_info}[/dim]")
         return res.get("text", "")
         
-    # Failure case
-    console.print(Panel(f"[red]JARVIS could not get an answer from any provider.[/red]\n\nDetails: {res.get('error')}", title="Error", border_style="red"))
-    
-    # Show short history if present
-    hist = res.get("history", [])
-    if hist:
-        summary = []
-        for h in hist:
-            if isinstance(h, dict) and "attempt" in h:
-                summary.append(f"Primary ({h.get('provider')}): {h.get('result', {}).get('error', 'Unknown error')}")
-            elif isinstance(h, dict) and "fallback" in h:
-                for f in h.get("history", []):
-                    summary.append(f"Fallback ({f.get('provider')}): {f.get('result', {}).get('error', 'Unknown error')}")
-        if summary:
-            console.print(Panel("\n".join(summary[-6:]), title="Recent Attempts", border_style="magenta"))
+    # Failure case — human-friendly. Raw provider errors stay hidden unless
+    # the user is debugging (dev mode / --debug).
+    debug = os.environ.get("JARVIS_DEV_MODE") in ("1", "true", "yes", "on") or is_dev_mode()
+    why = res.get("error", "no provider could answer")
+    next_steps = "Run /connect to link a provider, /connections --test to check them, or /models to switch."
+    console.print(ui_error("No answer", "JARVIS could not get an answer from any provider.",
+                           why=why if debug else "", next_steps=next_steps))
 
-    # Ask user whether to run Setup Wizard
-    if Confirm.ask("Would you like to run the Setup Wizard to reconfigure providers now?"):
-        from core.config import setup_wizard
-        setup_wizard()
+    # Show short history only when debugging
+    if debug:
+        hist = res.get("history", [])
+        if hist:
+            summary = []
+            for h in hist:
+                if isinstance(h, dict) and "attempt" in h:
+                    summary.append(f"Primary ({h.get('provider')}): {h.get('result', {}).get('error', 'Unknown error')}")
+                elif isinstance(h, dict) and "fallback" in h:
+                    for f in h.get("history", []):
+                        summary.append(f"Fallback ({f.get('provider')}): {f.get('result', {}).get('error', 'Unknown error')}")
+            if summary:
+                console.print(Panel("\n".join(summary[-6:]), title="Recent Attempts (debug)", border_style="magenta"))
+
+    # Offer the secure connect flow (not the legacy plaintext setup wizard)
+    if Confirm.ask("Would you like to set up a provider now?"):
+        from core.connect import run_connect_wizard
+        run_connect_wizard()
         return "[yellow]Setup complete. Please try your request again.[/yellow]"
     else:
-        console.print("[yellow]Skipping setup. You can run '/setup' later.[/yellow]")
+        ui_info("Skipping setup. Run /connect any time to link a provider.")
         return fallback_text or "[red]Task failed due to provider disconnection.[/red]"
 
 @app.command()
@@ -244,8 +267,7 @@ def interactive():
     # eaten by setup prompts. Real interactive use is unchanged.
     skip_startup = os.environ.get("JARVIS_SKIP_STARTUP") == "1"
     try:
-        display_welcome()
-        print_dev_banner()
+        _show_welcome_once()
         if not skip_startup:
             verify_and_fix_local_llm()
             auto_check_on_launch()
@@ -295,8 +317,19 @@ def interactive():
                     # Transform to slash command for the handler
                     text = "/" + text
 
-                # 2. Use Advanced Handler
-                res = handler.handle(text)
+                # 2. Slash commands: resolve locally first (exact + fuzzy).
+                # Unknown ones get a "did you mean?" panel — no LLM call burned.
+                if text.startswith("/"):
+                    matched, args = handler.resolve(text)
+                    if matched is None:
+                        first = text.split()[0] if text.split() else text
+                        console.print(unknown_command_panel(first, handler.suggest(first)))
+                        continue
+                    res = {"ok": True, "type": "internal", "command": matched,
+                           "args": " ".join(args), "ui": None}
+                else:
+                    # 3. Natural language: use the advanced handler (LLM intent parse)
+                    res = handler.handle(text)
                 ui_hint = res.get("ui")
                 
                 if res.get("type") == "chat":
@@ -920,38 +953,12 @@ def models_command(name: Optional[str] = None):
             console.print(f"[green]✅ Model switched to: {name}[/green]")
         return
 
-    # Generate Status Table
-    from core.services import get_api_key
-    status_table = Table(title="Intelligence Provider Status", border_style="dim")
-    status_table.add_column("Provider", style="cyan")
-    status_table.add_column("Status", justify="center")
-    status_table.add_column("Provider", style="cyan")
-    status_table.add_column("Status", justify="center")
-    status_table.add_column("Provider", style="cyan")
-    status_table.add_column("Status", justify="center")
-
+    # Generate Status Table (shared builder — same as /models menu)
+    from core.connect import is_configured
     from core.services import KNOWN_PROVIDERS
-    all_providers = KNOWN_PROVIDERS
-
-    rows = []
-    for i in range(0, len(all_providers), 3):
-        row = []
-        for j in range(3):
-            if i + j < len(all_providers):
-                p = all_providers[i+j]
-                is_linked = False
-                if p in ["ollama", "vllm", "sglang", "llama_cpp", "gpt4all", "nemotron", "qwen", "local"]:
-                    is_linked = config.get(f"{p}_host") is not None
-                else:
-                    is_linked = get_api_key(p) is not None
-                status = "[bold green]✓[/bold green]" if is_linked else "[bold red]✘[/bold red]"
-                row.extend([p.upper(), status])
-            else:
-                row.extend(["", ""])
-        rows.append(row)
-
-    for r in rows: status_table.add_row(*r)
-    console.print(status_table)
+    from core.ui import build_provider_status_table
+    entries = [(p.upper(), is_configured(p)) for p in KNOWN_PROVIDERS]
+    console.print(build_provider_status_table(entries))
 
     console.print("\n[bold cyan]Intelligence Control Center[/bold cyan]")
     console.print("[1] Switch Models (Current Provider)")
@@ -1040,9 +1047,14 @@ def connect_provider(provider: str, host: Optional[str] = None, key: Optional[st
 @app.command()
 def connections(test: bool = typer.Option(False, "--test", help="Probe reachability of each configured provider")):
     """Show a connection-status table for all AI providers. Keys are never printed."""
-    from core.connect import connection_status, render_status_table
+    from core.connect import connection_status, render_status_table, render_next_steps
     rows = connection_status(test=test)
     console.print(render_status_table(rows))
+    panel = render_next_steps(rows)
+    if panel is not None:
+        console.print(panel)
+    elif test:
+        ui_success("All configured providers are reachable.")
 
 @app.command()
 def webask(query: str, provider: Optional[str] = None):
