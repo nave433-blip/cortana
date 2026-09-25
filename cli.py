@@ -1194,7 +1194,7 @@ def optimize():
     console.print("[bold green]✅ Optimization complete![/bold green]")
 
 def jarvis_shim():
-    """Deprecated ``cortana`` entry point: notifies about the rename, then forwards."""
+    """Deprecated ``jarvis`` entry point: notifies about the rename, then forwards."""
     import sys
     print("Note: 'jarvis' has been renamed to 'cortana'. Please use 'cortana' going forward.",
           file=sys.stderr)
