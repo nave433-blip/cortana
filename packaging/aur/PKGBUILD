@@ -1,0 +1,32 @@
+# Maintainer: Nave433 (Evan Shipley)
+# ============================================================================
+# !!! UNTESTED SKELETON — NOT VERIFIED BY THE AUTHOR !!!
+# This PKGBUILD has never been built or installed. An Arch user must build it
+# in a clean chroot (extra-x86_64-build), test install/remove, and only then
+# submit it to the AUR. Do not claim Arch support until that happens.
+# ============================================================================
+
+pkgname=jarvis-dev
+pkgver=0.1.7
+pkgrel=1
+pkgdesc="Local AI coding assistant for macOS and Linux"
+arch=('any')
+url="https://github.com/nave433-blip/jarvis-dev"
+license=('MIT')
+depends=('python' 'portaudio')
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+optdepends=('ollama: local LLM backend with auto-connect')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/nave433-blip/jarvis-dev/archive/refs/tags/v$pkgver.tar.gz")
+# Update on every release: `updpkgsums` after bumping pkgver.
+sha256sums=('bd6c443f0a93dba7250c38a1d6b0d0207e4143e73d4dfa02db60e592f1c23049')
+
+build() {
+    cd "$pkgname-$pkgver"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

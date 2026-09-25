@@ -1,115 +1,159 @@
 #!/bin/bash
+#
+# JARVIS: one-line installer for macOS & Linux
+#
+#   curl -fsSL https://raw.githubusercontent.com/nave433-blip/jarvis-dev/main/install.sh | bash
+#
+# What it does:
+#   1. Installs system audio/Python deps via your package manager (sudo)
+#   2. Fetches the sources into ~/.jarvis-app (clone, or refresh on re-run)
+#   3. Creates an isolated Python 3.12+ venv and installs JARVIS into it
+#   4. Links the `jarvis` command into /usr/local/bin
+#   5. Smoke-tests the install
+#
+# Env knobs:
+#   JARVIS_REF=ref            git branch/tag to install (default: repo default branch)
+#   JARVIS_DIR=path           install location (default: ~/.jarvis-app)
+#   JARVIS_SKIP_SYSTEM_DEPS=1 skip the sudo system-package step (containers/CI)
+#   JARVIS_SKIP_GLOBAL_LINK=1 skip linking /usr/local/bin/jarvis
+#
+# Re-running is safe: sources are refreshed (git pull / re-copy) and the
+# install is redone in place.
 
-# JARVIS: Global Installer
-# Target: macOS & Linux
+set -euo pipefail
 
-set -e
+RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[0;33m'; NC='\033[0m'
+info() { echo -e "${BLUE}$*${NC}"; }
+ok()   { echo -e "${GREEN}$*${NC}"; }
+warn() { echo -e "${YELLOW}$*${NC}"; }
+die()  { echo -e "${RED}❌ $*${NC}" >&2; exit 1; }
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[0;33m'
-NC='\033[0m'
+JARVIS_REF="${JARVIS_REF:-}"
+JARVIS_DIR="${JARVIS_DIR:-$HOME/.jarvis-app}"
+SKIP_DEPS="${JARVIS_SKIP_SYSTEM_DEPS:-0}"
+SKIP_LINK="${JARVIS_SKIP_GLOBAL_LINK:-0}"
+OS_TYPE="$(uname -s | tr '[:upper:]' '[:lower:]')"
+REPO_URL="https://github.com/nave433-blip/jarvis-dev.git"
 
-OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]')
+info "🚀 Installing JARVIS on ${OS_TYPE} → ${JARVIS_DIR}"
 
-echo -e "${BLUE}🚀 Starting JARVIS Global Installation for ${OS_TYPE}...${NC}"
-
-# 1. Dependency Check
-if [[ "$OS_TYPE" == "linux" ]]; then
-    echo -e "${BLUE}🔍 Checking Linux dependencies...${NC}"
-    if command -v apt-get &> /dev/null; then
-        sudo apt-get update -y
-        sudo apt-get install -y python3-venv python3-pip portaudio19-dev libffi-dev libssl-dev
-    elif command -v dnf &> /dev/null; then
-        sudo dnf install -y python3-devel portaudio-devel libffi-devel openssl-devel
-    elif command -v pacman &> /dev/null; then
-        sudo pacman -S --noconfirm --needed python python-pip portaudio
-    elif command -v zypper &> /dev/null; then
-        sudo zypper install -y python3 python3-pip portaudio-devel libffi-devel libopenssl-devel
+# --- helpers -----------------------------------------------------------------
+# Run "$@" with sudo when not root; fail clearly when sudo is unavailable.
+need_sudo() {
+    if [[ "$(id -u)" == "0" ]]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
     else
-        echo -e "${YELLOW}⚠️ No supported package manager found (apt, dnf, pacman, zypper). Install Python 3.12+, pip, and portaudio manually.${NC}"
+        die "Need root for system packages but 'sudo' is unavailable. Re-run as root or set JARVIS_SKIP_SYSTEM_DEPS=1."
+    fi
+}
+
+# --- 1. system dependencies ----------------------------------------------------
+if [[ "$SKIP_DEPS" == "1" ]]; then
+    warn "⏭️  Skipping system dependencies (JARVIS_SKIP_SYSTEM_DEPS=1)."
+elif [[ "$OS_TYPE" == "linux" ]]; then
+    info "🔍 Installing Linux system dependencies..."
+    if command -v apt-get >/dev/null 2>&1; then
+        need_sudo apt-get update -y
+        need_sudo apt-get install -y python3-venv python3-pip portaudio19-dev libffi-dev libssl-dev
+    elif command -v dnf >/dev/null 2>&1; then
+        need_sudo dnf install -y python3-devel portaudio-devel libffi-devel openssl-devel
+    elif command -v pacman >/dev/null 2>&1; then
+        need_sudo pacman -S --noconfirm --needed python python-pip portaudio
+    elif command -v zypper >/dev/null 2>&1; then
+        need_sudo zypper install -y python3 python3-pip portaudio-devel libffi-devel libopenssl-devel
+    else
+        warn "⚠️  No supported package manager (apt/dnf/pacman/zypper). Install Python 3.12+, pip and portaudio manually."
     fi
 elif [[ "$OS_TYPE" == "darwin" ]]; then
-    if ! command -v brew &> /dev/null; then
-        echo -e "${YELLOW}⚠️ Homebrew not found. Some voice/audio features may require manual setup.${NC}"
+    if ! command -v brew >/dev/null 2>&1; then
+        warn "⚠️  Homebrew not found — some voice/audio features may need manual setup ('brew install portaudio')."
+    elif ! brew list portaudio >/dev/null 2>&1; then
+        info "📦 Installing portaudio via Homebrew..."
+        brew install portaudio
+    fi
+fi
+
+# --- 2. fetch sources (idempotent) ----------------------------------------------
+command -v git >/dev/null 2>&1 || die "git is required but not found. Install git and re-run."
+
+mkdir -p "$JARVIS_DIR"
+if [[ "$(pwd -P)" == "$(cd "$JARVIS_DIR" && pwd -P)" ]]; then
+    info "📂 Already inside ${JARVIS_DIR} — refreshing in place."
+    if [[ -d "$JARVIS_DIR/.git" ]]; then
+        git -C "$JARVIS_DIR" pull --ff-only >/dev/null 2>&1 \
+            || warn "⚠️  git pull failed (offline or diverged?) — installing from existing files."
+    fi
+elif [[ -d .git ]]; then
+    info "📂 Copying sources into ${JARVIS_DIR}..."
+    # Tracked files only: keeps re-runs clean (no venvs, caches, or pycache copied).
+    git archive HEAD | tar -x -C "$JARVIS_DIR"
+elif [[ -d "$JARVIS_DIR/.git" ]]; then
+    info "📂 Refreshing existing checkout in ${JARVIS_DIR}..."
+    git -C "$JARVIS_DIR" pull --ff-only >/dev/null 2>&1 \
+        || warn "⚠️  git pull failed (offline or diverged?) — installing from existing files."
+elif [[ -n "$(ls -A "$JARVIS_DIR" 2>/dev/null)" ]]; then
+    die "$JARVIS_DIR exists but is not a JARVIS checkout. Move it aside and re-run."
+else
+    info "📂 Cloning JARVIS${JARVIS_REF:+ (ref: $JARVIS_REF)}..."
+    if [[ -n "$JARVIS_REF" ]]; then
+        git clone --depth 1 -b "$JARVIS_REF" "$REPO_URL" "$JARVIS_DIR"
     else
-        if ! brew list portaudio &> /dev/null; then
-            echo -e "${BLUE}📦 Installing portaudio...${NC}"
-            brew install portaudio
-        fi
+        git clone --depth 1 "$REPO_URL" "$JARVIS_DIR"
     fi
 fi
 
-# 2. Directory Setup
-INSTALL_DIR="$HOME/.jarvis-app"
-mkdir -p "$INSTALL_DIR"
+cd "$JARVIS_DIR"
 
-echo -e "${BLUE}📂 Setting up JARVIS in $INSTALL_DIR...${NC}"
+# --- 3. python ------------------------------------------------------------------
+PYTHON_BIN="$(command -v python3.12 || command -v python3 || true)"
+[[ -n "$PYTHON_BIN" ]] || die "No python3 found. Install Python 3.12+ and re-run."
+PY_VER="$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+"$PYTHON_BIN" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' \
+    || die "JARVIS requires Python 3.12+ (found ${PY_VER} at ${PYTHON_BIN})."
 
-# 3. Clone or Copy Files
-# If we're already inside the install dir (re-run), there is nothing to copy.
-if [ "$(pwd -P)" = "$(cd "$INSTALL_DIR" && pwd -P)" ]; then
-    echo -e "${BLUE}📂 Already inside $INSTALL_DIR, skipping copy.${NC}"
-elif [ -d ".git" ]; then
-    echo -e "${BLUE}📂 Copying files from current directory...${NC}"
-    cp -R . "$INSTALL_DIR"
+# --- 4. venv + install ------------------------------------------------------------
+info "🐍 Setting up isolated virtual environment..."
+"$PYTHON_BIN" -m venv venv 2>/dev/null \
+    || die "Could not create a virtualenv with ${PYTHON_BIN}. On Debian/Ubuntu: sudo apt install python3-venv — then re-run."
+# shellcheck disable=SC1091
+source "venv/bin/activate"
+
+info "📦 Installing JARVIS and dependencies (a few minutes on first run)..."
+pip install --quiet --upgrade pip
+pip install --quiet -e .
+
+# --- 5. global launcher -------------------------------------------------------------
+if [[ "$SKIP_LINK" == "1" ]]; then
+    warn "⏭️  Skipping global link (JARVIS_SKIP_GLOBAL_LINK=1). Run: ${JARVIS_DIR}/venv/bin/jarvis"
 else
-    if ! command -v git &> /dev/null; then
-        echo -e "${RED}❌ git is required to download JARVIS but was not found. Install git and re-run.${NC}"
-        exit 1
-    fi
-    echo -e "${BLUE}📂 Cloning JARVIS repository...${NC}"
-    git clone https://github.com/nave433-blip/jarvis-dev.git "$INSTALL_DIR"
-fi
-
-cd "$INSTALL_DIR"
-
-# 4. Virtual Environment & Install
-echo -e "${BLUE}🐍 Creating virtual environment...${NC}"
-# Use python3.12 if available, fallback to python3 (must be 3.12+)
-PYTHON_BIN=$(command -v python3.12 || command -v python3)
-if [ -z "$PYTHON_BIN" ]; then
-    echo -e "${RED}❌ No python3 found. Install Python 3.12+ and re-run.${NC}"
-    exit 1
-fi
-PY_VER=$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-PY_OK=$("$PYTHON_BIN" -c 'import sys; print(1 if sys.version_info >= (3, 12) else 0)')
-if [ "$PY_OK" != "1" ]; then
-    echo -e "${RED}❌ JARVIS requires Python 3.12+ (found $PY_VER at $PYTHON_BIN). Install Python 3.12+ and re-run.${NC}"
-    exit 1
-fi
-"$PYTHON_BIN" -m venv venv
-source venv/bin/activate
-
-echo -e "${BLUE}📦 Installing JARVIS and dependencies...${NC}"
-pip install --upgrade pip
-pip install -e .
-
-# 5. Global Link
-echo -e "${BLUE}🔗 Creating global link...${NC}"
-BIN_PATH="/usr/local/bin/jarvis"
-
-# Create a small wrapper script for the global command
-cat <<EOF > jarvis-wrapper
+    info "🔗 Installing the 'jarvis' command..."
+    BIN_PATH="/usr/local/bin/jarvis"
+    WRAPPER_TMP="$(mktemp)"
+    cat > "$WRAPPER_TMP" <<EOF
 #!/bin/bash
-export JARVIS_ROOT="$INSTALL_DIR"
-source \$JARVIS_ROOT/venv/bin/activate
-exec python \$JARVIS_ROOT/cli.py "\$@"
+# Generated by JARVIS install.sh — do not edit.
+export JARVIS_ROOT="${JARVIS_DIR}"
+source "\$JARVIS_ROOT/venv/bin/activate"
+exec python "\$JARVIS_ROOT/cli.py" "\$@"
 EOF
-
-chmod +x jarvis-wrapper
-
-if [ -w "/usr/local/bin" ]; then
-    mv jarvis-wrapper "$BIN_PATH"
-    echo -e "${GREEN}✅ Successfully linked jarvis to $BIN_PATH${NC}"
-else
-    echo -e "${YELLOW}⚠️ No write access to /usr/local/bin. Using sudo...${NC}"
-    sudo mv jarvis-wrapper "$BIN_PATH"
-    sudo chown $(whoami) "$BIN_PATH"
-    echo -e "${GREEN}✅ Successfully linked jarvis to $BIN_PATH (with sudo)${NC}"
+    chmod +x "$WRAPPER_TMP"
+    if [[ -w /usr/local/bin ]]; then
+        mv "$WRAPPER_TMP" "$BIN_PATH"
+    else
+        warn "⚠️  /usr/local/bin is not writable — installing the launcher with sudo..."
+        need_sudo mv "$WRAPPER_TMP" "$BIN_PATH"
+    fi
+    ok "✅ 'jarvis' command installed at ${BIN_PATH}"
 fi
 
-# 6. Final Setup
-echo -e "${GREEN}✨ JARVIS is now installed globally!${NC}"
-echo -e "Try typing '${BLUE}jarvis${NC}' in your terminal."
+# --- 6. smoke test ------------------------------------------------------------------
+info "🧪 Verifying installation..."
+if venv/bin/python cli.py --help >/dev/null 2>&1; then
+    ok "✅ Smoke test passed."
+else
+    die "Install finished but 'jarvis --help' failed. Try: ${JARVIS_DIR}/venv/bin/python ${JARVIS_DIR}/cli.py --help"
+fi
+
+ok "✨ JARVIS installed! Start a new shell and run: jarvis"

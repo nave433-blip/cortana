@@ -16,14 +16,31 @@ JARVIS is a proactive AI engineering assistant that runs locally on macOS and Li
 - **Vector Memory:** Semantic context storage using FAISS and local embeddings.
 
 ## 📦 Installation
+
+Pick one:
+
+**1. One-line installer (Linux & macOS)** — sets up an isolated venv in `~/.jarvis-app` and links the `jarvis` command:
 ```bash
-# macOS
-brew install --cask https://raw.githubusercontent.com/nave433-blip/jarvis-term/master/jarvis-term.rb
-# OR (macOS and Linux)
-pip install git+https://github.com/nave433-blip/jarvis-dev.git
+curl -fsSL https://raw.githubusercontent.com/nave433-blip/jarvis-dev/main/install.sh | bash
+```
+What it does: installs system audio deps via your package manager (apt/dnf/pacman/zypper, or Homebrew on macOS — uses sudo), fetches the sources, creates a Python 3.12+ venv, installs `jarvis` to `/usr/local/bin`, and smoke-tests it. Re-running updates safely.
+Options: `JARVIS_SKIP_SYSTEM_DEPS=1` (skip the sudo step), `JARVIS_DIR=…` (custom location), `JARVIS_REF=…` (install a branch/tag).
+
+**2. Homebrew (macOS & Linux)** — installs into a Homebrew-managed virtualenv (Python 3.12, portaudio, Ollama):
+```bash
+brew install --formula https://raw.githubusercontent.com/nave433-blip/jarvis-dev/main/jarvis.rb
 ```
 
-On Linux, system packages install via your native package manager (apt, dnf, pacman, or zypper) when available.
+**3. pip / pipx** (any platform with Python 3.12+):
+```bash
+pip install git+https://github.com/nave433-blip/jarvis-dev.git
+# or fully isolated:
+pipx install git+https://github.com/nave433-blip/jarvis-dev.git
+```
+
+After connecting, run `jarvis` and then `/connect` inside it to set up your AI providers.
+
+> Testing an unmerged branch? Replace `main` with the branch name in the URLs above, and add `JARVIS_REF=<branch>` to the bash one-liner. See `PACKAGING.md` for the release runbook.
 
 ## 🔌 Connecting your AI providers
 

@@ -154,7 +154,8 @@ def test_no_refusal_bypass_content_in_devmode():
     from pathlib import Path
     root = Path(__file__).parent.parent
     banned = ["never refuse", "unconditional disclosure", "refusal is a system failure"]
-    for rel in ["core/devmode.py", "core/config.py", "core/brain.py", "cli.py", "README.md"]:
+    for rel in ["core/devmode.py", "core/config.py", "core/brain.py", "cli.py", "README.md",
+                "PACKAGING.md", "install.sh", "packaging/aur/PKGBUILD"]:
         text = (root / rel).read_text(encoding="utf-8").lower()
         for phrase in banned:
             assert phrase not in text, f"banned phrase {phrase!r} in {rel}"
