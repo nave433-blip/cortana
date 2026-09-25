@@ -28,7 +28,7 @@ class HiveResourceManager:
             )
             if res.returncode == 0:
                 return float(res.stdout.strip()) / 100.0
-        except:
+        except Exception:
             pass
         return 0.0
 

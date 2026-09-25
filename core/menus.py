@@ -116,7 +116,7 @@ def server_menu():
             pid = Prompt.ask("Enter the PID to terminate")
             try:
                 console.print(f"[yellow]{kill_process(int(pid))}[/yellow]")
-            except: console.print("[red]Invalid PID format.[/red]")
+            except Exception: console.print("[red]Invalid PID format.[/red]")
         else: break
 
 def memory_menu():

@@ -224,7 +224,7 @@ class OllamaProvider(LLMProvider):
                 r = requests.post(f"{host}/api/chat", json=payload, timeout=15)
                 r.raise_for_status()
                 return r.json()["message"]["content"]
-            except: continue
+            except Exception: continue
 
         # Try Cloud Fallback
         cfg = load_config()
@@ -234,7 +234,7 @@ class OllamaProvider(LLMProvider):
                 r = requests.post(f"{cloud_host}/api/chat", json=payload, timeout=20)
                 r.raise_for_status()
                 return r.json()["message"]["content"]
-            except: pass
+            except Exception: pass
 
         from core.services import call_model
         return call_model("gemini", messages_or_text=prompt).get("text", "Error: Fallback failed.")
@@ -303,7 +303,7 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
             if res:
                 responses[m] = res
                 console.print(f"  [green]✓[/green] Local/Local-Cloud {m} responded.")
-        except: continue
+        except Exception: continue
 
     # Tier 1.5: P2P Swarm (Hive Mind)
     try:
@@ -341,7 +341,7 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
                         if res.get("ok"):
                             data = json.loads(res["data"])
                             return data.get("text"), target_model or s_data.get("model")
-                    except: pass
+                    except Exception: pass
                 return None
 
             with ThreadPoolExecutor(max_workers=len(swarm_subset)) as executor:
@@ -363,7 +363,7 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
         set_key_for_litellm(provider_name)
         try:
             return litellm.completion(model=m_str, messages=[{"role": "user", "content": f"Context: {search_context}\n\nTask: {task}"}], timeout=20).choices[0].message.content
-        except: return None
+        except Exception: return None
 
     with ThreadPoolExecutor(max_workers=len(target_models)) as executor:
         futures = {executor.submit(ask_cloud, m): m for m in target_models}
@@ -377,7 +377,7 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
     if not responses:
         try:
             return {"ok": True, "text": get_provider().ask(task), "provider": "emergency-local"}
-        except:
+        except Exception:
             return {"ok": False, "error": "All AI tiers failed to respond."}
 
     # Tier 3: Synthesis
@@ -399,7 +399,7 @@ def think_structured(context: str, task: str, model: Optional[str] = None, promp
         from memory.vector import search
         relevant_memories = search(task, k=3)
         memory_context = "\n".join([f"- {m}" for m in relevant_memories])
-    except: pass
+    except Exception: pass
     
     personality_type = get_env_with_config("personality") or "professional"
     personality_prompt = PERSONALITIES.get(personality_type, PERSONALITIES["professional"])

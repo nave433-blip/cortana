@@ -9,7 +9,7 @@ def get_dropbox_client():
         token = get_env_with_config("dropbox_token")
         if not token: return None
         return dropbox.Dropbox(token)
-    except:
+    except Exception:
         return None
 
 def get_gdrive_service():
@@ -21,7 +21,7 @@ def get_gdrive_service():
         # This assumes a pre-authorized token for simplicity in CLI
         creds = Credentials(token)
         return build('drive', 'v3', credentials=creds)
-    except:
+    except Exception:
         return None
 
 def list_dropbox(path=""):

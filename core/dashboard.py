@@ -88,7 +88,7 @@ class Dashboard:
             files = [f for f in os.listdir(self.focus_path) if not f.startswith(".")]
             file_list = "\n".join([f"📄 {f}" for f in files[:10]])
             self.layout["focus"].update(Panel(file_list, title="Directory Preview", border_style="blue"))
-        except:
+        except Exception:
             self.layout["focus"].update(Panel("Access Denied", title="Directory Preview"))
 
     def run(self):

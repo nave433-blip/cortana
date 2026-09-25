@@ -79,7 +79,7 @@ def load_permissions():
     try:
         with open(PERMISSION_FILE, "r") as f:
             return json.load(f)
-    except:
+    except Exception:
         return {}
 
 def save_permissions(permissions):
@@ -370,7 +370,7 @@ def scan_for_jarvis_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=Fals
                 data, addr = sock.recvfrom(1024)
                 if data.startswith(b"JARVIS_DISCOVERY_RESPONSE"): found_peers.add(addr[0])
             except socket.timeout: break
-    except: pass
+    except Exception: pass
     finally: sock.close()
 
     # Subnet Fallback
@@ -382,7 +382,7 @@ def scan_for_jarvis_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=Fals
             r = requests.post(f"{scheme}://{ip}:{port}", json={"action": "status"},
                               timeout=0.3, verify=verify_tls)
             if r.status_code == 200: return ip
-        except: pass
+        except Exception: pass
         return None
     with ThreadPoolExecutor(max_workers=50) as executor:
         for res in executor.map(check_peer, [prefix + str(i) for i in range(1, 255)]):
@@ -394,7 +394,7 @@ def scan_for_jarvis_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=Fals
         for peer in get_global_peers():
             ep = peer.get("endpoint")
             if ep: found_peers.add(ep)
-    except: pass
+    except Exception: pass
 
     return list(found_peers)
 
@@ -443,7 +443,7 @@ def p2p_status_report(use_tls=None, verify_tls=False):
                     lat = f"{(time.time() - start)*1000:.1f}ms"
                     sync = "[green]✓ MATCH[/green]" if data.get("version") == CURRENT_VERSION else "[yellow]⚠ LEGACY[/yellow]"
                     table.add_row(ip, data.get("name"), data.get("version"), sync, data.get("model"), lat)
-            except: pass
+            except Exception: pass
 
 def p2p_token_menu():
     console.print("[yellow]⚠️ Tokens are transferred over plaintext HTTP. "

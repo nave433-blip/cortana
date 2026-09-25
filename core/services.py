@@ -299,7 +299,7 @@ def list_models_for_provider(provider: str, extra: Optional[Dict[str, Any]] = No
                     data = r.json()
                     models = [m.get("name") for m in data.get("models", []) if m.get("name")]
                     return {"ok": True, "models": models}
-            except: continue
+            except Exception: continue
         return {"ok": False, "error": "Could not fetch models from Ollama", "error_type": "unreachable"}
     
     fallback = {

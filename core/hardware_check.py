@@ -18,7 +18,7 @@ def get_hardware_specs():
             parts = res.stdout.strip().split(',')
             gpu_name = parts[0].strip()
             gpu_vram = float(parts[1].strip()) / 1024.0 # GB
-    except:
+    except Exception:
         pass
 
     return {

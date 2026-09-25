@@ -77,7 +77,7 @@ def detect_ollama(max_attempts: int = 3):
         try:
             r = requests.get(f"{host}/api/tags", timeout=0.5)
             if r.status_code == 200: return host
-        except: continue
+        except Exception: continue
 
     # Auto-Launch Attempt (bounded retries; previously unbounded recursion)
     if max_attempts > 0:

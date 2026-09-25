@@ -40,8 +40,8 @@ def probe_llm_endpoints(timeout_limit=180):
                                 console.print(f"[green]✅ Found active LLM endpoint: {url}{ep}[/green]")
                                 found_urls.append(url)
                                 break # Move to next port
-                        except: continue
-            except:
+                        except Exception: continue
+            except Exception:
                 continue
     
     return found_urls

@@ -28,7 +28,7 @@ def open_url(url: str, *args, **kwargs):
                     if subprocess.run(["which", cmd], capture_output=True).returncode == 0:
                         subprocess.Popen([cmd, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                         return True
-                except:
+                except Exception:
                     continue
 
             # Generic Linux opener
@@ -36,7 +36,7 @@ def open_url(url: str, *args, **kwargs):
                 try:
                     subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     return True
-                except:
+                except Exception:
                     pass
         
         # Fallback to default behavior

@@ -79,7 +79,7 @@ def scan_network_for_ollama():
                 s.settimeout(0.2)
                 if s.connect_ex((ip, 11434)) == 0:
                     return f"http://{ip}:11434"
-        except:
+        except Exception:
             pass
         return None
 

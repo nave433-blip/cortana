@@ -162,7 +162,7 @@ def get_bottom_toolbar():
         model = config.get("jarvis_model", "unknown")
         provider = config.get("provider", "ollama")
         return HTML(f'<style fg="cyan">📁 {cwd}</style> | <style fg="magenta">🧠 {provider.upper()} ({model})</style>')
-    except:
+    except Exception:
         return HTML('<style fg="red">System Initializing...</style>')
 
 @app.command()
