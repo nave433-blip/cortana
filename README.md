@@ -3,11 +3,32 @@
 JARVIS is a proactive AI engineering assistant that runs locally on macOS and Linux. It combines high-speed technical reasoning with deep system control and multi-model aggregator capabilities.
 
 ## 🚀 What's New in v0.2.6
-- **Sovereign Reinstall:** New `/reinstall` command for a clean system refresh.
-- **Ollama Auto-Connect:** JARVIS autonomously detects and launches the Ollama application on startup.
-- **Reasoning Fix:** Optimized LLM communication to eliminate hangs and provide faster response feedback.
-- **Proactive Account Center:** Intelligently handles "log in" and "link account" requests.
-- **High-Fidelity Menu:** Redesigned `/menu` dashboard with categorized tool groups.
+
+The audit-to-release arc — everything below was re-verified with
+`compileall` clean and the full test suite green:
+
+- **⏰ In-Jarvis task scheduler** (`/schedule`) — persistent one-shot,
+  interval, and cron jobs with whitelisted actions, atomic job storage
+  (`0600`), and an append-only run log. No system cron needed:
+  `/schedule add --name "nightly pull" --action "/ollama auto-pull" --cron "0 4 * * *"`.
+- **🖥️ Local web dashboard** (`/dashboard` or `jarvis dashboard`) —
+  token-authenticated (per-instance token, `0600`, constant-time compare),
+  stdlib-only, loopback by default (`--lan` binds LAN with a warning):
+  live provider/P2P/Ollama/scheduler panels, safe chat, and a read-only
+  command whitelist.
+- **🐝 Hive mind, 🐜 agent swarm, 🔌 MCP, 🔎 deep research** — new
+  subsystems with honest "unavailable" errors instead of fake stubs
+  (`/hive`, `/swarm`, `/mcp`, `/research`).
+- **🦙 Ollama fleet management** — `/ollama ps`, `prune`, `bench`,
+  `stats`, multi-host pools, auto-pull with `/schedule` integration.
+- **🧊 Thin client** — `/thin` for low-resource nodes against a fat peer.
+- **⏳ Conversation time-travel** — `/rewind`, `/branch`, `/branches`, `/diff`.
+- **📦 Verified skill sharing** — `/skill` packs are manifest-verified.
+- **📋 Proactive briefs & 🤝 session handoff** — `/brief`, `/handoff`.
+- **Hardening** — P2P TLS option, capability-flag service advertising,
+  startup ≈12× faster (lazy LiteLLM/Paramiko imports with regression
+  tests), actionable one-line errors instead of tracebacks, and a
+  realistic filesystem MCP fixture for tests.
 
 ## 💎 Core Features
 - **Multi-Model Aggregator:** Switch between **Ollama**, **OpenAI**, **Anthropic**, **Gemini**, **Mistral**, **DeepSeek**, **Groq**, and more.
@@ -119,6 +140,121 @@ JavaScript rendering.
   fetches pages via the browser module, and compiles a Markdown report where
   every `[n]` citation is validated against a fetched source — out-of-range
   citations are stripped, never fabricated. Bounded (4 queries / 8 pages).
+
+## ⏰ Task scheduler
+
+`/schedule` runs persistent jobs inside the Jarvis process — no system cron,
+no background daemon:
+
+```text
+/schedule add --name "nightly pull" --action "/ollama auto-pull" --cron "0 4 * * *"
+/schedule add --name "hourly brief" --action "/brief now" --every 3600
+/schedule add --name "one report" --action "/research local AI" --at "2026-09-26T09:00:00"
+/schedule list        /schedule log
+/schedule remove <id>  /schedule run <id>
+/schedule pause <id>   /schedule resume <id>
+```
+
+Jobs persist in `~/.jarvis/scheduler_jobs.json` (atomic writes, mode `0600`)
+with an append-only run history in `scheduler_runs.jsonl`. Actions are
+whitelisted (`/brief`, `/ollama auto-pull`, `/research`, `/health`, and
+`shell: …` executed **only** through the sandbox) — anything else is
+rejected. Missed runs are logged honestly; missed one-shot jobs are disabled
+rather than silently discarded. The scheduler starts when Jarvis enters its
+normal interactive mode.
+
+## 🖥️ Web dashboard
+
+`jarvis dashboard` (or `/dashboard` inside chat) starts a local web UI —
+stdlib `http.server` only, no dependencies:
+
+- binds **loopback (`127.0.0.1`) by default**; `--lan` binds all interfaces
+  with an explicit warning;
+- per-instance random token stored at `~/.jarvis/dashboard_token` (`0600`),
+  sent as `?token=` or the `X-Jarvis-Token` header, compared with
+  `hmac.compare_digest`;
+- live panels read real state: providers, P2P peers, Ollama hosts/models,
+  scheduler jobs + recent runs, brief watcher, and a redacted log tail;
+- chat posts to `core.brain.think`; a read-only command whitelist
+  (`/health`, `/models`, `/schedule list`, `/schedule log`, `/ollama ps`,
+  `/ollama stats`, `/brief status`, `/p2p-status`) — nothing else executes.
+
+Flags: `--port 0` (random free port), `--open`, `--lan`.
+
+## 🦙 Ollama fleet management
+
+```text
+/ollama ps          list hosts and their models
+/ollama pull <m>    pull a model on every reachable host
+/ollama prune       remove unused models (confirms first)
+/ollama bench       quick throughput benchmark per host
+/ollama stats       usage telemetry recorded by chat sessions
+/ollama auto-pull   pull configured models everywhere (great with /schedule)
+/connect ollama --host http://other:11434   add hosts to the pool
+```
+
+Down servers and missing models report one actionable line
+("Couldn't reach Ollama … start it with `ollama serve`",
+"Ollama doesn't have model '…' — pull it with `/ollama pull …`")
+instead of a traceback or a silent cloud fallback.
+
+## 🧊 Thin client
+
+`/thin` turns a low-resource node into a thin client: the chat UI runs
+locally while heavy work is forwarded to a reachable fat peer. If no peer
+is reachable it says so plainly instead of pretending.
+
+## ⏳ Conversation time-travel
+
+```text
+/rewind [n]        step back n turns (default 1)
+/branch <name>     fork the conversation here
+/branches          list branches
+/diff [a] [b]      show what changed between turns/branches
+```
+
+## 📦 Skill sharing
+
+`/skill` installs skill packs shared by other Jarvis nodes. Every pack is
+manifest-verified before anything runs — unverified content is refused,
+never executed.
+
+## 📋 Proactive briefs & 🤝 session handoff
+
+```text
+/brief now         "while you were away" brief on demand
+/brief status      watcher state
+/handoff <peer>    hand this live session to another node
+```
+
+## ⌨️ Command reference
+
+| Command | What it does |
+|---|---|
+| `/chat <text>` | Talk to the active provider |
+| `/connect [provider]` | Link AI providers (API keys, Ollama, …) |
+| `/connections [--test]` | Provider status table, optionally live-tested |
+| `/models` | Switch provider / model |
+| `/hive <question>` | Ask all connected AIs, get one consensus answer |
+| `/swarm <task>` | Parallel planner → workers → reviewer |
+| `/mcp` | External tool servers: `servers`, `tools`, `call` |
+| `/research <topic>` | Cited multi-query web research report |
+| `/schedule` | `add/list/remove/run/pause/resume/log` persistent jobs |
+| `/dashboard` | Start the local web dashboard |
+| `/ollama` | `ps/pull/prune/bench/stats/auto-pull` fleet management |
+| `/thin` | Thin client against a fat peer |
+| `/rewind [n]`, `/branch`, `/branches`, `/diff` | Conversation time-travel |
+| `/skill` | Install verified skill packs |
+| `/brief` | Proactive briefs: `now`, `status` |
+| `/handoff <peer>` | Hand the session to another node |
+| `/doctor` | System health check & self-repair |
+| `/network` | Local network discovery & port scanning |
+| `/server` | Monitor ports, processes, services |
+| `/hardware` | USB & physical port probing |
+| `/ssh <host> <cmd>` | Run commands on remote servers |
+| `/memory <query>` | Search persistent knowledge base |
+| `/fix`, `/forge`, `/plan`, `/troubleshoot`, `/analyze`, `/nave` | AI engineering agents |
+| `/config`, `/personality`, `/prompts`, `/help`, `/menu`, `/exit` | Settings & UI |
 
 ## 🛠 Dev mode
 

@@ -127,6 +127,8 @@ def get_menu_grid() -> Table:
         ("/hive", "Hive mind: ask all connected AIs, get one consensus"),
         ("/swarm", "Agent swarm: parallel planner → workers → reviewer"),
         ("/research", "Deep research: multi-query web research w/ citations"),
+        ("/schedule", "Task scheduler: cron/interval/one-shot jobs in-Jarvis"),
+        ("/rewind", "Conversation time-travel: rewind, branch, diff"),
     ])
     devops = _menu_group("🛠️ DevOps & Utilities", "green", [
         ("/doctor", "System health check & self-repair"),
@@ -135,8 +137,10 @@ def get_menu_grid() -> Table:
         ("/hardware", "USB & physical port probing"),
         ("/ssh", "Run commands on remote servers"),
         ("/memory", "Search your persistent knowledge base"),
-        ("/dashboard", "Live system monitoring interface"),
+        ("/dashboard", "Local web dashboard: status, chat, logs"),
         ("/mcp", "External tool servers via MCP (stdio)"),
+        ("/ollama", "Ollama fleet: prune, bench, stats, auto-pull"),
+        ("/thin", "Thin client for low-resource nodes"),
     ])
     accounts = _menu_group("🔌 Accounts & Setup", "cyan", [
         ("/connect", "Link AI providers (API keys, Ollama, …)"),
@@ -145,6 +149,9 @@ def get_menu_grid() -> Table:
         ("/config", "Settings & configuration"),
         ("/personality", "Assistant tone: Professional, Mentor, …"),
         ("/prompts", "Saved system-prompt roles"),
+        ("/skill", "Share & install verified skill packs"),
+        ("/brief", "Proactive 'while you were away' briefs"),
+        ("/handoff", "Hand a live session to another node"),
         ("/help", "Full command reference"),
         ("/exit", "Shut down cleanly"),
     ])
