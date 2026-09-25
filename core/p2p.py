@@ -576,7 +576,7 @@ def p2p_status_report(port=11435, use_tls=None, verify_tls=False):
                     table.add_row(ip, data.get("name"), data.get("version"), sync, data.get("model"), lat)
             except Exception: pass
     if peers:
-        console.print("[dim]Squad up.[/dim]")
+        console.print("[dim]Chief, we're connected to the battlenet.[/dim]")
 
 def p2p_token_menu():
     console.print("[yellow]⚠️ Tokens are transferred over plaintext HTTP. "
