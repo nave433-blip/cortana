@@ -313,9 +313,9 @@ def _smoke_env(tmp_path):
         "ollama_cloud_host": "https://ollama.com/api",
         "p2p_enabled": True,
     }))
-    # Stub the agent-CLI check binaries so startup's check_and_install_agents
-    # sees them as present and never attempts real `npm install -g` /
-    # `curl | bash` installs inside the test sandbox.
+    # Stub the agent-CLI check binaries so startup's agent detection
+    # (core.agent_manager.check_agents) sees them as present and never
+    # prompts for `npm install -g` / `curl | bash` installs in the sandbox.
     bindir = tmp_path / "smoke-bin"
     bindir.mkdir()
     for name in ("hermes", "openclaw", "opencode", "codex", "gh", "droid",
