@@ -12,6 +12,4 @@ def chunk_task(task: str, num_chunks: int) -> list:
 
 def aggregate_results(results: list) -> str:
     """Aggregates chunk results into a final coherent answer."""
-    return "
-
-".join(results)
+    return "\n\n".join(results)

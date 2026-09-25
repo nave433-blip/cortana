@@ -28,12 +28,10 @@ def refine_loop(target_file: str, test_cmd: str, max_retries=3):
         
         # Ask LLM for a fix
         console.print("[dim]Requesting autonomous repair...[/dim]")
-        prompt = f"The file {target_file} failed the test '{test_cmd}' with the following error:
-{stderr or stdout}
-
-Please analyze the code and provide a fix."
-        res = think_structured(f"File content:
-{open(target_file, 'r').read()}", prompt)
+        prompt = (f"The file {target_file} failed the test '{test_cmd}' with the following error:\n"
+                  f"{stderr or stdout}\n\n"
+                  f"Please analyze the code and provide a fix.")
+        res = think_structured(f"File content:\n{open(target_file, 'r').read()}\n", prompt)
         
         if res.get("ok"):
             # Apply fix (assuming LLM returns the full corrected file or patch)

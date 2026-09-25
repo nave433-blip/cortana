@@ -21,8 +21,15 @@ def query_gemini_cli(prompt: str) -> str:
         console.print(f"[dim]Gemini CLI failed: {e}[/dim]")
         return ""
 
-def query_ollama_cli(prompt: str) -> str:
-    # ... (existing)
+def query_ollama_cli(prompt: str, model: str = "llama3") -> str:
+    """Executes a prompt via the Ollama CLI (assuming 'ollama' executable exists)."""
+    try:
+        cmd = ["ollama", "run", model, prompt]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        return result.stdout if result.returncode == 0 else ""
+    except Exception as e:
+        console.print(f"[dim]Ollama CLI failed: {e}[/dim]")
+        return ""
 
 def query_hive_mind(task: str) -> str:
     """Queries remote P2P nodes for task resolution."""

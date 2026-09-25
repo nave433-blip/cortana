@@ -26,8 +26,7 @@ class Validator:
         console.print("[bold cyan]🚀 STARTING STRICT VALIDATION MODE[/bold cyan]")
         results = {}
         for capability, (task, test_cmd) in self.registry.items():
-            console.print(f"
-[bold]Testing {capability}...[/bold]")
+            console.print(f"\n[bold]Testing {capability}...[/bold]")
             # 1. Execute Task
             # 2. Check for Hallucinations
             # 3. Refine loop
