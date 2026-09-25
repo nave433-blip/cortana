@@ -992,7 +992,11 @@ def start_config_maintenance(interval_hours: int = 24):
 def connect_provider(provider: str, host: Optional[str] = None, key: Optional[str] = None):
     """Connect and configure a provider."""
     provider = provider.lower()
-    if provider in ("nemotron", "qwen", "gpt4all", "llama_cpp", "vllm", "sglang", "replit", "laguna"):
+    from core.services import KNOWN_PROVIDERS
+    if provider not in KNOWN_PROVIDERS:
+        console.print(f"[red]Unknown provider '{provider}'. Supported: {', '.join(KNOWN_PROVIDERS)}[/red]")
+        return
+    if provider in ("nemotron", "qwen", "gpt4all", "llama_cpp", "vllm", "sglang", "ollama", "local"):
         if not host: host = Prompt.ask(f"Enter host URL for {provider}", default="")
         if host:
             cfg = load_config(); cfg[f"{provider}_host"] = host; save_config(cfg)
@@ -1001,7 +1005,7 @@ def connect_provider(provider: str, host: Optional[str] = None, key: Optional[st
         return
     if not key:
         from core.utils import open_url
-        urls = {"gemini": "https://aistudio.google.com/app/apikey", "openai": "https://platform.openai.com/api-keys", "anthropic": "https://console.anthropic.com/settings/keys", "grok": "https://console.x.ai/", "mistral": "https://console.mistral.ai/api-keys/", "nemotron": "https://build.nvidia.com/nvidia/nemotron-4-340b-instruct", "qwen": "https://dashscope.console.aliyun.com/apiKey", "perplexity": "https://www.perplexity.ai/settings/api", "granite": "https://cloud.ibm.com/watsonx", "gemma": "https://aistudio.google.com/app/apikey", "replit": "https://replit.com/teams/join"}
+        urls = {"gemini": "https://aistudio.google.com/app/apikey", "openai": "https://platform.openai.com/api-keys", "anthropic": "https://console.anthropic.com/settings/keys", "mistral": "https://console.mistral.ai/api-keys/", "qwen": "https://dashscope.console.aliyun.com/apiKey", "perplexity": "https://www.perplexity.ai/settings/api", "groq": "https://console.groq.com/keys", "together": "https://api.together.xyz/settings/api-keys", "cohere": "https://dashboard.cohere.com/api-keys", "deepseek": "https://platform.deepseek.com/api_keys"}
         if provider in urls:
             console.print(f"[bold cyan]Opening login page for {provider}...[/bold cyan]")
             open_url(urls[provider])
