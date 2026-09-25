@@ -23,6 +23,19 @@ console = Console()
 
 from core.ui import display_chat_message
 
+
+def _sandbox_enabled():
+    """Opt-in Linux code sandbox for the SHELL tool.
+
+    Enabled with "code_sandbox": true in ~/.jarvis/config.json. Default off —
+    plain execution stays the default; the sandbox only ever restricts.
+    """
+    try:
+        from core.config import load_config
+        return bool(load_config().get("code_sandbox", False))
+    except Exception:
+        return False
+
 def dispatch_tool(line, next_line):
     if not line.startswith("TOOL:"): return None
     
@@ -48,14 +61,15 @@ def dispatch_tool(line, next_line):
         elif tool_name == "EDIT":
             return replace_in_file(args["path"], args["old"], args["new"])
         elif tool_name == "SHELL":
-            res = run(args["command"])
+            use_sandbox = _sandbox_enabled()
+            res = run(args["command"], sandbox=use_sandbox)
             if isinstance(res, dict) and res.get("status") == "needs_confirmation":
                 console.print(Panel(f"[bold red]⚠️ POTENTIALLY UNSAFE COMMAND DETECTED[/bold red]\n\n[white]{res['command']}[/white]", border_style="red"))
                 if Confirm.ask("Do you want to authorize this command?"):
-                    return run_simple(res['command'], confirm=True)
+                    return run_simple(res['command'], confirm=True, sandbox=use_sandbox)
                 else:
                     return "ABORTED: Command authorization denied by user."
-            return run_simple(args["command"])
+            return run_simple(args["command"], sandbox=use_sandbox)
         elif tool_name == "INSTALLER":
             method = args.get("method")
             if method == "brew": return brew_install(args["package"])
