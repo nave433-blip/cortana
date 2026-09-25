@@ -1,4 +1,22 @@
-# Changelog — JARVIS
+# Changelog — CORTANA
+
+All notable changes, newest first. Dates are when the work landed on the
+`audit/fix` branch. `JARVIS.md` (the user's own instructions file) is never
+modified by any of this work.
+
+## [rename] — 2026-09-25 (branch `rename/cortana`, not yet merged)
+
+**Project rename: JARVIS → CORTANA.** Everything the user touches now says
+Cortana: CLI (`cortana`, with a deprecated `jarvis` shim that prints a rename
+notice and forwards), config dir `~/.cortana` (old `~/.jarvis` is copied, not
+moved), config keys (`cortana_model`, `cortana_name`), keyring services
+(`cortana-dev`, `cortana_cli`, `cortana_google_auth`), dashboard token header
+`X-Cortana-Token`, installer (`~/.cortana-app`, `/usr/local/bin/cortana`),
+Homebrew formula (`cortana.rb`), AUR package (`cortana`), PyPI distribution
+(`cortana`). P2P wire actions and UDP discovery bytes are unchanged so older
+nodes stay interoperable. A few tasteful easter eggs: a `/clippy` command, a
+Halo-flavored boot line, and a classic-Windows sign-off on `/exit`.
+
 
 All notable changes, newest first. Dates are when the work landed on the
 `audit/fix` branch. `JARVIS.md` (the user's own instructions file) is never
@@ -13,8 +31,8 @@ was re-verified with `compileall` clean and the full test suite green.
 
 - Persistent in-process scheduler: one-shot (`--at`), interval (`--every`),
   and cron jobs (`--cron "0 4 * * *"`).
-- Jobs stored in `~/.jarvis/scheduler_jobs.json` (atomic writes, mode
-  `0600`); append-only run history in `~/.jarvis/scheduler_runs.jsonl`.
+- Jobs stored in `~/.cortana/scheduler_jobs.json` (atomic writes, mode
+  `0600`); append-only run history in `~/.cortana/scheduler_runs.jsonl`.
 - Whitelisted actions only: `/brief`, `/ollama auto-pull`, `/research`,
   `/health`, and `shell: …` executed **exclusively** through the sandbox —
   anything else is rejected.
@@ -22,13 +40,13 @@ was re-verified with `compileall` clean and the full test suite green.
   than silently discarded. Starts with the normal interactive session.
 - `/ollama auto-pull` help now points at `/schedule` instead of system cron.
 
-### New: local web dashboard (`/dashboard`, `jarvis dashboard`)
+### New: local web dashboard (`/dashboard`, `cortana dashboard`)
 
 - Stdlib-only `http.server` UI replacing the old Rich terminal dashboard.
 - Binds loopback (`127.0.0.1`) by default; `--lan` binds all interfaces with
   an explicit warning.
-- Per-instance random token at `~/.jarvis/dashboard_token` (`0600`), sent as
-  `?token=` or `X-Jarvis-Token`, compared with `hmac.compare_digest`.
+- Per-instance random token at `~/.cortana/dashboard_token` (`0600`), sent as
+  `?token=` or `X-Cortana-Token`, compared with `hmac.compare_digest`.
 - Live panels read real state: providers, P2P peers, Ollama hosts/models,
   scheduler jobs + recent runs, brief watcher, redacted log tail.
 - Chat calls `core.brain.think`; a read-only command whitelist
