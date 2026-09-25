@@ -52,10 +52,12 @@ def test_no_hardcoded_ollama_token():
 def test_litellm_quiet_flags():
     sys.path.insert(0, REPO_ROOT)
     try:
-        import litellm  # noqa: F401
-        import core.brain  # noqa: F401  (sets the flags at import)
-        assert litellm.suppress_debug_info is True
-        assert litellm.set_verbose is False
+        from core.brain import _litellm  # noqa: F401
+        # Flags are applied on first lazy load (never at import: litellm is
+        # deliberately not imported with core.brain for startup speed).
+        m = _litellm()
+        assert m.suppress_debug_info is True
+        assert m.set_verbose is False
     finally:
         sys.path.remove(REPO_ROOT)
 

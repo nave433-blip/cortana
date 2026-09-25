@@ -536,9 +536,24 @@ def _complete_via_litellm(model_str: str, messages: List, temperature: float, ti
         timeout=timeout
     )
 
+def _needs_api_key(provider: str) -> bool:
+    """True unless the provider is local/host-only (Ollama, vLLM, ...)."""
+    try:
+        from core.auth import AuthManager  # lazy: core.auth imports core.services
+        info = AuthManager.PROVIDERS.get(provider.lower(), {})
+        return not info.get("host_only", False)
+    except Exception:
+        return provider.lower() != "ollama"
+
+
 def call_model(provider: str, messages_or_text: Any, model: Optional[str] = None, temperature: float = 0.2, timeout: float = 30.0) -> Dict:
     provider = provider.lower()
     set_key_for_litellm(provider)
+
+    # Fail fast with an actionable line instead of a cryptic litellm auth error.
+    if _needs_api_key(provider) and not get_api_key(provider):
+        return {"ok": False, "error_type": "missing_key",
+                "error": f"No API key found for '{provider}'. Run /connect to link it (takes ~30 seconds)."}
     
     if isinstance(messages_or_text, str):
         messages = [{"role": "user", "content": messages_or_text}]

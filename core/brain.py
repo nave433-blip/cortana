@@ -51,6 +51,12 @@ def _short_err(e: Exception) -> str:
     """
     return str(e).splitlines()[0] if str(e).strip() else repr(e)
 
+
+def _short_err_str(text: str) -> str:
+    """First line of an error string for user display."""
+    text = str(text).strip()
+    return text.splitlines()[0] if text else "unknown error"
+
 console = Console()
 logger = logging.getLogger("jarvis_brain")
 
@@ -249,11 +255,18 @@ class OllamaProvider(LLMProvider):
     def ask(self, prompt, context="", options=None):
         payload = {"model": self.model, "messages": [{"role": "user", "content": prompt}], "stream": False}
         if options: payload["options"] = options
-        
-        # Try hosts in pool
+
+        # Try hosts in pool, tracking WHY each failed for an actionable error.
+        tried_hosts = []
+        conn_failed = []
+        model_missing = False
         for host in [self.host] + [h for h in self.hosts if h != self.host]:
+            tried_hosts.append(host)
             try:
                 r = requests.post(f"{host}/api/chat", json=payload, timeout=15)
+                if r.status_code == 404:
+                    model_missing = True  # model not on this host; maybe on another
+                    continue
                 r.raise_for_status()
                 data = r.json()
                 # Usage telemetry for `/ollama stats` — best-effort, never raises.
@@ -263,7 +276,11 @@ class OllamaProvider(LLMProvider):
                 except Exception:
                     pass
                 return data["message"]["content"]
-            except Exception: continue
+            except requests.ConnectionError:
+                conn_failed.append(host)
+                continue
+            except Exception:
+                continue
 
         # Try Cloud Fallback
         cfg = load_config()
@@ -275,8 +292,18 @@ class OllamaProvider(LLMProvider):
                 return r.json()["message"]["content"]
             except Exception: pass
 
+        # Honest, actionable final errors — one line, no traceback.
+        if model_missing and not conn_failed:
+            return (f"Ollama doesn't have model '{self.model}'. "
+                    f"Pull it with `/ollama pull {self.model}`, or pick another with /models.")
+        if conn_failed and len(conn_failed) == len(tried_hosts):
+            return (f"Couldn't reach Ollama at {', '.join(tried_hosts)}. "
+                    "Is it running? Start it with `ollama serve` — or link a cloud provider with /connect.")
         from core.services import call_model
-        return call_model("gemini", messages_or_text=prompt).get("text", "Error: Fallback failed.")
+        res = call_model("gemini", messages_or_text=prompt)
+        if res.get("ok"):
+            return res.get("text")
+        return f"Error: {_short_err_str(res.get('error', 'all fallbacks failed'))}"
 
 # -------------------------
 # Intent & Routing

@@ -354,6 +354,16 @@ class DashboardServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
 
 
+def _bind_server(host: str, port: int, token: str):
+    """Bind the dashboard server, or return (None, error_message)."""
+    handler = type("AuthedHandler", (_Handler,), {"token": token})
+    try:
+        return DashboardServer((host, port), handler), None
+    except OSError as e:
+        hint = "try `/dashboard --port 0` for a random free port" if port else "no free port found"
+        return None, f"Couldn't bind the dashboard to {host}:{port or 'a free port'} ({e}). {hint}."
+
+
 def run_dashboard(port: int = 0, bind_lan: bool = False,
                   open_browser: bool = False) -> Dict[str, Any]:
     """Start the dashboard. Returns {"url", "port"}. Blocks until Ctrl-C."""
@@ -362,8 +372,10 @@ def run_dashboard(port: int = 0, bind_lan: bool = False,
     if bind_lan:
         print("⚠️  WARNING: dashboard bound to ALL interfaces (LAN). "
               "Anyone on your network with the token can read status and chat.")
-    handler = type("AuthedHandler", (_Handler,), {"token": token})
-    server = DashboardServer((host, port), handler)
+    server, err = _bind_server(host, port, token)
+    if server is None:
+        print(f"[red]{err}[/red]")
+        return {"url": None, "port": None, "error": err}
     actual_port = server.server_address[1]
     display_host = "127.0.0.1"
     url = f"http://{display_host}:{actual_port}/?token={token}"
@@ -389,8 +401,10 @@ def start_dashboard_background(port: int = 0, bind_lan: bool = False) -> Dict[st
     """Start the dashboard on a background thread. Returns url/port/stop()."""
     token = _get_token()
     host = "0.0.0.0" if bind_lan else "127.0.0.1"
-    handler = type("AuthedHandler", (_Handler,), {"token": token})
-    server = DashboardServer((host, port), handler)
+    server, err = _bind_server(host, port, token)
+    if server is None:
+        return {"url": None, "port": None, "token": token,
+                "stop": lambda: None, "error": err}
     actual_port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True,
                               name="jarvis-dashboard")
