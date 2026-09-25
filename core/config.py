@@ -50,7 +50,11 @@ DEFAULT_CONFIG = {
     # Shell allowlist mode: empty/missing = disabled (legacy blocklist only).
     # When set to a list of command prefixes, tools.shell.run only executes
     # commands starting with one of them.
-    "shell_allowlist": []
+    "shell_allowlist": [],
+    # Dev mode: local-only diagnostics (debug logging, request timing,
+    # DEV MODE banner) + optional personal instructions from
+    # ~/.jarvis/dev_instructions.md. Also enabled via JARVIS_DEV_MODE=1.
+    "dev_mode": False
 }
 
 def load_config():
@@ -186,6 +190,21 @@ def get_env_with_config(key):
     env_val = os.getenv(key.upper())
     if env_val: return env_val
     return config.get(key.lower(), "")
+
+def is_dev_mode(config=None):
+    """Dev-mode toggle for the developer's own machine.
+
+    JARVIS_DEV_MODE env var wins when set to a recognized value:
+    1/true/yes/on enables, 0/false/no/off disables. When the env var is
+    unset (or unrecognized), the `dev_mode` config key decides.
+    """
+    env = os.getenv("JARVIS_DEV_MODE", "").strip().lower()
+    if env in ("1", "true", "yes", "on"):
+        return True
+    if env in ("0", "false", "no", "off"):
+        return False
+    cfg = config if config is not None else load_config()
+    return bool(cfg.get("dev_mode", False))
 
 def auto_config_maintenance_once():
     """

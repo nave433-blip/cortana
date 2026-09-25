@@ -41,7 +41,8 @@ from rich.prompt import Prompt, Confirm
 # Internal Modules
 from core.brain import think, think_structured, get_provider
 from core.agent import debug_loop, troubleshoot_loop, forge_loop
-from core.config import setup_wizard, get_env_with_config, CONFIG_FILE, load_config, save_config
+from core.config import setup_wizard, get_env_with_config, CONFIG_FILE, load_config, save_config, is_dev_mode
+from core.devmode import print_dev_banner
 from core.services import repair_ollama
 from core.config import start_periodic_config_maintenance, auto_config_maintenance_once
 from core.logger import ErrorLogger
@@ -80,6 +81,11 @@ def main(ctx: typer.Context,
         logging.basicConfig(level=logging.DEBUG)
         os.environ["LITELLM_LOG"] = "DEBUG"
         console.print("[dim]Debug mode enabled.[/dim]")
+    elif is_dev_mode():
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+        os.environ["LITELLM_LOG"] = "DEBUG"
+        console.print("[dim]\U0001f6e0 Dev mode: debug logging enabled.[/dim]")
     if ctx.invoked_subcommand is None:
         if not CONFIG_FILE.exists():
             console.print("[yellow]No configuration found. Starting setup...[/yellow]")
@@ -239,6 +245,7 @@ def interactive():
     skip_startup = os.environ.get("JARVIS_SKIP_STARTUP") == "1"
     try:
         display_welcome()
+        print_dev_banner()
         if not skip_startup:
             verify_and_fix_local_llm()
             auto_check_on_launch()

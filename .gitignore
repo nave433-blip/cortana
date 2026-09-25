@@ -6,3 +6,8 @@ memory_store.pkl
 memory.index
 .DS_Store
 .install-test-venv/
+# Dev-mode personal instructions must never be committed (they live in
+# ~/.jarvis/dev_instructions.md, outside the repo). These entries are a
+# defensive backstop in case one is ever dropped inside the tree.
+dev_instructions.md
+*-dev.local.md

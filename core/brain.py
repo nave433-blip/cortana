@@ -23,6 +23,7 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 import litellm
 from core.config import load_config, save_config, get_env_with_config
+from core.devmode import timed_request, effective_system_prompt
 
 # Keep LiteLLM quiet: never append full tracebacks to exception messages
 # (a failed provider call should show one clean error line, not an internal
@@ -148,38 +149,41 @@ class ModelManager:
         from core.services import set_key_for_litellm
         cfg = load_config()
         model_name = self._ensure_provider(self.current_model)
-        
+        system_prompt = effective_system_prompt(SYSTEM_PROMPT)
+
         # Handle Ollama Cloud routing
         if model_name.endswith("-cloud"):
             cloud_host = cfg.get("ollama_cloud_host") or "https://ollama.com/api"
-            token = cfg.get("ollama_token") or os.environ.get("OLLAMA_API_KEY")
-            
+            token = cfg.get("ollama_token") or os.getenv("OLLAMA_TOKEN", "")
+
             if token:
                 os.environ["OLLAMA_API_BASE"] = cloud_host
                 os.environ["OLLAMA_API_KEY"] = token
                 actual_model = model_name.replace("-cloud", "")
                 actual_model = self._ensure_provider(actual_model)
-                
+
                 try:
-                    res = litellm.completion(
-                        model=actual_model,
-                        api_base=cloud_host,
-                        extra_headers={"Authorization": f"Bearer {token}"},
-                        messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}]
-                    )
+                    with timed_request("ollama-cloud", actual_model):
+                        res = litellm.completion(
+                            model=actual_model,
+                            api_base=cloud_host,
+                            extra_headers={"Authorization": f"Bearer {token}"},
+                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}]
+                        )
                     return res.choices[0].message.content
                 except Exception as e:
                     return f"⚠️ Ollama Cloud Error: {_short_err(e)}"
             else:
                 return "❌ Ollama Cloud model requested but no 'ollama_token' found in config or environment."
-            
+
         provider = model_name.split('/')[0]
         set_key_for_litellm(provider)
         try:
-            res = litellm.completion(
-                model=model_name, 
-                messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}]
-            )
+            with timed_request(provider, model_name):
+                res = litellm.completion(
+                    model=model_name,
+                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}]
+                )
             return res.choices[0].message.content
         except Exception as e:
             return f"⚠️ AI Error: {_short_err(e)}"
@@ -188,17 +192,19 @@ class ModelManager:
         from core.services import set_key_for_litellm
         model_name = self._ensure_provider(self.current_model)
         provider = model_name.split('/')[0]
+        system_prompt = effective_system_prompt(SYSTEM_PROMPT)
         set_key_for_litellm(provider)
         try:
-            response = litellm.completion(
-                model=model_name,
-                messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}],
-                stream=True
-            )
-            for chunk in response:
-                content = chunk.choices[0].delta.content
-                if content:
-                    yield content
+            with timed_request(provider, model_name):
+                response = litellm.completion(
+                    model=model_name,
+                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": f"{context}\n\nTask: {prompt}"}],
+                    stream=True
+                )
+                for chunk in response:
+                    content = chunk.choices[0].delta.content
+                    if content:
+                        yield content
         except Exception as e:
             yield f"⚠️ AI Error: {_short_err(e)}"
 

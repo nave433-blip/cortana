@@ -46,5 +46,17 @@ echoed — the status table only shows set/not-set. Keys left in the old config-
 store are migrated into the keyring on first successful connect and removed from
 the config file.
 
+## 🛠 Dev mode
+
+For the developer's own machine only — diagnostics and visibility, no behavior changes:
+
+```bash
+export JARVIS_DEV_MODE=1   # or set "dev_mode": true in ~/.jarvis/config.json
+```
+
+When enabled: DEBUG logging, per-request timing with the serving provider/model in the logs, and a `🛠 DEV MODE` banner at REPL startup so it's visually obvious this isn't the public build.
+
+Optional personal instructions: create `~/.jarvis/dev_instructions.md` with your own notes — they're appended to the system prompt in dev mode. The file lives **outside the repo** (in your home directory) and is never committed; dev mode works fine without it.
+
 ## 👨‍💻 Created By
 **Nave433 (Evan Shipley)**
