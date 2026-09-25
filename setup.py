@@ -13,7 +13,7 @@ setup(
         "google-api-python-client>=2.196.0", "google-auth-oauthlib>=1.4.0",
         "markdown>=3.10.2", "keyring>=25.7.0", "Pillow>=12.2.0", "paramiko>=5.0.0",
         "psutil>=7.2.2", "ddgs>=9.14.4", "litellm>=1.85.1",
-        "typing-extensions>=4.15.0", "packaging>=24.0", "botocore>=1.43.12",
+        "typing-extensions>=4.15.0", "packaging>=24.0", "urllib3>=2.8.0", "botocore>=1.43.12",
         "boto3>=1.43.12",
     ],
     entry_points={
