@@ -79,6 +79,14 @@ fi
 command -v git >/dev/null 2>&1 || die "git is required but not found. Install git and re-run."
 
 mkdir -p "$JARVIS_DIR"
+
+# Dependencies (scipy, faiss, torch-adjacent wheels) need real disk room —
+# fail early with a clear message instead of dying mid-pip.
+MIN_KB=1572864  # 1.5 GiB
+HAVE_KB="$(df -k "$JARVIS_DIR" 2>/dev/null | awk 'NR==2 {print $4}')"
+if [[ -n "$HAVE_KB" ]] && [[ "$HAVE_KB" -lt "$MIN_KB" ]]; then
+    die "Only $(( HAVE_KB / 1024 )) MiB free where ${JARVIS_DIR} lives — JARVIS needs ~1.5 GiB. Free space or set JARVIS_DIR elsewhere."
+fi
 if [[ "$(pwd -P)" == "$(cd "$JARVIS_DIR" && pwd -P)" ]]; then
     info "📂 Already inside ${JARVIS_DIR} — refreshing in place."
     if [[ -d "$JARVIS_DIR/.git" ]]; then
