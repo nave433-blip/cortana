@@ -433,6 +433,16 @@ def interactive():
                 else:
                     display_chat_message("User", res.get("args", text))
                     debug_loop(res.get("args", text))
+            except EOFError:
+                # Input stream closed in the middle of a command (piped stdin
+                # exhausted, terminal closed): exit the REPL the same clean way
+                # as EOF at the prompt instead of reporting a "System Error".
+                break
+            except KeyboardInterrupt:
+                # Ctrl+C during a command cancels back to the prompt; the
+                # double-press-to-exit logic at the prompt is unchanged.
+                console.print("\n[yellow]Cancelled.[/yellow]")
+                continue
             except Exception as e:
                 entry = ErrorLogger.log_error(e, context=f"Command: {text}")
                 console.print(f"[bold red]❌ System Error:[/bold red] {e}")

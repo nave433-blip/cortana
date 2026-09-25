@@ -24,6 +24,21 @@ from rich.markdown import Markdown
 import litellm
 from core.config import load_config, save_config, get_env_with_config
 
+# Keep LiteLLM quiet: never append full tracebacks to exception messages
+# (a failed provider call should show one clean error line, not an internal
+# stack dump), and disable verbose request logging.
+litellm.suppress_debug_info = True
+litellm.set_verbose = False
+
+
+def _short_err(e: Exception) -> str:
+    """One-line error text for user display.
+
+    LiteLLM unconditionally appends tracebacks to some exception messages
+    (e.g. APIConnectionError); the user only ever needs the first line.
+    """
+    return str(e).splitlines()[0] if str(e).strip() else repr(e)
+
 console = Console()
 logger = logging.getLogger("jarvis_brain")
 
@@ -137,7 +152,7 @@ class ModelManager:
         # Handle Ollama Cloud routing
         if model_name.endswith("-cloud"):
             cloud_host = cfg.get("ollama_cloud_host") or "https://ollama.com/api"
-            token = cfg.get("ollama_token") or os.getenv("OLLAMA_TOKEN")
+            token = cfg.get("ollama_token") or os.environ.get("OLLAMA_API_KEY")
             
             if token:
                 os.environ["OLLAMA_API_BASE"] = cloud_host
@@ -154,7 +169,7 @@ class ModelManager:
                     )
                     return res.choices[0].message.content
                 except Exception as e:
-                    return f"⚠️ Ollama Cloud Error: {e}"
+                    return f"⚠️ Ollama Cloud Error: {_short_err(e)}"
             else:
                 return "❌ Ollama Cloud model requested but no 'ollama_token' found in config or environment."
             
@@ -167,7 +182,7 @@ class ModelManager:
             )
             return res.choices[0].message.content
         except Exception as e:
-            return f"⚠️ AI Error: {e}"
+            return f"⚠️ AI Error: {_short_err(e)}"
 
     def stream_chat(self, prompt, context=""):
         from core.services import set_key_for_litellm
@@ -185,7 +200,7 @@ class ModelManager:
                 if content:
                     yield content
         except Exception as e:
-            yield f"⚠️ AI Error: {e}"
+            yield f"⚠️ AI Error: {_short_err(e)}"
 
 class LLMProvider:
     def __init__(self, model): self.model = model
