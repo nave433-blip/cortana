@@ -311,32 +311,53 @@ def _quiet_insecure_warnings():
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-def run_p2p_server(port=11435, use_tls=None, certfile=None, keyfile=None):
+def _make_p2p_server(port=0, use_tls=False, certfile=None, keyfile=None, bind="127.0.0.1"):
+    """Create (but do not start) a configured P2P HTTP(S) server.
+
+    port=0 lets the OS pick a free port (read it back from
+    server.server_address[1]). Used by run_p2p_server() and by tests that
+    need deterministic startup/shutdown without the UDP discovery listener.
+    """
+    from core.config import load_config
+    cfg = load_config()
+    httpd = ThreadedHTTPServer((bind, port), JarvisP2PHandler)
+    if use_tls:
+        certfile = certfile or cfg.get("p2p_tls_certfile")
+        keyfile = keyfile or cfg.get("p2p_tls_keyfile") or certfile
+        if not certfile:
+            raise ValueError(
+                "P2P TLS is enabled but no certificate is configured. "
+                "Set 'p2p_tls_certfile' (and 'p2p_tls_keyfile') in "
+                "~/.jarvis/config.json or pass certfile=/keyfile= explicitly."
+            )
+        httpd.socket = _build_ssl_context(certfile, keyfile).wrap_socket(
+            httpd.socket, server_side=True
+        )
+    return httpd
+
+
+def run_p2p_server(port=11435, use_tls=None, certfile=None, keyfile=None,
+                   discovery_port=11436):
     """Start the P2P HTTP(S) server.
 
     TLS is opt-in: pass use_tls=True, or set "p2p_use_tls": true in the config
     together with "p2p_tls_certfile"/"p2p_tls_keyfile". With no flag and no
     config, the server stays plaintext HTTP exactly as before.
+
+    discovery_port selects the UDP discovery port (default 11436); pass None
+    to skip the discovery listener (useful when several peers share a host,
+    e.g. in tests).
     """
     from core.config import load_config
     cfg = load_config()
     use_tls = _tls_enabled(use_tls, cfg)
-    threading.Thread(target=run_udp_discovery_listener, args=(port,), daemon=True).start()
-    with ThreadedHTTPServer(("", port), JarvisP2PHandler) as httpd:
-        scheme = "http"
-        if use_tls:
-            certfile = certfile or cfg.get("p2p_tls_certfile")
-            keyfile = keyfile or cfg.get("p2p_tls_keyfile") or certfile
-            if not certfile:
-                raise ValueError(
-                    "P2P TLS is enabled but no certificate is configured. "
-                    "Set 'p2p_tls_certfile' (and 'p2p_tls_keyfile') in "
-                    "~/.jarvis/config.json or pass certfile=/keyfile= explicitly."
-                )
-            httpd.socket = _build_ssl_context(certfile, keyfile).wrap_socket(
-                httpd.socket, server_side=True
-            )
-            scheme = "https"
+    if discovery_port is not None:
+        threading.Thread(target=run_udp_discovery_listener,
+                         args=(port,), kwargs={"discovery_port": discovery_port},
+                         daemon=True).start()
+    scheme = "https" if use_tls else "http"
+    with _make_p2p_server(port, use_tls=use_tls, certfile=certfile,
+                          keyfile=keyfile, bind="") as httpd:
         console.print(f"[green]🚀 JARVIS P2P Server listening on port {port} ({scheme})...[/green]")
         httpd.serve_forever()
 
@@ -353,25 +374,67 @@ def run_udp_discovery_listener(http_port, discovery_port=11436):
     except Exception as e: console.print(f"[dim]UDP Discovery Error: {e}[/dim]")
     finally: sock.close()
 
-def scan_for_jarvis_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False):
+def discover_peer_endpoints(discovery_port=11436, timeout=1.5, target='<broadcast>'):
+    """UDP discovery returning [(ip, http_port, name)].
+
+    Parses the advertised HTTP port from each JARVIS_DISCOVERY_RESPONSE
+    (format: b"JARVIS_DISCOVERY_RESPONSE|<name>|<http_port>"). Responses that
+    do not parse fall back to the default P2P port 11435. `target` is the
+    address the request is sent to (broadcast by default; 127.0.0.1 lets
+    tests exercise discovery deterministically on loopback).
+    """
+    found = []
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.settimeout(timeout)
+    try:
+        sock.sendto(b"JARVIS_DISCOVERY_REQUEST", (target, discovery_port))
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                data, addr = sock.recvfrom(1024)
+            except socket.timeout:
+                break
+            if not data.startswith(b"JARVIS_DISCOVERY_RESPONSE"):
+                continue
+            parts = data.decode(errors="replace").split("|")
+            name = parts[1] if len(parts) > 1 else "unknown"
+            try:
+                http_port = int(parts[2]) if len(parts) > 2 else 11435
+            except ValueError:
+                http_port = 11435
+            found.append((addr[0], http_port, name))
+    except Exception:
+        pass
+    finally:
+        sock.close()
+    return found
+
+
+def scan_for_jarvis_peer_endpoints(port=11435, timeout=1.5, use_tls=None,
+                                   verify_tls=False, discovery_port=11436):
+    """Discover peers as (ip, http_port) pairs.
+
+    UDP-discovered peers are probed at their *advertised* port (previously the
+    advertised port was discarded, so peers on non-default ports could never
+    be reached through discovery). The subnet fallback probes `port`.
+    """
     from core.config import load_config
     cfg = load_config()
     scheme = _p2p_scheme(use_tls, cfg)
     if scheme == "https" and not verify_tls:
         _quiet_insecure_warnings()
-    found_peers = set()
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1); sock.settimeout(timeout)
-    try:
-        sock.sendto(b"JARVIS_DISCOVERY_REQUEST", ('<broadcast>', 11436))
-        start = time.time()
-        while time.time() - start < timeout:
-            try:
-                data, addr = sock.recvfrom(1024)
-                if data.startswith(b"JARVIS_DISCOVERY_RESPONSE"): found_peers.add(addr[0])
-            except socket.timeout: break
-    except Exception: pass
-    finally: sock.close()
+    found = set()
+
+    for ip, adv_port, _name in discover_peer_endpoints(discovery_port, timeout):
+        try:
+            r = requests.post(f"{scheme}://{ip}:{adv_port}",
+                              json={"action": "status"},
+                              timeout=0.3, verify=verify_tls)
+            if r.status_code == 200:
+                found.add((ip, adv_port))
+        except Exception:
+            pass
 
     # Subnet Fallback
     from tools.network import get_local_ip
@@ -381,22 +444,29 @@ def scan_for_jarvis_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=Fals
         try:
             r = requests.post(f"{scheme}://{ip}:{port}", json={"action": "status"},
                               timeout=0.3, verify=verify_tls)
-            if r.status_code == 200: return ip
+            if r.status_code == 200: return (ip, port)
         except Exception: pass
         return None
     with ThreadPoolExecutor(max_workers=50) as executor:
         for res in executor.map(check_peer, [prefix + str(i) for i in range(1, 255)]):
-            if res: found_peers.add(res)
+            if res: found.add(res)
 
     # Global Registry Fallback
     try:
         from core.global_p2p import get_global_peers
         for peer in get_global_peers():
             ep = peer.get("endpoint")
-            if ep: found_peers.add(ep)
+            if ep: found.add((ep, port))
     except Exception: pass
 
-    return list(found_peers)
+    return sorted(found)
+
+
+def scan_for_jarvis_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
+                          discovery_port=11436):
+    """Backwards-compatible wrapper returning just the peer IPs."""
+    return sorted({ip for ip, _port in scan_for_jarvis_peer_endpoints(
+        port, timeout, use_tls, verify_tls, discovery_port)})
 
 def send_remote_command(peer_ip, action, params, port=11435, use_tls=None, verify_tls=False):
     """POST a command to a peer.
@@ -421,7 +491,7 @@ def send_remote_command(peer_ip, action, params, port=11435, use_tls=None, verif
         return {"ok": False, "error": f"Error {r.status_code}: {r.text}"}
     except Exception as e: return {"ok": False, "error": str(e)}
 
-def p2p_status_report(use_tls=None, verify_tls=False):
+def p2p_status_report(port=11435, use_tls=None, verify_tls=False):
     from rich.table import Table
     from rich.live import Live
     from core.config import load_config
@@ -433,11 +503,12 @@ def p2p_status_report(use_tls=None, verify_tls=False):
     table.add_column("Peer IP"); table.add_column("Name"); table.add_column("Version"); table.add_column("Compatibility"); table.add_column("Model"); table.add_column("Latency")
     console.print("[bold cyan]📡 Discovering JARVIS instances...[/bold cyan]")
     with Live(table, refresh_per_second=4):
-        peers = scan_for_jarvis_peers(use_tls=use_tls, verify_tls=verify_tls)
-        for ip in peers:
+        peers = scan_for_jarvis_peer_endpoints(port=port, use_tls=use_tls,
+                                               verify_tls=verify_tls)
+        for ip, peer_port in peers:
             start = time.time()
             try:
-                r = requests.post(f"{scheme}://{ip}:11435", json={"action": "status"}, timeout=0.8, verify=verify_tls)
+                r = requests.post(f"{scheme}://{ip}:{peer_port}", json={"action": "status"}, timeout=0.8, verify=verify_tls)
                 if r.status_code == 200:
                     data = r.json()
                     lat = f"{(time.time() - start)*1000:.1f}ms"
@@ -470,10 +541,12 @@ def p2p_token_menu():
             set_api_key(t_choice, res["data"])
             console.print("[green]✅ Token received![/green]")
 
-def start_server_background(port=11435, use_tls=None, certfile=None, keyfile=None):
+def start_server_background(port=11435, use_tls=None, certfile=None, keyfile=None,
+                            discovery_port=11436):
     t = threading.Thread(target=run_p2p_server,
                          kwargs={"port": port, "use_tls": use_tls,
-                                 "certfile": certfile, "keyfile": keyfile},
+                                 "certfile": certfile, "keyfile": keyfile,
+                                 "discovery_port": discovery_port},
                          daemon=True)
     t.start()
     return t
