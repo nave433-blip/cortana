@@ -96,20 +96,38 @@ def self_repair_hook(exctype, value, tb):
             console.print(f"[red]Failed to report issue: {res}[/red]")
 
 def auto_check_on_launch():
-    """Automatically run health checks at startup."""
-    from core.health import check_system_health, display_health_report, auto_repair_workspace
+    """Run health checks at startup. Repairs NEVER run without explicit approval:
+    the exact commands are listed and the user confirms once before anything
+    executes. (Previously, self_repair=true ran `pip install` repairs silently.)
+    """
+    from core.health import check_system_health, display_health_report, auto_repair_workspace, REPOS
     config = load_config()
-    
+
     with console.status("[bold cyan]System Diagnostics...[/bold cyan]"):
         health_results = check_system_health()
-    
+
     errors_found = display_health_report(health_results)
-    if errors_found:
-        if config.get("self_repair", False):
-            console.print("[bold yellow]Auto-repairing workspace issues...[/bold yellow]")
-            auto_repair_workspace(health_results)
-        elif Confirm.ask("[bold yellow]Issues detected in workspace. Attempt auto-repair?[/bold yellow]"):
-            auto_repair_workspace(health_results)
+    if not errors_found:
+        return
+    if not config.get("self_repair", False):
+        console.print("[dim]Self-repair is disabled. Fix the issues above manually.[/dim]")
+        return
+
+    planned = [
+        (res["name"], REPOS[res["name"]].get("repair"))
+        for res in health_results
+        if res["status"] == "ERROR" and REPOS.get(res["name"], {}).get("repair")
+    ]
+    if not planned:
+        console.print("[dim]No automatic repairs available for these issues.[/dim]")
+        return
+    console.print("[bold yellow]Proposed repairs:[/bold yellow]")
+    for name, cmd in planned:
+        console.print(f"  • {name}: [dim]{cmd}[/dim]")
+    if Confirm.ask("Run these repair commands now?"):
+        auto_repair_workspace(health_results)
+    else:
+        console.print("[dim]Skipping repairs.[/dim]")
 
 def init_repair_engine():
     sys.excepthook = self_repair_hook
