@@ -1,39 +1,65 @@
+import os
+import tempfile
+
 import sounddevice as sd
 import scipy.io.wavfile as wav
 import speech_recognition as sr
 from core.agent import debug_loop
-import os
 
 # NOTE: transcription uses Google's web speech API (recognize_google) and
 # therefore requires an internet connection. It is not offline/local speech
 # recognition.
 
-def record():
-    fs = 44100
-    duration = 5 # seconds
+RECORD_SECONDS = 5
+SAMPLE_RATE = 44100
+
+
+def record_to_wav(path, duration=RECORD_SECONDS):
+    """Record from the default microphone and write a WAV file to `path`.
+
+    Raises RuntimeError with a human-readable message if no usable audio
+    device is available.
+    """
     print(f"Recording for {duration} seconds...")
-    audio = sd.rec(int(duration * fs), samplerate=fs, channels=1)
-    sd.wait()
-    wav.write("cmd.wav", fs, audio)
+    try:
+        audio = sd.rec(int(duration * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=1)
+        sd.wait()
+    except Exception as e:
+        raise RuntimeError(f"no usable audio input device ({e})")
+    wav.write(path, SAMPLE_RATE, audio)
     print("Recording finished.")
 
-def run_voice():
-    record()
+
+def transcribe_wav(path):
+    """Transcribe a WAV file via the speech-recognition backend."""
     recognizer = sr.Recognizer()
+    with sr.AudioFile(path) as source:
+        audio_data = recognizer.record(source)
+    print("Transcribing...")
+    return recognizer.recognize_google(audio_data)
+
+
+def run_voice():
+    fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="jarvis-voice-")
+    os.close(fd)
     try:
-        with sr.AudioFile("cmd.wav") as source:
-            audio_data = recognizer.record(source)
-            print("Transcribing...")
-            cmd = recognizer.recognize_google(audio_data)
-            print(f"JARVIS heard: {cmd}")
-            
-            # Use the debug_loop to allow tool execution
-            debug_loop(cmd)
-            
-    except sr.UnknownValueError:
-        print("JARVIS could not understand the audio.")
-    except sr.RequestError as e:
-        print(f"JARVIS voice error: {e} (speech recognition needs an internet connection)")
+        try:
+            record_to_wav(wav_path)
+        except RuntimeError as e:
+            print(f"JARVIS voice error: {e}")
+            return
+        try:
+            cmd = transcribe_wav(wav_path)
+        except sr.UnknownValueError:
+            print("JARVIS could not understand the audio.")
+            return
+        except sr.RequestError as e:
+            print(f"JARVIS voice error: {e} (speech recognition needs an internet connection)")
+            return
+        print(f"JARVIS heard: {cmd}")
+
+        # Use the debug_loop to allow tool execution
+        debug_loop(cmd)
     finally:
-        if os.path.exists("cmd.wav"):
-            os.remove("cmd.wav")
+        if os.path.exists(wav_path):
+            os.remove(wav_path)

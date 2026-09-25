@@ -5,10 +5,10 @@ run:
 	jarvis chat "Hello"
 
 fix:
-	./venv/bin/jarvis fix "bug in project"
+	jarvis fix "bug in project"
 
 voice:
-	./venv/bin/jarvis voice
+	jarvis voice
 
 watch:
-	./venv/bin/jarvis watch
+	jarvis watch

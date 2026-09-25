@@ -50,7 +50,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/jarvis-dev"
+Homepage = "https://github.com/nave433-blip/jarvis-dev"
 
 [project.scripts]
 jarvis = "cli:app"
