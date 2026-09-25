@@ -15,3 +15,7 @@ dev_instructions.md
 # release build artifacts (see PACKAGING.md)
 dist/
 build/
+
+# Proprietary voice drop-ins (licensed models — never committed)
+/core/voice/proprietary/*
+!/core/voice/proprietary/README.md

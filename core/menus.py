@@ -151,26 +151,25 @@ def memory_menu():
 
 def personality_menu():
     """Behavioral profile configuration for AI interaction style."""
+    from core.personalities import list_personalities, resolve_personality
     config = load_config()
-    current = config.get("personality", "professional")
-    
-    info = """
-    [bold white]Persona Selection Suite[/bold white]
-    
-    [1] [bold cyan]Professional:[/bold cyan] Precise, formal senior engineer. Prioritizes technical standards.
-    [2] [bold cyan]Sarcastic:[/bold cyan] Grok-style edgy wit. Technical fixes served with a side of attitude.
-    [3] [bold cyan]Concise:[/bold cyan] Minimalist. Provides the shortest possible correct technical answer.
-    [4] [bold cyan]Mentor:[/bold cyan] Patient teacher. Explains the 'why' and encourages best practices.
-    [5] [bold cyan]Nave-AI:[/bold cyan] Sovereign Integrator. High-precision multi-model refinement engine.
-    """
+    current = resolve_personality(config.get("personality")).name
+
+    lines = ["", "    [bold white]Persona Selection Suite[/bold white]", ""]
+    for i, p in enumerate(list_personalities(), start=1):
+        lines.append(f"    [{i}] [bold cyan]{p.title}:[/bold cyan] {p.description}")
+    lines.append("")
+    info = "\n".join(lines)
     console.print(Panel(info, title=f"Current: {current.upper()}", border_style="cyan"))
-    choice = Prompt.ask("Select personality", choices=["1", "2", "3", "4", "5", "b"], default="b")
-    
-    mapping = {"1": "professional", "2": "sarcastic", "3": "concise", "4": "mentor", "5": "nave_ai"}
+    choices = [str(i) for i in range(1, len(list_personalities()) + 1)] + ["b"]
+    choice = Prompt.ask("Select personality", choices=choices, default="b")
+
+    mapping = {str(i): p.name for i, p in enumerate(list_personalities(), start=1)}
     if choice in mapping:
         config["personality"] = mapping[choice]
         save_config(config)
-        console.print(f"[green]✅ Identity updated. Your assistant is now operating in {mapping[choice].capitalize()} mode.[/green]")
+        p = resolve_personality(mapping[choice])
+        console.print(f"[green]✅ Identity updated. {p.greeting}[/green]")
 
 def models_menu():
     """Intelligent orchestration and manual selection of LLM providers."""

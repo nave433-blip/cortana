@@ -66,3 +66,6 @@ py-modules = ["cli"]
 where = ["."]
 include = ["core", "tools", "watcher", "voice", "memory"]
 
+[tool.setuptools.package-data]
+core = ["voice/profiles/*.json", "voice/proprietary/README.md"]
+
