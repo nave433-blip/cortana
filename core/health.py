@@ -9,7 +9,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 console = Console()
 
 REPOS = {
-    "jarvis-dev": {"path": "~/.cortana-app", "check": f"{sys.executable} -m cli --help", "repair": f"{sys.executable} -m pip install -e ."},
+    "cortana": {"path": "~/.cortana-app", "check": f"{sys.executable} -m cli --help", "repair": f"{sys.executable} -m pip install -e ."},
     "navescript": {"path": "~/navescript", "check": "cargo --version", "repair": "cargo build --release"},
     "wikiproxy": {"path": "~/wikiproxy", "check": f"{sys.executable} -m wikiproxy --help", "repair": f"{sys.executable} -m pip install -e ."},
 }

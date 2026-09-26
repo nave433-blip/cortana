@@ -51,7 +51,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/nave433-blip/jarvis-dev"
+Homepage = "https://github.com/nave433-blip/cortana"
 
 [project.scripts]
 cortana = "cli:app"
